@@ -21,11 +21,13 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 	repo := &usageLogRepository{sql: db}
 
 	createdAt := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	sessionID := "live-session-1"
 	log := &service.UsageLog{
 		UserID:         1,
 		APIKeyID:       2,
 		AccountID:      3,
 		RequestID:      "req-1",
+		SessionID:      sessionID,
 		Model:          "gpt-5",
 		RequestedModel: "gpt-5",
 		InputTokens:    10,
@@ -45,6 +47,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.APIKeyID,
 			log.AccountID,
 			log.RequestID,
+			sql.NullString{Valid: true, String: sessionID},
 			log.Model,
 			log.RequestedModel,
 			sqlmock.AnyArg(), // upstream_model
@@ -99,6 +102,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // charge_source
 			log.ImageCount,
 			sqlmock.AnyArg(), // image_size
+			sqlmock.AnyArg(), // image_quality
 			sqlmock.AnyArg(), // image_output_tokens
 			sqlmock.AnyArg(), // image_output_cost
 			sqlmock.AnyArg(), // service_tier
@@ -156,6 +160,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.APIKeyID,
 			log.AccountID,
 			log.RequestID,
+			sqlmock.AnyArg(),
 			log.Model,
 			log.RequestedModel,
 			sqlmock.AnyArg(),
@@ -209,6 +214,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.ImageCount,
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -262,6 +268,7 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			log.APIKeyID,
 			log.AccountID,
 			log.RequestID,
+			sqlmock.AnyArg(),
 			log.Model,
 			log.RequestedModel,
 			sqlmock.AnyArg(),
@@ -315,6 +322,7 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.ImageCount,
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -372,6 +380,7 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 			log.APIKeyID,
 			log.AccountID,
 			log.RequestID,
+			sqlmock.AnyArg(),
 			log.Model,
 			log.RequestedModel,
 			sqlmock.AnyArg(),
@@ -434,6 +443,7 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			200000,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -481,7 +491,7 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 		CreatedAt:           createdAt,
 	}
 
-	args := make([]driver.Value, 78)
+	args := usageLogInsertDefaultArgs()
 	for i := range args {
 		args[i] = sqlmock.AnyArg()
 	}
@@ -489,14 +499,14 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 	args[1] = log.APIKeyID
 	args[2] = log.AccountID
 	args[3] = log.RequestID
-	args[4] = log.Model
-	args[5] = log.RequestedModel
-	args[36] = true
-	args[37] = sql.NullFloat64{Valid: true, Float64: 20}
-	args[38] = sql.NullString{Valid: true, String: "promo-window"}
-	args[39] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
-	args[40] = sql.NullTime{Valid: true, Time: completedAt}
-	args[77] = createdAt
+	args[5] = log.Model
+	args[6] = log.RequestedModel
+	args[37] = true
+	args[38] = sql.NullFloat64{Valid: true, Float64: 20}
+	args[39] = sql.NullString{Valid: true, String: "promo-window"}
+	args[40] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
+	args[41] = sql.NullTime{Valid: true, Time: completedAt}
+	args[79] = createdAt
 	mock.ExpectQuery("INSERT INTO usage_logs").
 		WithArgs(args...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(103), createdAt))
@@ -505,6 +515,54 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 	require.NoError(t, err)
 	require.True(t, inserted)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryCreate_PersistsImageQuality(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	createdAt := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	imageSize := "2K"
+	imageQuality := "high"
+	log := &service.UsageLog{
+		UserID:       1,
+		APIKeyID:     2,
+		AccountID:    3,
+		RequestID:    "req-image-quality",
+		Model:        "gpt-image-2",
+		ImageCount:   1,
+		ImageSize:    &imageSize,
+		ImageQuality: &imageQuality,
+		CreatedAt:    createdAt,
+	}
+
+	args := usageLogInsertDefaultArgs()
+	for i := range args {
+		args[i] = sqlmock.AnyArg()
+	}
+	args[0] = log.UserID
+	args[1] = log.APIKeyID
+	args[2] = log.AccountID
+	args[3] = log.RequestID
+	args[5] = log.Model
+	args[6] = log.Model
+	args[57] = log.ImageCount
+	args[58] = sql.NullString{Valid: true, String: imageSize}
+	args[59] = sql.NullString{Valid: true, String: imageQuality}
+	args[79] = createdAt
+
+	mock.ExpectQuery("INSERT INTO usage_logs").
+		WithArgs(args...).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(104), createdAt))
+
+	inserted, err := repo.Create(context.Background(), log)
+	require.NoError(t, err)
+	require.True(t, inserted)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func usageLogInsertDefaultArgs() []driver.Value {
+	return make([]driver.Value, 80)
 }
 
 func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
@@ -1034,6 +1092,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(20), // api_key_id
 			int64(30), // account_id
 			sql.NullString{Valid: true, String: "req-1"},
+			sql.NullString{Valid: true, String: "sess-1"},
 			"gpt-5", // model
 			sql.NullString{Valid: true, String: "gpt-5"}, // requested_model
 			sql.NullString{}, // upstream_model
@@ -1088,6 +1147,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			0,
 			sql.NullString{},
+			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "priority"},
@@ -1125,6 +1185,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.Equal(t, service.PublicModelCatalogDiscountWindowDaily, *log.DiscountWindowType)
 		require.NotNil(t, log.DiscountCompletedAt)
 		require.Equal(t, now, *log.DiscountCompletedAt)
+		require.Equal(t, "sess-1", log.SessionID)
 		require.Equal(t, service.RequestTypeWSV2, log.RequestType)
 		require.True(t, log.Stream)
 		require.True(t, log.OpenAIWSMode)
@@ -1138,6 +1199,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(21),
 			int64(31),
 			sql.NullString{Valid: true, String: "req-2"},
+			sql.NullString{},
 			"gpt-5",
 			sql.NullString{Valid: true, String: "gpt-5"},
 			sql.NullString{},
@@ -1180,6 +1242,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			0,
 			sql.NullString{},
+			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "flex"},
@@ -1217,6 +1280,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(22),
 			int64(32),
 			sql.NullString{Valid: true, String: "req-3"},
+			sql.NullString{},
 			"gpt-5.4",
 			sql.NullString{Valid: true, String: "gpt-5.4"},
 			sql.NullString{},
@@ -1258,6 +1322,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			0,
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullFloat64{},

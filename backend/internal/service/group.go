@@ -61,8 +61,11 @@ type Group struct {
 	SortOrder int
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch bool
-	DefaultMappedModel    string
+	AllowMessagesDispatch   bool
+	DefaultMappedModel      string
+	AllowLive               bool
+	MaxReasoningEffort      string
+	ReasoningEffortMappings []ReasoningEffortMapping
 
 	// VisibleModelPatterns narrows the public /v1/models projection for this group.
 	// Empty means no additional group-level visibility filter.
@@ -84,6 +87,44 @@ type Group struct {
 	ActiveAccountCount      int64
 	RateLimitedAccountCount int64
 	AvailableAccountCount   int64
+	CompositeRoutes         []CompositeModelRoute
+}
+
+type ReasoningEffortMapping struct {
+	Model           string `json:"model,omitempty"`
+	From            string `json:"from,omitempty"`
+	To              string `json:"to,omitempty"`
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+}
+
+type CompositeModelRoute struct {
+	ID             int64
+	ParentGroupID  int64
+	DisplayModelID string
+	TargetGroupID  int64
+	TargetModelID  string
+	Priority       int
+	Enabled        bool
+	Notes          string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+
+	ParentGroup *Group
+	TargetGroup *Group
+}
+
+type CompositeRoutePreviewInput struct {
+	GroupID int64  `json:"group_id"`
+	Model   string `json:"model"`
+}
+
+type CompositeRoutePreviewResult struct {
+	Matched        bool                 `json:"matched"`
+	DisplayModelID string               `json:"display_model_id"`
+	TargetModelID  string               `json:"target_model_id"`
+	TargetGroupID  int64                `json:"target_group_id,omitempty"`
+	TargetGroup    *Group               `json:"target_group,omitempty"`
+	Route          *CompositeModelRoute `json:"route,omitempty"`
 }
 
 func (g *Group) IsActive() bool {

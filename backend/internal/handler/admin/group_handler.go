@@ -177,17 +177,21 @@ type CreateGroupRequest struct {
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes []string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch bool   `json:"allow_messages_dispatch"`
-	DefaultMappedModel    string `json:"default_mapped_model"`
+	AllowMessagesDispatch   bool                             `json:"allow_messages_dispatch"`
+	DefaultMappedModel      string                           `json:"default_mapped_model"`
+	AllowLive               bool                             `json:"allow_live"`
+	MaxReasoningEffort      string                           `json:"max_reasoning_effort"`
+	ReasoningEffortMappings []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 	// 可见模型收敛配置：只缩小 /v1/models 和可调用公共模型集合，空数组表示不额外限制。
 	VisibleModelPatterns []string `json:"visible_model_patterns"`
 	// 批量生图配置，默认关闭。
-	ImageBatchEnabled             bool     `json:"image_batch_enabled"`
-	ImageBatchAllowedProviders    []string `json:"image_batch_allowed_providers"`
-	ImageBatchAllowedModels       []string `json:"image_batch_allowed_models"`
-	ImageBatchMaxItems            int      `json:"image_batch_max_items"`
-	ImageBatchMaxDownloadBytes    int64    `json:"image_batch_max_download_bytes"`
-	ImageBatchDownloadConcurrency int      `json:"image_batch_download_concurrency"`
+	ImageBatchEnabled             bool                  `json:"image_batch_enabled"`
+	ImageBatchAllowedProviders    []string              `json:"image_batch_allowed_providers"`
+	ImageBatchAllowedModels       []string              `json:"image_batch_allowed_models"`
+	ImageBatchMaxItems            int                   `json:"image_batch_max_items"`
+	ImageBatchMaxDownloadBytes    int64                 `json:"image_batch_max_download_bytes"`
+	ImageBatchDownloadConcurrency int                   `json:"image_batch_download_concurrency"`
+	CompositeRoutes               []CompositeRouteInput `json:"composite_routes"`
 	// 从指定分组复制账号（创建后自动绑定）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 }
@@ -195,6 +199,66 @@ type CreateGroupRequest struct {
 type DuplicateGroupRequest struct {
 	Name         string `json:"name"`
 	CopyAccounts *bool  `json:"copy_accounts"`
+}
+
+type ReplaceCompositeRoutesRequest struct {
+	Routes []CompositeRouteInput `json:"routes"`
+}
+
+type optionalCompositeRoutesField struct {
+	set    bool
+	routes []CompositeRouteInput
+}
+
+func (f *optionalCompositeRoutesField) UnmarshalJSON(data []byte) error {
+	f.set = true
+	trimmed := bytes.TrimSpace(data)
+	if bytes.Equal(trimmed, []byte("null")) {
+		f.routes = nil
+		return nil
+	}
+	return json.Unmarshal(trimmed, &f.routes)
+}
+
+func (f optionalCompositeRoutesField) ToServiceInput(parentGroupID int64) *[]service.CompositeModelRoute {
+	if !f.set {
+		return nil
+	}
+	routes := compositeRouteInputsToService(parentGroupID, f.routes)
+	return &routes
+}
+
+type CompositeRouteInput struct {
+	DisplayModelID string `json:"display_model_id"`
+	TargetGroupID  int64  `json:"target_group_id"`
+	TargetModelID  string `json:"target_model_id"`
+	Priority       int    `json:"priority"`
+	Enabled        *bool  `json:"enabled"`
+	Notes          string `json:"notes"`
+}
+
+func compositeRouteInputsToService(parentGroupID int64, inputs []CompositeRouteInput) []service.CompositeModelRoute {
+	routes := make([]service.CompositeModelRoute, 0, len(inputs))
+	for _, item := range inputs {
+		enabled := true
+		if item.Enabled != nil {
+			enabled = *item.Enabled
+		}
+		routes = append(routes, service.CompositeModelRoute{
+			ParentGroupID:  parentGroupID,
+			DisplayModelID: item.DisplayModelID,
+			TargetGroupID:  item.TargetGroupID,
+			TargetModelID:  item.TargetModelID,
+			Priority:       item.Priority,
+			Enabled:        enabled,
+			Notes:          item.Notes,
+		})
+	}
+	return routes
+}
+
+type PreviewCompositeRouteRequest struct {
+	Model string `json:"model"`
 }
 
 // UpdateGroupRequest represents update group request
@@ -231,17 +295,21 @@ type UpdateGroupRequest struct {
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes *[]string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch *bool   `json:"allow_messages_dispatch"`
-	DefaultMappedModel    *string `json:"default_mapped_model"`
+	AllowMessagesDispatch   *bool                             `json:"allow_messages_dispatch"`
+	DefaultMappedModel      *string                           `json:"default_mapped_model"`
+	AllowLive               *bool                             `json:"allow_live"`
+	MaxReasoningEffort      *string                           `json:"max_reasoning_effort"`
+	ReasoningEffortMappings *[]service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 	// 可见模型收敛配置：nil 表示不修改，空数组表示清空限制。
 	VisibleModelPatterns *[]string `json:"visible_model_patterns"`
 	// 批量生图配置；nil 表示不修改，空数组表示清空白名单。
-	ImageBatchEnabled             *bool     `json:"image_batch_enabled"`
-	ImageBatchAllowedProviders    *[]string `json:"image_batch_allowed_providers"`
-	ImageBatchAllowedModels       *[]string `json:"image_batch_allowed_models"`
-	ImageBatchMaxItems            *int      `json:"image_batch_max_items"`
-	ImageBatchMaxDownloadBytes    *int64    `json:"image_batch_max_download_bytes"`
-	ImageBatchDownloadConcurrency *int      `json:"image_batch_download_concurrency"`
+	ImageBatchEnabled             *bool                        `json:"image_batch_enabled"`
+	ImageBatchAllowedProviders    *[]string                    `json:"image_batch_allowed_providers"`
+	ImageBatchAllowedModels       *[]string                    `json:"image_batch_allowed_models"`
+	ImageBatchMaxItems            *int                         `json:"image_batch_max_items"`
+	ImageBatchMaxDownloadBytes    *int64                       `json:"image_batch_max_download_bytes"`
+	ImageBatchDownloadConcurrency *int                         `json:"image_batch_download_concurrency"`
+	CompositeRoutes               optionalCompositeRoutesField `json:"composite_routes"`
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64 `json:"copy_accounts_from_group_ids"`
 }
@@ -362,6 +430,9 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		SupportedModelScopes:            req.SupportedModelScopes,
 		AllowMessagesDispatch:           req.AllowMessagesDispatch,
 		DefaultMappedModel:              req.DefaultMappedModel,
+		AllowLive:                       req.AllowLive,
+		MaxReasoningEffort:              req.MaxReasoningEffort,
+		ReasoningEffortMappings:         req.ReasoningEffortMappings,
 		VisibleModelPatterns:            req.VisibleModelPatterns,
 		ImageBatchEnabled:               req.ImageBatchEnabled,
 		ImageBatchAllowedProviders:      req.ImageBatchAllowedProviders,
@@ -369,6 +440,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ImageBatchMaxItems:              req.ImageBatchMaxItems,
 		ImageBatchMaxDownloadBytes:      req.ImageBatchMaxDownloadBytes,
 		ImageBatchDownloadConcurrency:   req.ImageBatchDownloadConcurrency,
+		CompositeRoutes:                 compositeRouteInputsToService(0, req.CompositeRoutes),
 		CopyAccountsFromGroupIDs:        req.CopyAccountsFromGroupIDs,
 	})
 	if err != nil {
@@ -460,6 +532,9 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		SupportedModelScopes:            req.SupportedModelScopes,
 		AllowMessagesDispatch:           req.AllowMessagesDispatch,
 		DefaultMappedModel:              req.DefaultMappedModel,
+		AllowLive:                       req.AllowLive,
+		MaxReasoningEffort:              req.MaxReasoningEffort,
+		ReasoningEffortMappings:         req.ReasoningEffortMappings,
 		VisibleModelPatterns:            req.VisibleModelPatterns,
 		ImageBatchEnabled:               req.ImageBatchEnabled,
 		ImageBatchAllowedProviders:      req.ImageBatchAllowedProviders,
@@ -467,6 +542,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ImageBatchMaxItems:              req.ImageBatchMaxItems,
 		ImageBatchMaxDownloadBytes:      req.ImageBatchMaxDownloadBytes,
 		ImageBatchDownloadConcurrency:   req.ImageBatchDownloadConcurrency,
+		CompositeRoutes:                 req.CompositeRoutes.ToServiceInput(groupID),
 		CopyAccountsFromGroupIDs:        req.CopyAccountsFromGroupIDs,
 	})
 	if err != nil {
@@ -493,6 +569,79 @@ func (h *GroupHandler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Group deleted successfully"})
+}
+
+// GetCompositeRoutes handles listing composite routes for a group.
+// GET /api/v1/admin/groups/:id/composite-routes
+func (h *GroupHandler) GetCompositeRoutes(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || groupID <= 0 {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+	routes, err := h.adminService.ListCompositeRoutes(c.Request.Context(), groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.CompositeModelRoutesFromService(routes))
+}
+
+// ReplaceCompositeRoutes handles full replacement of composite routes.
+// PUT /api/v1/admin/groups/:id/composite-routes
+func (h *GroupHandler) ReplaceCompositeRoutes(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || groupID <= 0 {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+	var req ReplaceCompositeRoutesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	routes := compositeRouteInputsToService(groupID, req.Routes)
+	updated, err := h.adminService.ReplaceCompositeRoutes(c.Request.Context(), groupID, routes)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.CompositeModelRoutesFromService(updated))
+}
+
+// PreviewCompositeRoute previews composite model routing without dispatching.
+// POST /api/v1/admin/groups/:id/composite-routes/preview
+func (h *GroupHandler) PreviewCompositeRoute(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || groupID <= 0 {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+	var req PreviewCompositeRouteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.adminService.PreviewCompositeRoute(c.Request.Context(), service.CompositeRoutePreviewInput{
+		GroupID: groupID,
+		Model:   req.Model,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if result != nil && result.Route != nil {
+		response.Success(c, gin.H{
+			"matched":          result.Matched,
+			"display_model_id": result.DisplayModelID,
+			"target_model_id":  result.TargetModelID,
+			"target_group_id":  result.TargetGroupID,
+			"target_group":     dto.GroupFromServiceShallow(result.TargetGroup),
+			"route":            dto.CompositeModelRouteFromService(result.Route),
+		})
+		return
+	}
+	response.Success(c, result)
 }
 
 // GetStats handles getting group statistics

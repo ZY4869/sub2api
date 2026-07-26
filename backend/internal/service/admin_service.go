@@ -35,6 +35,9 @@ type AdminService interface {
 	GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error)
 	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
 	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
+	ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error)
+	ReplaceCompositeRoutes(ctx context.Context, groupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error)
+	PreviewCompositeRoute(ctx context.Context, input CompositeRoutePreviewInput) (*CompositeRoutePreviewResult, error)
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64, modelDisplayMode *string) (*AdminUpdateAPIKeyGroupIDResult, error)
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]Account, int64, error)
@@ -150,6 +153,9 @@ type CreateGroupInput struct {
 	SupportedModelScopes            []string
 	AllowMessagesDispatch           bool
 	DefaultMappedModel              string
+	AllowLive                       bool
+	MaxReasoningEffort              string
+	ReasoningEffortMappings         []ReasoningEffortMapping
 	VisibleModelPatterns            []string
 	ImageBatchEnabled               bool
 	ImageBatchAllowedProviders      []string
@@ -157,6 +163,7 @@ type CreateGroupInput struct {
 	ImageBatchMaxItems              int
 	ImageBatchMaxDownloadBytes      int64
 	ImageBatchDownloadConcurrency   int
+	CompositeRoutes                 []CompositeModelRoute
 	CopyAccountsFromGroupIDs        []int64
 }
 type DuplicateGroupInput struct {
@@ -196,6 +203,9 @@ type UpdateGroupInput struct {
 	SupportedModelScopes            *[]string
 	AllowMessagesDispatch           *bool
 	DefaultMappedModel              *string
+	AllowLive                       *bool
+	MaxReasoningEffort              *string
+	ReasoningEffortMappings         *[]ReasoningEffortMapping
 	VisibleModelPatterns            *[]string
 	ImageBatchEnabled               *bool
 	ImageBatchAllowedProviders      *[]string
@@ -203,6 +213,7 @@ type UpdateGroupInput struct {
 	ImageBatchMaxItems              *int
 	ImageBatchMaxDownloadBytes      *int64
 	ImageBatchDownloadConcurrency   *int
+	CompositeRoutes                 *[]CompositeModelRoute
 	CopyAccountsFromGroupIDs        []int64
 }
 type CreateAccountInput struct {

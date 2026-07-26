@@ -137,6 +137,10 @@ func TestResolveContextWindowTokensUsesPricingLookupIDs(t *testing.T) {
 	tokens, ok = ResolveContextWindowTokens("claude-opus-4-1-20250805")
 	require.True(t, ok)
 	require.EqualValues(t, 200000, tokens)
+
+	tokens, ok = ResolveContextWindowTokens("claude-opus-5")
+	require.True(t, ok)
+	require.EqualValues(t, 1000000, tokens)
 }
 
 func TestResolveContextWindowReturnsPricingSource(t *testing.T) {

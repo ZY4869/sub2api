@@ -21,6 +21,22 @@ import (
 	"go.uber.org/zap"
 )
 
+const openAILiveRequestContextKey = "openai_live_request"
+
+// Live handles OpenAI-compatible live websocket ingress with a group-level opt-in.
+func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
+	markOpenAILiveRequest(c)
+	if !isOpenAIWSUpgradeRequest(c.Request) {
+		h.errorResponse(c, http.StatusUpgradeRequired, "invalid_request_error", "WebSocket upgrade required (Upgrade: websocket)")
+		return
+	}
+	if _, ok := middleware2.GetAPIKeyFromContext(c); !ok {
+		h.errorResponse(c, http.StatusUnauthorized, "authentication_error", "Invalid API key")
+		return
+	}
+	h.ResponsesWebSocket(c)
+}
+
 // ResponsesWebSocket handles OpenAI Responses API WebSocket ingress endpoint.
 // GET /openai/v1/responses (Upgrade: websocket)
 func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
@@ -202,6 +218,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
+		if isOpenAILiveRequest(c) && !openAIGroupAllowsLive(currentAPIKey.Group) {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
+			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				continue
+			}
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "Live requests are not enabled for this group")
+			return
+		}
 		runtimeSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
 		if err != nil {
 			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
@@ -214,6 +238,31 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return
 			}
 			closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "failed to resolve channel routing")
+			return
+		}
+		runtime, resolveErr := resolveOpenAICompositeRuntime(
+			c,
+			h.gatewayService,
+			h.billingCacheService,
+			reqLog,
+			currentAPIKey,
+			currentSubscription,
+			firstMessage,
+			reqModel,
+			runtimeSelectionModel,
+		)
+		if resolveErr != nil {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "composite route is not available")
+			return
+		}
+		currentAPIKey = runtime.apiKey
+		currentSubscription = runtime.subscription
+		runtimeSelectionModel = runtime.selectionModel
+		channelState, _ = service.GatewayChannelStateFromContext(c.Request.Context())
+		if isOpenAILiveRequest(c) && !openAIGroupAllowsLive(currentAPIKey.Group) {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "Live requests are not enabled for the target group")
 			return
 		}
 		sessionHash = h.gatewayService.GenerateSessionHashWithFallback(
@@ -295,7 +344,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
 	setOpsSelectedAccountDetails(c, account)
-	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeWSV2)
+	requestType := service.RequestTypeWSV2
+	if isOpenAILiveRequest(c) {
+		requestType = service.RequestTypeLive
+	}
+	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), requestType)
 
 	hooks := &service.OpenAIWSIngressHooks{
 		BeforeTurn: func(turn int) error {
@@ -369,6 +422,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 					UserAgent:          userAgent,
 					IPAddress:          clientIP,
 					RequestPayloadHash: requestPayloadHash,
+					SessionID:          h.gatewayService.ExtractSessionID(c, firstMessage),
+					RequestType:        requestType,
 					APIKeyService:      h.apiKeyService,
 				}); err != nil {
 					reqLog.Error("openai.websocket_record_usage_failed",
@@ -442,6 +497,29 @@ func openAIWSIngressFallbackSessionSeed(userID, apiKeyID int64, groupID *int64) 
 		gid = *groupID
 	}
 	return fmt.Sprintf("openai_ws_ingress:%d:%d:%d", gid, userID, apiKeyID)
+}
+
+func markOpenAILiveRequest(c *gin.Context) {
+	if c == nil {
+		return
+	}
+	c.Set(openAILiveRequestContextKey, true)
+}
+
+func isOpenAILiveRequest(c *gin.Context) bool {
+	if c == nil {
+		return false
+	}
+	value, ok := c.Get(openAILiveRequestContextKey)
+	if !ok {
+		return false
+	}
+	enabled, _ := value.(bool)
+	return enabled
+}
+
+func openAIGroupAllowsLive(group *service.Group) bool {
+	return group != nil && group.AllowLive
 }
 
 func isOpenAIWSUpgradeRequest(r *http.Request) bool {

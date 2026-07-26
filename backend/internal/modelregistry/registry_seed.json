@@ -258,6 +258,36 @@
     ]
   },
   {
+    "id": "claude-opus-5",
+    "display_name": "Claude Opus 5",
+    "provider": "anthropic",
+    "platforms": [
+      "anthropic",
+      "antigravity"
+    ],
+    "protocol_ids": [
+      "claude-opus-5"
+    ],
+    "aliases": [
+      "claude-opus-5.0"
+    ],
+    "pricing_lookup_ids": [
+      "claude-opus-5"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 1,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "claude-opus-4-8",
     "display_name": "Claude Opus 4.8",
     "provider": "anthropic",

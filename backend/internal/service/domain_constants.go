@@ -30,6 +30,7 @@ const (
 	PlatformGrok            = domain.PlatformGrok
 	PlatformDeepSeek        = domain.PlatformDeepSeek
 	PlatformBaiduDocumentAI = domain.PlatformBaiduDocumentAI
+	PlatformComposite       = domain.PlatformComposite
 )
 
 // Account type constants.
@@ -236,6 +237,7 @@ const (
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260417 = "model_registry_available_models_bootstrap_v20260417"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260529 = "model_registry_available_models_bootstrap_v20260529"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260715 = "model_registry_available_models_bootstrap_v20260715"
+	SettingKeyModelRegistryAvailableModelsBootstrapV20260726 = "model_registry_available_models_bootstrap_v20260726"
 
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"
 	SettingKeyIdentityPatchPrompt = "identity_patch_prompt"

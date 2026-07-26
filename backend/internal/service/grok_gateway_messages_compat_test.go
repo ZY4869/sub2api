@@ -69,6 +69,72 @@ func TestSanitizeGrokOpenAICompatibleRequestBodyPreservesReasoning(t *testing.T)
 	require.Equal(t, "pc", gjson.GetBytes(clean, "prompt_cache_key").String())
 }
 
+func TestSanitizeGrokOpenAICompatibleRequestBodyNormalizesXAIToolShapes(t *testing.T) {
+	dirty := []byte(`{
+		"model":"grok-4",
+		"input":[
+			{"type":"custom_tool_call","call_id":"call_1","name":"custom_lookup","input":{"query":"hi"}},
+			{"type":"custom_tool_call_output","call_id":"call_1","output":"ok"},
+			{"type":"reasoning","summary":[],"content":null,"encrypted_content":null}
+		],
+		"tools":[
+			{"type":"tool_search"},
+			{"type":"image_generation"},
+			{"type":"custom","name":"apply_patch"},
+			{"type":"custom","name":"custom_lookup"},
+			{"type":"web_search","external_web_access":true,"search_content_types":["text"]},
+			{"type":"namespace","name":"codex_app","tools":[
+				{"type":"function","name":"automation_update"},
+				{"type":"custom","name":"namespace_custom"}
+			]}
+		],
+		"tool_choice":{"type":"namespace","name":"codex_app"},
+		"parallel_tool_calls":true,
+		"prompt_cache_key":"pc"
+	}`)
+
+	clean := sanitizeGrokOpenAICompatibleRequestBody(dirty)
+
+	tools := gjson.GetBytes(clean, "tools").Array()
+	require.Len(t, tools, 4)
+	require.Equal(t, "function", gjson.GetBytes(clean, "tools.0.type").String())
+	require.Equal(t, "custom_lookup", gjson.GetBytes(clean, "tools.0.name").String())
+	require.True(t, gjson.GetBytes(clean, "tools.0.parameters").Exists())
+	require.Equal(t, "web_search", gjson.GetBytes(clean, "tools.1.type").String())
+	require.False(t, gjson.GetBytes(clean, "tools.1.external_web_access").Exists())
+	require.Equal(t, "automation_update", gjson.GetBytes(clean, "tools.2.name").String())
+	require.Equal(t, "namespace_custom", gjson.GetBytes(clean, "tools.3.name").String())
+	require.False(t, gjson.GetBytes(clean, "tool_choice").Exists())
+	require.True(t, gjson.GetBytes(clean, "parallel_tool_calls").Bool())
+	require.Equal(t, "pc", gjson.GetBytes(clean, "prompt_cache_key").String())
+	require.Equal(t, "function_call", gjson.GetBytes(clean, "input.0.type").String())
+	require.Equal(t, "hi", gjson.Parse(gjson.GetBytes(clean, "input.0.arguments").String()).Get("query").String())
+	require.False(t, gjson.GetBytes(clean, "input.0.input").Exists())
+	require.Equal(t, "function_call_output", gjson.GetBytes(clean, "input.1.type").String())
+	require.False(t, gjson.GetBytes(clean, "input.2.content").Exists())
+	require.False(t, gjson.GetBytes(clean, "input.2.encrypted_content").Exists())
+}
+
+func TestSanitizeGrokOpenAICompatibleRequestBodyDropsOrphanedToolChoice(t *testing.T) {
+	dirty := []byte(`{"model":"grok-4","input":"hello","tools":[],"tool_choice":"auto","parallel_tool_calls":true}`)
+
+	clean := sanitizeGrokOpenAICompatibleRequestBody(dirty)
+
+	require.False(t, gjson.GetBytes(clean, "tools").Exists())
+	require.False(t, gjson.GetBytes(clean, "tool_choice").Exists())
+	require.False(t, gjson.GetBytes(clean, "parallel_tool_calls").Exists())
+}
+
+func TestSanitizeGrokOpenAICompatibleRequestBodyKeepsToolChoiceWhenToolsRemain(t *testing.T) {
+	dirty := []byte(`{"model":"grok-4","input":"hello","tools":[{"type":"function","name":"lookup"}],"tool_choice":"auto","parallel_tool_calls":true}`)
+
+	clean := sanitizeGrokOpenAICompatibleRequestBody(dirty)
+
+	require.True(t, gjson.GetBytes(clean, "tools").Exists())
+	require.Equal(t, "auto", gjson.GetBytes(clean, "tool_choice").String())
+	require.True(t, gjson.GetBytes(clean, "parallel_tool_calls").Bool())
+}
+
 func TestBuildGrokMessagesCompatResponsesBodyPreservesPromptCacheKey(t *testing.T) {
 	body := []byte(`{"model":"grok-4","max_tokens":64,"stream":false,"prompt_cache_key":"pc-msg-1","messages":[{"role":"user","content":"hello"}]}`)
 

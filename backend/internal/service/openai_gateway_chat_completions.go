@@ -76,6 +76,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		mappedModel = normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel))
 	}
 	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
+	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalRequestedModel, normalizedRequestedModel, mappedModel)
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
@@ -132,6 +133,9 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	if entryEffortResolution.Effective != nil {
 		if normalizedBody, normalizeErr := applyOpenAIEffortResolutionToBodyBytes(responsesBody, entryEffortResolution); normalizeErr == nil {
 			responsesBody = normalizedBody
+		}
+		if responsesReq != nil {
+			responsesReq.Reasoning = &apicompat.ResponsesReasoning{Effort: *entryEffortResolution.Effective}
 		}
 	}
 

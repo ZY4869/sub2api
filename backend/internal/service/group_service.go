@@ -36,6 +36,9 @@ type GroupRepository interface {
 	BindAccountsToGroup(ctx context.Context, groupID int64, accountIDs []int64) error
 	// UpdateSortOrders 批量更新分组排序
 	UpdateSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
+	ListCompositeRoutes(ctx context.Context, parentGroupID int64) ([]CompositeModelRoute, error)
+	ReplaceCompositeRoutes(ctx context.Context, parentGroupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error)
+	FindCompositeRoute(ctx context.Context, parentGroupID int64, displayModelID string) (*CompositeModelRoute, error)
 }
 
 type GroupAccountCountWithRateLimitedRepository interface {

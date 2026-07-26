@@ -19,6 +19,7 @@ export default {
         passiveSampled: "This view is based on passive sampling snapshots and may lag behind real-time usage briefly.",
         sampledBadge: "Sampled",
         activeQuery: "This view reflects an active live query.",
+        grokSnapshotStale: "The Grok quota snapshot may be stale. Refresh the real account quota before making routing decisions.",
         refreshResetCredits: "Refresh count",
         refreshingResetCredits: "Refreshing",
         refreshResetCreditsTitle: "Refresh OpenAI reset credits",

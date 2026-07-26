@@ -37,6 +37,9 @@ func (User) Fields() []ent.Field {
 		field.String("email").
 			MaxLen(255).
 			NotEmpty(),
+		field.String("email_alias").
+			MaxLen(255).
+			Default(""),
 		field.String("password_hash").
 			MaxLen(255).
 			NotEmpty(),
@@ -173,6 +176,7 @@ func (User) Edges() []ent.Edge {
 func (User) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("status"),
+		index.Fields("email_alias"),
 		index.Fields("deleted_at"),
 	}
 }

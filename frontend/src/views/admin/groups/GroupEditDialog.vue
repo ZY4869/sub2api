@@ -322,6 +322,29 @@
 
         <GroupImageBatchSettingsFields :form="editForm" :t="t" />
 
+        <GroupOpenAIRuntimePolicyFields
+          :form="editForm"
+          :t="t"
+          :get-mapping-key="getEditReasoningMappingKey"
+          @add-mapping="addEditReasoningMapping"
+          @remove-mapping="removeEditReasoningMapping"
+        />
+
+        <GroupCompositeRoutesFields
+          :form="editForm"
+          :t="t"
+          :target-group-options="compositeTargetGroupOptionsForEdit"
+          :preview-model="editCompositePreviewModel"
+          :preview-loading="editCompositePreviewLoading"
+          :preview-result="editCompositePreviewResult"
+          :is-group-select-option="isGroupSelectOption"
+          :get-route-key="getEditCompositeRouteKey"
+          @add-route="addEditCompositeRoute"
+          @remove-route="removeEditCompositeRoute"
+          @update-preview-model="editCompositePreviewModel = $event"
+          @preview-route="previewEditCompositeRoute"
+        />
+
         <div class="border-t pt-4">
           <label class="input-label">{{ t('admin.groups.visibleModels.title') }}</label>
           <textarea
@@ -781,6 +804,8 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupImageBatchSettingsFields from './GroupImageBatchSettingsFields.vue'
+import GroupOpenAIRuntimePolicyFields from './GroupOpenAIRuntimePolicyFields.vue'
+import GroupCompositeRoutesFields from './GroupCompositeRoutesFields.vue'
 import GroupPeakRateFields from './GroupPeakRateFields.vue'
 import { unref } from 'vue'
 
@@ -803,6 +828,10 @@ const {
   fallbackGroupOptionsForEdit,
   invalidRequestFallbackOptionsForEdit,
   copyAccountsGroupSelectOptionsForEdit,
+  compositeTargetGroupOptionsForEdit,
+  editCompositePreviewModel,
+  editCompositePreviewLoading,
+  editCompositePreviewResult,
   isPlatformSelectOption,
   isGroupSelectOption,
   closeEditModal,
@@ -812,12 +841,19 @@ const {
   toggleEditScope,
   getEditRuleRenderKey,
   getEditRuleSearchKey,
+  getEditReasoningMappingKey,
+  getEditCompositeRouteKey,
   searchAccountsByRule,
   onAccountSearchFocus,
   selectAccount,
   removeSelectedAccount,
   addEditRoutingRule,
-  removeEditRoutingRule
+  removeEditRoutingRule,
+  addEditReasoningMapping,
+  removeEditReasoningMapping,
+  addEditCompositeRoute,
+  removeEditCompositeRoute,
+  previewEditCompositeRoute
 } = props.ctx
 
 const selectOption = (option: unknown) => (option ?? {}) as Record<string, any>

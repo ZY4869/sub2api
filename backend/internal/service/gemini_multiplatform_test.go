@@ -287,6 +287,18 @@ func (m *mockGroupRepoForGemini) UpdateSortOrders(ctx context.Context, updates [
 	return nil
 }
 
+func (m *mockGroupRepoForGemini) ListCompositeRoutes(ctx context.Context, parentGroupID int64) ([]CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (m *mockGroupRepoForGemini) ReplaceCompositeRoutes(ctx context.Context, parentGroupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (m *mockGroupRepoForGemini) FindCompositeRoute(ctx context.Context, parentGroupID int64, displayModelID string) (*CompositeModelRoute, error) {
+	return nil, nil
+}
+
 var _ GroupRepository = (*mockGroupRepoForGemini)(nil)
 
 // mockGatewayCacheForGemini Gemini 测试用的 cache mock

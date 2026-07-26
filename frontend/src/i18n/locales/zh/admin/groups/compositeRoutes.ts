@@ -1,0 +1,20 @@
+export default {
+  title: "聚合路由",
+  hint: "父分组按公开模型 ID 路由到非聚合子分组；目标模型只用于内部转发，不会扩展公开模型列表。",
+  displayModel: "公开模型 ID",
+  displayModelPlaceholder: "例如 gpt-5.4",
+  targetGroup: "目标分组",
+  targetGroupPlaceholder: "选择非聚合分组",
+  targetModel: "目标模型",
+  targetModelPlaceholder: "留空则沿用公开模型 ID",
+  priority: "优先级",
+  enabled: "启用",
+  notes: "备注",
+  addRoute: "添加路由",
+  removeRoute: "删除路由",
+  previewModel: "预览模型",
+  preview: "预览",
+  previewNoMatch: "未匹配到路由",
+  previewMatched: "命中 {group}，转发模型 {model}",
+  emptyRoutes: "暂无路由。添加至少一条路由后，此聚合分组才可转发请求。"
+}

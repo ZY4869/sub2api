@@ -26,6 +26,15 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
 	startTime := time.Now()
+	originalRequestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	runtimeRequestedModel := ResolveGatewaySelectionModelFromContext(ctx, originalRequestedModel)
+	if runtimeRequestedModel != "" && runtimeRequestedModel != originalRequestedModel {
+		patched, patchErr := sjson.SetBytes(body, "model", runtimeRequestedModel)
+		if patchErr != nil {
+			return nil, fmt.Errorf("rewrite deepseek runtime model: %w", patchErr)
+		}
+		body = patched
+	}
 
 	prepared, err := prepareDeepSeekNativeChatRequestBody(account, body, defaultMappedModel)
 	if err != nil {
@@ -35,6 +44,14 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 			return nil, err
 		}
 		return nil, fmt.Errorf("prepare deepseek native chat request: %w", err)
+	}
+	if originalRequestedModel != "" {
+		prepared.originalModel = originalRequestedModel
+	}
+	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(prepared.body, prepared.originalModel, runtimeRequestedModel, prepared.mappedModel)
+	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, prepared.originalModel, runtimeRequestedModel, prepared.mappedModel)
+	if normalizedBody, normalizeErr := applyOpenAIEffortResolutionToBodyBytes(prepared.body, effortResolution); normalizeErr == nil {
+		prepared.body = normalizedBody
 	}
 	preparedBody, injectedUserID, err := s.injectDeepSeekOpenAIUserID(c, account, prepared.body)
 	if err != nil {
@@ -150,16 +167,19 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 	}
 
 	return &OpenAIForwardResult{
-		RequestID:       resp.Header.Get("x-request-id"),
-		Usage:           *usage,
-		Model:           prepared.originalModel,
-		BillingModel:    prepared.mappedModel,
-		UpstreamModel:   prepared.mappedModel,
-		ServiceTier:     extractOpenAIServiceTierFromBody(prepared.body),
-		ReasoningEffort: extractOpenAIReasoningEffortFromBody(prepared.body, prepared.originalModel),
-		Stream:          prepared.stream,
-		Duration:        time.Since(startTime),
-		FirstTokenMs:    firstTokenMs,
+		RequestID:                resp.Header.Get("x-request-id"),
+		Usage:                    *usage,
+		Model:                    prepared.originalModel,
+		BillingModel:             prepared.mappedModel,
+		UpstreamModel:            prepared.mappedModel,
+		ServiceTier:              extractOpenAIServiceTierFromBody(prepared.body),
+		ReasoningEffort:          effortResolution.Effective,
+		ReasoningEffortRaw:       effortResolution.Raw,
+		ReasoningEffortEffective: effortResolution.Effective,
+		ReasoningEffortSource:    effortResolution.Source,
+		Stream:                   prepared.stream,
+		Duration:                 time.Since(startTime),
+		FirstTokenMs:             firstTokenMs,
 	}, nil
 }
 
@@ -176,10 +196,14 @@ func (s *OpenAIGatewayService) ForwardDeepSeekCompletions(
 	if originalModel == "" {
 		return nil, fmt.Errorf("missing model")
 	}
-	mappedModel := resolveDeepSeekForwardModel(account, originalModel, defaultMappedModel)
+	runtimeModel := ResolveGatewaySelectionModelFromContext(ctx, originalModel)
+	if runtimeModel == "" {
+		runtimeModel = originalModel
+	}
+	mappedModel := resolveDeepSeekForwardModel(account, runtimeModel, defaultMappedModel)
 	if mappedModel == "" {
 		writeChatCompletionsError(c, http.StatusBadRequest, "invalid_request_error", "Unknown DeepSeek model variant", "unknown_deepseek_model")
-		return nil, fmt.Errorf("unknown deepseek model variant: %s", originalModel)
+		return nil, fmt.Errorf("unknown deepseek model variant: %s", runtimeModel)
 	}
 	if mappedModel != "" && mappedModel != originalModel {
 		nextBody, err := sjson.SetBytes(body, "model", mappedModel)

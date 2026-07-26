@@ -23,6 +23,7 @@ import {
   createDefaultAccountPoolModeState,
   type ModelMapping
 } from '@/utils/accountFormShared'
+import { isAccountPlatform } from '@/utils/platformBranding'
 import {
   applyAccountCustomErrorCodesStateToCredentials,
   applyAccountPoolModeStateToCredentials,
@@ -349,9 +350,16 @@ const oauthProbeReady = computed(() => {
   }
   return Object.keys(oauthProbeCredentials.value).length > 0
 })
-const effectivePlatform = computed<GroupPlatform>(() => {
+const effectivePlatform = computed<AccountPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
-  return platform === 'protocol_gateway' ? 'openai' : platform
+  if (platform === 'protocol_gateway') {
+    return 'openai'
+  }
+  return isAccountPlatform(platform) ? platform : 'anthropic'
+})
+const accountFormPlatform = computed<AccountPlatform>(() => {
+  const platform = props.account?.platform || 'anthropic'
+  return isAccountPlatform(platform) ? platform : 'anthropic'
 })
 const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
   if (!isProtocolGatewayPlatform(props.account?.platform)) {
@@ -927,7 +935,7 @@ const modalContext = {
   buildAccountModelScopeExtra, buildBaiduDocumentAICredentialsForUpdate, buildModelMappingObject, buildProbeExtra, buildScopedModelMapping, claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled,
   codexCLIOnlyEnabled, codexImageToolPolicy, currentAccountCredentials, customErrorCodesState, deepSeekModelConcurrencyLimits, defaultBaseUrl, editApiKey, editBaseUrl, editRequestHeadersText, editGrokSSOToken,
   editGrokTier, editOpenRouterHTTPReferer, editOpenRouterTitle, editQuotaDailyLimit, editQuotaDailyResetHour, editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone,
-  editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, ensureMixedChannelConfirmed, expiryProbeExtensionDays, form,
+  editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, accountFormPlatform, ensureMixedChannelConfirmed, expiryProbeExtensionDays, form,
   formatAccountRequestHeaders,
   gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexAccessToken, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexExpiresAtInput, geminiVertexLocation,

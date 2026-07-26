@@ -15,7 +15,7 @@
       <div
         class="relative shrink-0"
         data-testid="usage-progress-trigger"
-        :tabindex="windowStats ? 0 : undefined"
+        :tabindex="hasTooltip ? 0 : undefined"
         @mouseenter="showStatsTooltip"
         @mouseleave="hideStatsTooltip"
         @focusin="showStatsTooltip"
@@ -31,11 +31,11 @@
           ></div>
         </div>
         <div
-          v-if="windowStats && statsTooltipVisible"
+          v-if="hasTooltip && statsTooltipVisible"
           data-testid="usage-progress-tooltip"
           :class="tooltipClass"
         >
-          <div class="flex items-center gap-1.5">
+          <div v-if="windowStats" class="flex items-center gap-1.5">
             <span :class="tooltipChipClass"
               >{{ formatRequests }} req</span
             >
@@ -54,6 +54,10 @@
             >
               U ${{ formatUserCost }}
             </span>
+          </div>
+          <div v-if="quotaTooltip" class="mt-1 flex items-center gap-1.5 first:mt-0">
+            <span :class="tooltipChipClass">limit {{ formatQuotaLimit }}</span>
+            <span :class="tooltipChipClass">remaining {{ formatQuotaRemaining }}</span>
           </div>
         </div>
       </div>
@@ -126,6 +130,7 @@ const props = withDefaults(
     remainingAnchorMs?: number | null;
     color: "indigo" | "emerald" | "purple" | "amber" | "orange" | "green";
     windowStats?: WindowStats | null;
+    quotaTooltip?: { limit: number; remaining: number } | null;
     detailedReset?: boolean;
     inlineReset?: boolean;
     displayMode?: AccountUsageDisplayMode;
@@ -325,6 +330,8 @@ const resetTooltip = computed(() => {
   return formatLocalTimestamp(effectiveResetAt.value);
 });
 
+const hasTooltip = computed(() => Boolean(props.windowStats || props.quotaTooltip));
+
 const formatRequests = computed(() => {
   if (!props.windowStats) return "";
   const requests = props.windowStats.requests;
@@ -352,8 +359,21 @@ const formatUserCost = computed(() => {
   return props.windowStats.user_cost.toFixed(2);
 });
 
+const formatQuotaNumber = (value: number) => {
+  if (!Number.isFinite(value)) return "-";
+  return Math.round(value).toLocaleString();
+};
+
+const formatQuotaLimit = computed(() =>
+  props.quotaTooltip ? formatQuotaNumber(props.quotaTooltip.limit) : "",
+);
+
+const formatQuotaRemaining = computed(() =>
+  props.quotaTooltip ? formatQuotaNumber(props.quotaTooltip.remaining) : "",
+);
+
 const showStatsTooltip = () => {
-  if (!props.windowStats) return;
+  if (!hasTooltip.value) return;
   statsTooltipVisible.value = true;
 };
 

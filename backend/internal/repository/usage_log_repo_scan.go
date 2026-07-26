@@ -15,6 +15,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		apiKeyID              int64
 		accountID             int64
 		requestID             sql.NullString
+		sessionID             sql.NullString
 		model                 string
 		requestedModel        sql.NullString
 		upstreamModel         sql.NullString
@@ -69,6 +70,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		chargeSource          sql.NullString
 		imageCount            int
 		imageSize             sql.NullString
+		imageQuality          sql.NullString
 		imageOutputTokens     sql.NullInt64
 		imageOutputCost       sql.NullFloat64
 		serviceTier           sql.NullString
@@ -90,7 +92,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheTTLOverridden    bool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &imageInputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &imageInputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &discountApplied, &discountPercent, &discountWindowID, &discountWindowType, &discountCompletedAt, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &requestContextLength, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &sessionID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &imageInputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &imageInputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &discountApplied, &discountPercent, &discountWindowID, &discountWindowType, &discountCompletedAt, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageQuality, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &requestContextLength, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
 		return nil, err
 	}
 	currency := service.NormalizeUsageBillingCurrency(billingCurrency)
@@ -101,6 +103,9 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	log.Stream, log.OpenAIWSMode = service.ApplyLegacyRequestFields(log.RequestType, stream, openaiWSMode)
 	if requestID.Valid {
 		log.RequestID = requestID.String
+	}
+	if sessionID.Valid {
+		log.SessionID = sessionID.String
 	}
 	if upstreamModel.Valid {
 		log.UpstreamModel = &upstreamModel.String
@@ -161,6 +166,9 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	}
 	if imageSize.Valid {
 		log.ImageSize = &imageSize.String
+	}
+	if imageQuality.Valid {
+		log.ImageQuality = &imageQuality.String
 	}
 	if imageOutputTokens.Valid {
 		value := int(imageOutputTokens.Int64)

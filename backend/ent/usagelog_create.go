@@ -51,6 +51,20 @@ func (_c *UsageLogCreate) SetRequestID(v string) *UsageLogCreate {
 	return _c
 }
 
+// SetSessionID sets the "session_id" field.
+func (_c *UsageLogCreate) SetSessionID(v string) *UsageLogCreate {
+	_c.mutation.SetSessionID(v)
+	return _c
+}
+
+// SetNillableSessionID sets the "session_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSessionID(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetSessionID(*v)
+	}
+	return _c
+}
+
 // SetModel sets the "model" field.
 func (_c *UsageLogCreate) SetModel(v string) *UsageLogCreate {
 	_c.mutation.SetModel(v)
@@ -631,6 +645,20 @@ func (_c *UsageLogCreate) SetNillableImageSize(v *string) *UsageLogCreate {
 	return _c
 }
 
+// SetImageQuality sets the "image_quality" field.
+func (_c *UsageLogCreate) SetImageQuality(v string) *UsageLogCreate {
+	_c.mutation.SetImageQuality(v)
+	return _c
+}
+
+// SetNillableImageQuality sets the "image_quality" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableImageQuality(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetImageQuality(*v)
+	}
+	return _c
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (_c *UsageLogCreate) SetCacheTTLOverridden(v bool) *UsageLogCreate {
 	_c.mutation.SetCacheTTLOverridden(v)
@@ -840,6 +868,11 @@ func (_c *UsageLogCreate) check() error {
 			return &ValidationError{Name: "request_id", err: fmt.Errorf(`ent: validator failed for field "UsageLog.request_id": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.SessionID(); ok {
+		if err := usagelog.SessionIDValidator(v); err != nil {
+			return &ValidationError{Name: "session_id", err: fmt.Errorf(`ent: validator failed for field "UsageLog.session_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Model(); !ok {
 		return &ValidationError{Name: "model", err: errors.New(`ent: missing required field "UsageLog.model"`)}
 	}
@@ -967,6 +1000,11 @@ func (_c *UsageLogCreate) check() error {
 			return &ValidationError{Name: "image_size", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_size": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ImageQuality(); ok {
+		if err := usagelog.ImageQualityValidator(v); err != nil {
+			return &ValidationError{Name: "image_quality", err: fmt.Errorf(`ent: validator failed for field "UsageLog.image_quality": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CacheTTLOverridden(); !ok {
 		return &ValidationError{Name: "cache_ttl_overridden", err: errors.New(`ent: missing required field "UsageLog.cache_ttl_overridden"`)}
 	}
@@ -1012,6 +1050,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequestID(); ok {
 		_spec.SetField(usagelog.FieldRequestID, field.TypeString, value)
 		_node.RequestID = value
+	}
+	if value, ok := _c.mutation.SessionID(); ok {
+		_spec.SetField(usagelog.FieldSessionID, field.TypeString, value)
+		_node.SessionID = &value
 	}
 	if value, ok := _c.mutation.Model(); ok {
 		_spec.SetField(usagelog.FieldModel, field.TypeString, value)
@@ -1172,6 +1214,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ImageSize(); ok {
 		_spec.SetField(usagelog.FieldImageSize, field.TypeString, value)
 		_node.ImageSize = &value
+	}
+	if value, ok := _c.mutation.ImageQuality(); ok {
+		_spec.SetField(usagelog.FieldImageQuality, field.TypeString, value)
+		_node.ImageQuality = &value
 	}
 	if value, ok := _c.mutation.CacheTTLOverridden(); ok {
 		_spec.SetField(usagelog.FieldCacheTTLOverridden, field.TypeBool, value)
@@ -1363,6 +1409,24 @@ func (u *UsageLogUpsert) SetRequestID(v string) *UsageLogUpsert {
 // UpdateRequestID sets the "request_id" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateRequestID() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldRequestID)
+	return u
+}
+
+// SetSessionID sets the "session_id" field.
+func (u *UsageLogUpsert) SetSessionID(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldSessionID, v)
+	return u
+}
+
+// UpdateSessionID sets the "session_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSessionID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSessionID)
+	return u
+}
+
+// ClearSessionID clears the value of the "session_id" field.
+func (u *UsageLogUpsert) ClearSessionID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSessionID)
 	return u
 }
 
@@ -2122,6 +2186,24 @@ func (u *UsageLogUpsert) ClearImageSize() *UsageLogUpsert {
 	return u
 }
 
+// SetImageQuality sets the "image_quality" field.
+func (u *UsageLogUpsert) SetImageQuality(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldImageQuality, v)
+	return u
+}
+
+// UpdateImageQuality sets the "image_quality" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateImageQuality() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldImageQuality)
+	return u
+}
+
+// ClearImageQuality clears the value of the "image_quality" field.
+func (u *UsageLogUpsert) ClearImageQuality() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldImageQuality)
+	return u
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (u *UsageLogUpsert) SetCacheTTLOverridden(v bool) *UsageLogUpsert {
 	u.Set(usagelog.FieldCacheTTLOverridden, v)
@@ -2232,6 +2314,27 @@ func (u *UsageLogUpsertOne) SetRequestID(v string) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateRequestID() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateRequestID()
+	})
+}
+
+// SetSessionID sets the "session_id" field.
+func (u *UsageLogUpsertOne) SetSessionID(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSessionID(v)
+	})
+}
+
+// UpdateSessionID sets the "session_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSessionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSessionID()
+	})
+}
+
+// ClearSessionID clears the value of the "session_id" field.
+func (u *UsageLogUpsertOne) ClearSessionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSessionID()
 	})
 }
 
@@ -3117,6 +3220,27 @@ func (u *UsageLogUpsertOne) ClearImageSize() *UsageLogUpsertOne {
 	})
 }
 
+// SetImageQuality sets the "image_quality" field.
+func (u *UsageLogUpsertOne) SetImageQuality(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageQuality(v)
+	})
+}
+
+// UpdateImageQuality sets the "image_quality" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateImageQuality() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageQuality()
+	})
+}
+
+// ClearImageQuality clears the value of the "image_quality" field.
+func (u *UsageLogUpsertOne) ClearImageQuality() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageQuality()
+	})
+}
+
 // SetCacheTTLOverridden sets the "cache_ttl_overridden" field.
 func (u *UsageLogUpsertOne) SetCacheTTLOverridden(v bool) *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
@@ -3395,6 +3519,27 @@ func (u *UsageLogUpsertBulk) SetRequestID(v string) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateRequestID() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateRequestID()
+	})
+}
+
+// SetSessionID sets the "session_id" field.
+func (u *UsageLogUpsertBulk) SetSessionID(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSessionID(v)
+	})
+}
+
+// UpdateSessionID sets the "session_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSessionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSessionID()
+	})
+}
+
+// ClearSessionID clears the value of the "session_id" field.
+func (u *UsageLogUpsertBulk) ClearSessionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSessionID()
 	})
 }
 
@@ -4277,6 +4422,27 @@ func (u *UsageLogUpsertBulk) UpdateImageSize() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearImageSize() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearImageSize()
+	})
+}
+
+// SetImageQuality sets the "image_quality" field.
+func (u *UsageLogUpsertBulk) SetImageQuality(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetImageQuality(v)
+	})
+}
+
+// UpdateImageQuality sets the "image_quality" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateImageQuality() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateImageQuality()
+	})
+}
+
+// ClearImageQuality clears the value of the "image_quality" field.
+func (u *UsageLogUpsertBulk) ClearImageQuality() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearImageQuality()
 	})
 }
 

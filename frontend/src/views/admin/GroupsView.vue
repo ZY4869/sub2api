@@ -34,8 +34,11 @@ import { useOnboardingStore } from '@/stores/onboarding'
 import { adminAPI } from '@/api/admin'
 import type {
   AdminGroup,
+  CompositeModelRoute,
+  CompositeRoutePreviewResult,
   CreateGroupRequest,
   GroupPlatform,
+  ReasoningEffortMapping,
   OpenAIGroupImageProtocolMode,
   SubscriptionType,
   UpdateGroupRequest
@@ -68,6 +71,12 @@ const IMAGE_BATCH_DEFAULT_MAX_ITEMS = 50
 const IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 const IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY = 2
 const ANTIGRAVITY_DEFAULT_MODEL_SCOPES = ['claude', 'gemini_text', 'gemini_image']
+const DEFAULT_REASONING_MAPPING: ReasoningEffortMapping = {
+  model: '',
+  from: '',
+  to: 'medium',
+  reasoning_effort: 'medium'
+}
 
 const columns = computed<Column[]>(() => [
   { key: 'id', label: t('admin.groups.columns.id'), sortable: true },
@@ -153,6 +162,12 @@ const rateMultipliersGroup = ref<AdminGroup | null>(null)
 const sortableGroups = ref<AdminGroup[]>([])
 const createCopyAccountsSelection = ref<number | null>(null)
 const editCopyAccountsSelection = ref<number | null>(null)
+const createCompositePreviewModel = ref('')
+const createCompositePreviewLoading = ref(false)
+const createCompositePreviewResult = ref<CompositeRoutePreviewResult | null>(null)
+const editCompositePreviewModel = ref('')
+const editCompositePreviewLoading = ref(false)
+const editCompositePreviewResult = ref<CompositeRoutePreviewResult | null>(null)
 
 const createForm = reactive({
   name: '',
@@ -179,6 +194,9 @@ const createForm = reactive({
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   allow_messages_dispatch: false,
+  allow_live: false,
+  max_reasoning_effort: '' as ReasoningEffortMapping['to'],
+  reasoning_effort_mappings: [] as ReasoningEffortMapping[],
   default_mapped_model: 'gpt-5.4',
   visible_model_patterns_text: '',
   image_batch_enabled: false,
@@ -190,6 +208,7 @@ const createForm = reactive({
   model_routing_enabled: false,
   supported_model_scopes: [] as string[],
   mcp_xml_inject: true,
+  composite_routes: [] as CompositeModelRoute[],
   copy_accounts_from_group_ids: [] as number[]
 })
 
@@ -210,9 +229,25 @@ const editModelRoutingRules = ref<ModelRoutingRule[]>([])
 
 const resolveCreateRuleKey = createStableObjectKeyResolver<ModelRoutingRule>('create-rule')
 const resolveEditRuleKey = createStableObjectKeyResolver<ModelRoutingRule>('edit-rule')
+const resolveCreateReasoningMappingKey =
+  createStableObjectKeyResolver<ReasoningEffortMapping>('create-reasoning')
+const resolveEditReasoningMappingKey =
+  createStableObjectKeyResolver<ReasoningEffortMapping>('edit-reasoning')
+const resolveCreateCompositeRouteKey =
+  createStableObjectKeyResolver<CompositeModelRoute>('create-composite-route')
+const resolveEditCompositeRouteKey =
+  createStableObjectKeyResolver<CompositeModelRoute>('edit-composite-route')
 
 const getCreateRuleRenderKey = (rule: ModelRoutingRule) => resolveCreateRuleKey(rule)
 const getEditRuleRenderKey = (rule: ModelRoutingRule) => resolveEditRuleKey(rule)
+const getCreateReasoningMappingKey = (mapping: ReasoningEffortMapping) =>
+  resolveCreateReasoningMappingKey(mapping)
+const getEditReasoningMappingKey = (mapping: ReasoningEffortMapping) =>
+  resolveEditReasoningMappingKey(mapping)
+const getCreateCompositeRouteKey = (route: CompositeModelRoute) =>
+  resolveCreateCompositeRouteKey(route)
+const getEditCompositeRouteKey = (route: CompositeModelRoute) =>
+  resolveEditCompositeRouteKey(route)
 
 const getCreateRuleSearchKey = (rule: ModelRoutingRule) => `create-${resolveCreateRuleKey(rule)}`
 const getEditRuleSearchKey = (rule: ModelRoutingRule) => `edit-${resolveEditRuleKey(rule)}`
@@ -344,6 +379,72 @@ const removeEditRoutingRule = (rule: ModelRoutingRule) => {
   editModelRoutingRules.value.splice(index, 1)
 }
 
+const addCreateReasoningMapping = () => {
+  createForm.reasoning_effort_mappings.push(cloneReasoningMapping(DEFAULT_REASONING_MAPPING))
+}
+
+const removeCreateReasoningMapping = (mapping: ReasoningEffortMapping) => {
+  const index = createForm.reasoning_effort_mappings.indexOf(mapping)
+  if (index >= 0) {
+    createForm.reasoning_effort_mappings.splice(index, 1)
+  }
+}
+
+const addEditReasoningMapping = () => {
+  editForm.reasoning_effort_mappings.push(cloneReasoningMapping(DEFAULT_REASONING_MAPPING))
+}
+
+const removeEditReasoningMapping = (mapping: ReasoningEffortMapping) => {
+  const index = editForm.reasoning_effort_mappings.indexOf(mapping)
+  if (index >= 0) {
+    editForm.reasoning_effort_mappings.splice(index, 1)
+  }
+}
+
+const addCreateCompositeRoute = () => {
+  createForm.composite_routes.push(cloneCompositeRoute())
+}
+
+const removeCreateCompositeRoute = (route: CompositeModelRoute) => {
+  const index = createForm.composite_routes.indexOf(route)
+  if (index >= 0) {
+    createForm.composite_routes.splice(index, 1)
+  }
+}
+
+const addEditCompositeRoute = () => {
+  editForm.composite_routes.push(cloneCompositeRoute())
+}
+
+const removeEditCompositeRoute = (route: CompositeModelRoute) => {
+  const index = editForm.composite_routes.indexOf(route)
+  if (index >= 0) {
+    editForm.composite_routes.splice(index, 1)
+  }
+}
+
+const previewCreateCompositeRoute = async () => {
+  const model = createCompositePreviewModel.value.trim()
+  if (!model) return
+  createCompositePreviewLoading.value = true
+  try {
+    createCompositePreviewResult.value = previewCompositeRouteLocally(createForm.composite_routes, model)
+  } finally {
+    createCompositePreviewLoading.value = false
+  }
+}
+
+const previewEditCompositeRoute = async () => {
+  const model = editCompositePreviewModel.value.trim()
+  if (!model) return
+  editCompositePreviewLoading.value = true
+  try {
+    editCompositePreviewResult.value = previewCompositeRouteLocally(editForm.composite_routes, model)
+  } finally {
+    editCompositePreviewLoading.value = false
+  }
+}
+
 
 const convertRoutingRulesToApiFormat = (rules: ModelRoutingRule[]): Record<string, number[]> | null => {
   const result: Record<string, number[]> = {}
@@ -413,6 +514,9 @@ const editForm = reactive({
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
   allow_messages_dispatch: false,
+  allow_live: false,
+  max_reasoning_effort: '' as ReasoningEffortMapping['to'],
+  reasoning_effort_mappings: [] as ReasoningEffortMapping[],
   default_mapped_model: '',
   visible_model_patterns_text: '',
   image_batch_enabled: false,
@@ -424,6 +528,7 @@ const editForm = reactive({
   model_routing_enabled: false,
   supported_model_scopes: [] as string[],
   mcp_xml_inject: true,
+  composite_routes: [] as CompositeModelRoute[],
   copy_accounts_from_group_ids: [] as number[]
 })
 
@@ -459,6 +564,131 @@ const copyAccountsGroupSelectOptionsForEdit = computed(() => {
   )
   return eligibleGroups.map((g) => buildGroupSelectOption(g, buildCopyAccountsDescription(g)))
 })
+
+const buildCompositeTargetDescription = (group: AdminGroup): string => {
+  return `${t(`admin.groups.platforms.${group.platform}`)} · ${group.account_count || 0} ${t('admin.groups.accountsTotal')}`
+}
+
+const compositeTargetGroupOptions = computed(() =>
+  groups.value
+    .filter((g) => g.platform !== 'composite' && g.status === 'active')
+    .map((g) => buildGroupSelectOption(g, buildCompositeTargetDescription(g)))
+)
+
+const compositeTargetGroupOptionsForEdit = computed(() => {
+  const currentId = editingGroup.value?.id
+  return groups.value
+    .filter((g) => g.platform !== 'composite' && g.status === 'active' && g.id !== currentId)
+    .map((g) => buildGroupSelectOption(g, buildCompositeTargetDescription(g)))
+})
+
+function cloneReasoningMapping(mapping?: Partial<ReasoningEffortMapping>): ReasoningEffortMapping {
+  const to = (mapping?.to || mapping?.reasoning_effort || DEFAULT_REASONING_MAPPING.to || 'medium') as ReasoningEffortMapping['to']
+  return {
+    model: String(mapping?.model || ''),
+    from: (mapping?.from || '') as ReasoningEffortMapping['from'],
+    to,
+    reasoning_effort: to
+  }
+}
+
+function cloneCompositeRoute(route?: Partial<CompositeModelRoute>): CompositeModelRoute {
+  return {
+    id: route?.id,
+    parent_group_id: route?.parent_group_id,
+    display_model_id: String(route?.display_model_id || ''),
+    target_group_id: Number(route?.target_group_id || 0),
+    target_model_id: String(route?.target_model_id || ''),
+    priority: Number(route?.priority || 50),
+    enabled: route?.enabled !== false,
+    notes: String(route?.notes || ''),
+    target_group: route?.target_group || null
+  }
+}
+
+const normalizeRoutePriority = (value: number | null | undefined): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 50
+}
+
+const normalizeReasoningMappingsForPayload = (
+  mappings: ReasoningEffortMapping[]
+): ReasoningEffortMapping[] =>
+  mappings
+    .map((mapping) => cloneReasoningMapping(mapping))
+    .filter((mapping) => mapping.model.trim() && (mapping.to || mapping.reasoning_effort))
+    .map((mapping) => ({
+      model: mapping.model.trim(),
+      from: mapping.from || '',
+      to: mapping.to || mapping.reasoning_effort || '',
+      reasoning_effort: mapping.to || mapping.reasoning_effort || ''
+    }))
+
+const normalizeCompositeRoutesForPayload = (
+  routes: CompositeModelRoute[]
+): CompositeModelRoute[] =>
+  routes
+    .map((route) => cloneCompositeRoute(route))
+    .filter((route) => route.display_model_id.trim() && route.target_group_id > 0)
+    .map((route) => ({
+      display_model_id: route.display_model_id.trim(),
+      target_group_id: route.target_group_id,
+      target_model_id: route.target_model_id.trim(),
+      priority: normalizeRoutePriority(route.priority),
+      enabled: route.enabled !== false,
+      notes: (route.notes || '').trim()
+    }))
+
+const resetCreateCompositePreview = () => {
+  createCompositePreviewModel.value = ''
+  createCompositePreviewResult.value = null
+  createCompositePreviewLoading.value = false
+}
+
+const resetEditCompositePreview = () => {
+  editCompositePreviewModel.value = ''
+  editCompositePreviewResult.value = null
+  editCompositePreviewLoading.value = false
+}
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const matchCompositeModelPattern = (pattern: string, model: string): boolean => {
+  const normalizedPattern = pattern.trim()
+  const normalizedModel = model.trim()
+  if (!normalizedPattern || !normalizedModel) {
+    return false
+  }
+  if (!normalizedPattern.includes('*')) {
+    return normalizedPattern === normalizedModel
+  }
+  const regex = new RegExp(`^${normalizedPattern.split('*').map(escapeRegExp).join('.*')}$`)
+  return regex.test(normalizedModel)
+}
+
+const previewCompositeRouteLocally = (
+  routes: CompositeModelRoute[],
+  model: string
+): CompositeRoutePreviewResult => {
+  const normalizedModel = model.trim()
+  const normalizedRoutes = normalizeCompositeRoutesForPayload(routes)
+  const matched = normalizedRoutes
+    .filter((route) => route.enabled !== false)
+    .sort((a, b) => a.priority - b.priority)
+    .find((route) => matchCompositeModelPattern(route.display_model_id, normalizedModel))
+  if (!matched) {
+    return { matched: false, display_model_id: normalizedModel }
+  }
+  const targetGroup = groups.value.find((group) => group.id === matched.target_group_id) || null
+  return {
+    matched: true,
+    display_model_id: normalizedModel,
+    target_model_id: matched.target_model_id || normalizedModel,
+    target_group_id: matched.target_group_id,
+    target_group: targetGroup,
+    route: matched
+  }
+}
 
 function findGroupSelectOption(options: Array<{ value: number | null }>, groupID: number) {
   return options.find((option) => option.value === groupID) || null
@@ -560,6 +790,15 @@ const handleCreatePlatformChange = () => {
     createForm.allow_messages_dispatch = false
     createForm.default_mapped_model = ''
     createForm.image_protocol_mode = 'inherit'
+  }
+  if (!supportsOpenAIRuntimePolicy(createForm.platform)) {
+    createForm.allow_live = false
+    createForm.max_reasoning_effort = ''
+    createForm.reasoning_effort_mappings = []
+  }
+  if (createForm.platform !== 'composite') {
+    createForm.composite_routes = []
+    resetCreateCompositePreview()
   }
   if (createForm.platform !== 'antigravity') {
     createForm.mcp_xml_inject = true
@@ -763,6 +1002,9 @@ const closeCreateModal = () => {
   createForm.fallback_group_id = null
   createForm.fallback_group_id_on_invalid_request = null
   createForm.allow_messages_dispatch = false
+  createForm.allow_live = false
+  createForm.max_reasoning_effort = ''
+  createForm.reasoning_effort_mappings = []
   createForm.default_mapped_model = 'gpt-5.4'
   createForm.visible_model_patterns_text = ''
   createForm.image_batch_enabled = false
@@ -773,6 +1015,8 @@ const closeCreateModal = () => {
   createForm.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
   createForm.supported_model_scopes = []
   createForm.mcp_xml_inject = true
+  createForm.composite_routes = []
+  resetCreateCompositePreview()
   createForm.copy_accounts_from_group_ids = []
   createCopyAccountsSelection.value = null
   createModelRoutingRules.value = []
@@ -821,6 +1065,9 @@ const supportsImagePricing = (platform: GroupPlatform) =>
 const supportsWebSearchPricing = (platform: GroupPlatform) =>
   platform === 'openai' || platform === 'grok'
 
+const supportsOpenAIRuntimePolicy = (platform: GroupPlatform) =>
+  platform === 'openai' || platform === 'composite'
+
 const buildGroupPayload = (
   form: GroupPayloadForm,
   routingRules: ModelRoutingRule[],
@@ -864,10 +1111,22 @@ const buildGroupPayload = (
     payload.web_search_price_per_call = normalizeNullableNumber(form.web_search_price_per_call)
   }
 
+  if (supportsOpenAIRuntimePolicy(platform)) {
+    payload.allow_live = form.allow_live
+    payload.max_reasoning_effort = form.max_reasoning_effort || ''
+    payload.reasoning_effort_mappings = normalizeReasoningMappingsForPayload(
+      form.reasoning_effort_mappings
+    )
+  }
+
   if (platform === 'openai') {
     payload.allow_messages_dispatch = form.allow_messages_dispatch
     payload.default_mapped_model = form.default_mapped_model
     payload.image_protocol_mode = form.image_protocol_mode
+  }
+
+  if (platform === 'composite') {
+    payload.composite_routes = normalizeCompositeRoutesForPayload(form.composite_routes)
   }
 
   if (platform === 'anthropic') {
@@ -962,6 +1221,11 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.fallback_group_id = group.fallback_group_id
   editForm.fallback_group_id_on_invalid_request = group.fallback_group_id_on_invalid_request
   editForm.allow_messages_dispatch = group.allow_messages_dispatch || false
+  editForm.allow_live = group.allow_live || false
+  editForm.max_reasoning_effort = group.max_reasoning_effort || ''
+  editForm.reasoning_effort_mappings = (group.reasoning_effort_mappings || []).map((mapping) =>
+    cloneReasoningMapping(mapping)
+  )
   editForm.default_mapped_model = group.default_mapped_model || ''
   editForm.visible_model_patterns_text = joinModelPatternText(group.visible_model_patterns)
   editForm.image_batch_enabled = group.image_batch_enabled || false
@@ -977,9 +1241,11 @@ const handleEdit = async (group: AdminGroup) => {
     ? group.supported_model_scopes || getAntigravityDefaultModelScopes()
     : []
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true
+  editForm.composite_routes = (group.composite_routes || []).map((route) => cloneCompositeRoute(route))
   editForm.copy_accounts_from_group_ids = []
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(group.model_routing)
   editCopyAccountsSelection.value = null
+  resetEditCompositePreview()
   showEditModal.value = true
 }
 
@@ -996,6 +1262,9 @@ const closeEditModal = () => {
   editForm.gemini_mixed_protocol_enabled = false
   resetPeakRateConfig(editForm)
   editForm.image_protocol_mode = 'inherit'
+  editForm.allow_live = false
+  editForm.max_reasoning_effort = ''
+  editForm.reasoning_effort_mappings = []
   editForm.web_search_price_per_call = null
   editForm.visible_model_patterns_text = ''
   editForm.image_batch_enabled = false
@@ -1004,6 +1273,8 @@ const closeEditModal = () => {
   editForm.image_batch_max_items = IMAGE_BATCH_DEFAULT_MAX_ITEMS
   editForm.image_batch_max_download_bytes = IMAGE_BATCH_DEFAULT_MAX_DOWNLOAD_BYTES
   editForm.image_batch_download_concurrency = IMAGE_BATCH_DEFAULT_DOWNLOAD_CONCURRENCY
+  editForm.composite_routes = []
+  resetEditCompositePreview()
 }
 
 const handleUpdateGroup = async () => {
@@ -1102,6 +1373,15 @@ watch(
       createForm.allow_messages_dispatch = false
       createForm.default_mapped_model = ''
     }
+    if (!supportsOpenAIRuntimePolicy(newVal)) {
+      createForm.allow_live = false
+      createForm.max_reasoning_effort = ''
+      createForm.reasoning_effort_mappings = []
+    }
+    if (newVal !== 'composite') {
+      createForm.composite_routes = []
+      resetCreateCompositePreview()
+    }
     if (!['openai', 'grok'].includes(newVal)) {
       createForm.web_search_price_per_call = null
     }
@@ -1136,6 +1416,15 @@ watch(
       editForm.image_protocol_mode = 'inherit'
       editForm.allow_messages_dispatch = false
       editForm.default_mapped_model = ''
+    }
+    if (!supportsOpenAIRuntimePolicy(newVal)) {
+      editForm.allow_live = false
+      editForm.max_reasoning_effort = ''
+      editForm.reasoning_effort_mappings = []
+    }
+    if (newVal !== 'composite') {
+      editForm.composite_routes = []
+      resetEditCompositePreview()
     }
     if (!['openai', 'grok'].includes(newVal)) {
       editForm.web_search_price_per_call = null
@@ -1223,6 +1512,8 @@ const groupsViewContext = {
   invalidRequestFallbackOptionsForEdit,
   copyAccountsGroupSelectOptions,
   copyAccountsGroupSelectOptionsForEdit,
+  compositeTargetGroupOptions,
+  compositeTargetGroupOptionsForEdit,
   isPlatformSelectOption,
   isGroupSelectOption,
   columns: visibleColumns,
@@ -1250,6 +1541,12 @@ const groupsViewContext = {
   sortableGroups,
   createCopyAccountsSelection,
   editCopyAccountsSelection,
+  createCompositePreviewModel,
+  createCompositePreviewLoading,
+  createCompositePreviewResult,
+  editCompositePreviewModel,
+  editCompositePreviewLoading,
+  editCompositePreviewResult,
   createForm,
   editForm,
   createModelRoutingRules,
@@ -1285,6 +1582,10 @@ const groupsViewContext = {
   getEditRuleRenderKey,
   getCreateRuleSearchKey,
   getEditRuleSearchKey,
+  getCreateReasoningMappingKey,
+  getEditReasoningMappingKey,
+  getCreateCompositeRouteKey,
+  getEditCompositeRouteKey,
   searchAccountsByRule,
   onAccountSearchFocus,
   selectAccount,
@@ -1292,7 +1593,17 @@ const groupsViewContext = {
   addCreateRoutingRule,
   removeCreateRoutingRule,
   addEditRoutingRule,
-  removeEditRoutingRule
+  removeEditRoutingRule,
+  addCreateReasoningMapping,
+  removeCreateReasoningMapping,
+  addEditReasoningMapping,
+  removeEditReasoningMapping,
+  addCreateCompositeRoute,
+  removeCreateCompositeRoute,
+  addEditCompositeRoute,
+  removeEditCompositeRoute,
+  previewCreateCompositeRoute,
+  previewEditCompositeRoute
 }
 
 onMounted(() => {

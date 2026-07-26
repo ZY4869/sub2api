@@ -41,6 +41,8 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "grok count tokens compat", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityCompatTranslate, wantOK: true},
 		{name: "antigravity count tokens rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "grok websocket responses rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponses, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "openai live native", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointOpenAILive, action: ProtocolCapabilityActionLive, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "grok live rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointOpenAILive, action: ProtocolCapabilityActionLive, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "openai compact responses native", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointResponsesCompact, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "grok compact responses native", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponsesCompact, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini batch alias uses batch capability", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/models/gemini-2.5-pro:batchGenerateContent", action: ProtocolCapabilityActionBatchGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
@@ -157,6 +159,8 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointVertexSyncModels, NormalizeInboundEndpoint("/v1/vertex/models/gemini-2.5-pro:generateContent"))
 	require.Equal(t, EndpointVertexBatchJobs, NormalizeInboundEndpoint("/v1/vertex/batchPredictionJobs/job-1"))
 	require.Equal(t, EndpointVertexBatchJobs, NormalizeInboundEndpoint("/vertex-batch/jobs/job-1:cancel"))
+	require.Equal(t, EndpointOpenAILive, NormalizeInboundEndpoint("/v1/live"))
+	require.Equal(t, EndpointOpenAILive, NormalizeInboundEndpoint("/backend-api/codex/realtime/calls"))
 }
 
 func TestDecideProtocolCapability_GeminiDeprecatedModelActionsRemainUnsupported(t *testing.T) {

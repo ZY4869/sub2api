@@ -435,11 +435,42 @@ func (s *OpenAIGatewayService) groupBindingHasSchedulableAccounts(ctx context.Co
 	if s == nil || binding == nil || binding.Group == nil {
 		return false, nil
 	}
+	group := binding.Group
+	requestedModel := strings.TrimSpace(modelFromContext(ctx))
+	if CanonicalizePlatformValue(group.Platform) == PlatformComposite {
+		if requestedModel == "" || s.groupRepo == nil {
+			return false, nil
+		}
+		route, err := s.groupRepo.FindCompositeRoute(ctx, group.ID, requestedModel)
+		if err != nil || route == nil || route.TargetGroupID <= 0 {
+			return false, err
+		}
+		targetGroup := route.TargetGroup
+		if targetGroup == nil || targetGroup.ID <= 0 || !targetGroup.Hydrated {
+			targetGroup, err = s.groupRepo.GetByIDLite(ctx, route.TargetGroupID)
+			if err != nil {
+				return false, err
+			}
+		}
+		if targetGroup == nil || CanonicalizePlatformValue(targetGroup.Platform) == PlatformComposite {
+			return false, nil
+		}
+		targetModel := strings.TrimSpace(route.TargetModelID)
+		if targetModel == "" {
+			targetModel = requestedModel
+		}
+		ctx = context.WithValue(ctx, ctxkey.Model, targetModel)
+		ctx = WithOpenAIPlatform(ctx, targetGroup.Platform)
+		return s.groupBindingHasSchedulableAccounts(ctx, &APIKeyGroupBinding{
+			APIKeyID: binding.APIKeyID,
+			GroupID:  targetGroup.ID,
+			Group:    targetGroup,
+		})
+	}
 	accounts, err := s.listSchedulableAccounts(ctx, &binding.GroupID)
 	if err != nil {
 		return false, err
 	}
-	requestedModel := strings.TrimSpace(modelFromContext(ctx))
 	for i := range accounts {
 		account := &accounts[i]
 		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {

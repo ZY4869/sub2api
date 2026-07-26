@@ -268,6 +268,15 @@ func (s *groupRepoStubForGroupUpdate) BindAccountsToGroup(context.Context, int64
 func (s *groupRepoStubForGroupUpdate) UpdateSortOrders(context.Context, []GroupSortOrderUpdate) error {
 	panic("unexpected")
 }
+func (s *groupRepoStubForGroupUpdate) ListCompositeRoutes(context.Context, int64) ([]CompositeModelRoute, error) {
+	panic("unexpected")
+}
+func (s *groupRepoStubForGroupUpdate) ReplaceCompositeRoutes(context.Context, int64, []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	panic("unexpected")
+}
+func (s *groupRepoStubForGroupUpdate) FindCompositeRoute(context.Context, int64, string) (*CompositeModelRoute, error) {
+	panic("unexpected")
+}
 
 type userSubRepoStubForGroupUpdate struct {
 	userSubRepoNoop

@@ -64,6 +64,8 @@ func DisplayPlatformName(platform string) string {
 		return "OpenRouter"
 	case PlatformBaiduDocumentAI:
 		return "百度文档智能"
+	case PlatformComposite:
+		return "Composite"
 	default:
 		return ""
 	}
@@ -85,6 +87,8 @@ func PlatformDisplayEnglishName(platform string) string {
 		return "Antigravity"
 	case PlatformBaiduDocumentAI:
 		return "Baidu Document AI"
+	case PlatformComposite:
+		return "Composite"
 	case PlatformDeepSeek:
 		return "DeepSeek"
 	case PlatformGemini:

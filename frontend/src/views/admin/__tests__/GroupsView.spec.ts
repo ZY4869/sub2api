@@ -13,6 +13,9 @@ const mockState = vi.hoisted(() => ({
   updateGroup: vi.fn(),
   deleteGroup: vi.fn(),
   updateSortOrder: vi.fn(),
+  listCompositeRoutes: vi.fn(),
+  replaceCompositeRoutes: vi.fn(),
+  previewCompositeRoute: vi.fn(),
   listAccounts: vi.fn(),
   getAccountById: vi.fn(),
   showError: vi.fn(),
@@ -31,7 +34,10 @@ vi.mock('@/api/admin', () => ({
       create: mockState.createGroup,
       update: mockState.updateGroup,
       delete: mockState.deleteGroup,
-      updateSortOrder: mockState.updateSortOrder
+      updateSortOrder: mockState.updateSortOrder,
+      listCompositeRoutes: mockState.listCompositeRoutes,
+      replaceCompositeRoutes: mockState.replaceCompositeRoutes,
+      previewCompositeRoute: mockState.previewCompositeRoute
     },
     accounts: {
       list: mockState.listAccounts,
@@ -196,6 +202,9 @@ function createGroup(id: number, name: string, accountCount: number) {
     claude_code_only: false,
     fallback_group_id: null,
     fallback_group_id_on_invalid_request: null,
+    allow_live: false,
+    max_reasoning_effort: '',
+    reasoning_effort_mappings: [],
     created_at: '2026-04-18T00:00:00Z',
     updated_at: '2026-04-18T00:00:00Z',
     model_routing: null,
@@ -206,6 +215,7 @@ function createGroup(id: number, name: string, accountCount: number) {
     active_account_count: accountCount,
     rate_limited_account_count: 0,
     default_mapped_model: '',
+    composite_routes: [],
     sort_order: id * 10
   }
 }
@@ -260,6 +270,9 @@ describe('GroupsView iconized selections', () => {
     mockState.updateGroup.mockReset()
     mockState.deleteGroup.mockReset()
     mockState.updateSortOrder.mockReset()
+    mockState.listCompositeRoutes.mockReset()
+    mockState.replaceCompositeRoutes.mockReset()
+    mockState.previewCompositeRoute.mockReset()
     mockState.listAccounts.mockReset()
     mockState.getAccountById.mockReset()
     mockState.showError.mockReset()

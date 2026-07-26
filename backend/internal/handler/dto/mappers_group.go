@@ -33,6 +33,8 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		ModelRoutingEnabled:     g.ModelRoutingEnabled,
 		MCPXMLInject:            g.MCPXMLInject,
 		DefaultMappedModel:      g.DefaultMappedModel,
+		MaxReasoningEffort:      service.NormalizeOpenAIReasoningEffortSetting(g.MaxReasoningEffort),
+		ReasoningEffortMappings: service.NormalizeReasoningEffortMappings(g.ReasoningEffortMappings),
 		SupportedModelScopes:    g.SupportedModelScopes,
 		AccountCount:            g.AccountCount,
 		ActiveAccountCount:      g.ActiveAccountCount,
@@ -47,6 +49,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		ImageBatchMaxItems:            service.NormalizeImageBatchMaxItems(g.ImageBatchMaxItems),
 		ImageBatchMaxDownloadBytes:    service.NormalizeImageBatchMaxDownloadBytes(g.ImageBatchMaxDownloadBytes),
 		ImageBatchDownloadConcurrency: service.NormalizeImageBatchDownloadConcurrency(g.ImageBatchDownloadConcurrency),
+		CompositeRoutes:               CompositeModelRoutesFromService(g.CompositeRoutes),
 	}
 	if len(g.AccountGroups) > 0 {
 		out.AccountGroups = make([]AccountGroup, 0, len(g.AccountGroups))
@@ -87,11 +90,39 @@ func groupFromServiceBase(g *service.Group) Group {
 		FallbackGroupID:                 g.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: g.FallbackGroupIDOnInvalidRequest,
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
+		AllowLive:                       g.AllowLive,
 		GeminiMixedProtocolEnabled:      g.GeminiMixedProtocolEnabled,
 		VisibleModelPatterns:            service.NormalizeGroupVisibleModelPatterns(g.VisibleModelPatterns),
 		CreatedAt:                       g.CreatedAt,
 		UpdatedAt:                       g.UpdatedAt,
 	}
+}
+
+func CompositeModelRouteFromService(route *service.CompositeModelRoute) *CompositeModelRoute {
+	if route == nil {
+		return nil
+	}
+	return &CompositeModelRoute{
+		ID:             route.ID,
+		ParentGroupID:  route.ParentGroupID,
+		DisplayModelID: route.DisplayModelID,
+		TargetGroupID:  route.TargetGroupID,
+		TargetModelID:  route.TargetModelID,
+		Priority:       route.Priority,
+		Enabled:        route.Enabled,
+		Notes:          route.Notes,
+		CreatedAt:      route.CreatedAt,
+		UpdatedAt:      route.UpdatedAt,
+		TargetGroup:    GroupFromServiceShallow(route.TargetGroup),
+	}
+}
+
+func CompositeModelRoutesFromService(routes []service.CompositeModelRoute) []CompositeModelRoute {
+	out := make([]CompositeModelRoute, 0, len(routes))
+	for i := range routes {
+		out = append(out, *CompositeModelRouteFromService(&routes[i]))
+	}
+	return out
 }
 
 func AccountGroupFromService(ag *service.AccountGroup) *AccountGroup {

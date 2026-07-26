@@ -86,8 +86,14 @@ type Group struct {
 	SortOrder int `json:"sort_order,omitempty"`
 	// Whether /v1/messages dispatch is allowed
 	AllowMessagesDispatch bool `json:"allow_messages_dispatch,omitempty"`
+	// Whether live/realtime OpenAI-compatible ingress is allowed for this group
+	AllowLive bool `json:"allow_live,omitempty"`
 	// Default mapped model ID
 	DefaultMappedModel string `json:"default_mapped_model,omitempty"`
+	// Maximum OpenAI reasoning effort allowed for this group; empty means unlimited
+	MaxReasoningEffort string `json:"max_reasoning_effort,omitempty"`
+	// Group-level OpenAI reasoning effort exact mappings
+	ReasoningEffortMappings []map[string]string `json:"reasoning_effort_mappings,omitempty"`
 	// Group-level public model visibility filter; empty means no extra filter
 	VisibleModelPatterns []string `json:"visible_model_patterns,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -218,15 +224,15 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldVisibleModelPatterns:
+		case group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldReasoningEffortMappings, group.FieldVisibleModelPatterns:
 			values[i] = new([]byte)
-		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldGeminiMixedProtocolEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch:
+		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldGeminiMixedProtocolEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive:
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldPeakRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldWebSearchPricePerCall:
 			values[i] = new(sql.NullFloat64)
 		case group.FieldID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldPriority, group.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldPlatform, group.FieldSubscriptionType, group.FieldImageProtocolMode, group.FieldDefaultMappedModel:
+		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldPlatform, group.FieldSubscriptionType, group.FieldImageProtocolMode, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort:
 			values[i] = new(sql.NullString)
 		case group.FieldCreatedAt, group.FieldUpdatedAt, group.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -470,11 +476,31 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AllowMessagesDispatch = value.Bool
 			}
+		case group.FieldAllowLive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_live", values[i])
+			} else if value.Valid {
+				_m.AllowLive = value.Bool
+			}
 		case group.FieldDefaultMappedModel:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field default_mapped_model", values[i])
 			} else if value.Valid {
 				_m.DefaultMappedModel = value.String
+			}
+		case group.FieldMaxReasoningEffort:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field max_reasoning_effort", values[i])
+			} else if value.Valid {
+				_m.MaxReasoningEffort = value.String
+			}
+		case group.FieldReasoningEffortMappings:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field reasoning_effort_mappings", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ReasoningEffortMappings); err != nil {
+					return fmt.Errorf("unmarshal field reasoning_effort_mappings: %w", err)
+				}
 			}
 		case group.FieldVisibleModelPatterns:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -694,8 +720,17 @@ func (_m *Group) String() string {
 	builder.WriteString("allow_messages_dispatch=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowMessagesDispatch))
 	builder.WriteString(", ")
+	builder.WriteString("allow_live=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowLive))
+	builder.WriteString(", ")
 	builder.WriteString("default_mapped_model=")
 	builder.WriteString(_m.DefaultMappedModel)
+	builder.WriteString(", ")
+	builder.WriteString("max_reasoning_effort=")
+	builder.WriteString(_m.MaxReasoningEffort)
+	builder.WriteString(", ")
+	builder.WriteString("reasoning_effort_mappings=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningEffortMappings))
 	builder.WriteString(", ")
 	builder.WriteString("visible_model_patterns=")
 	builder.WriteString(fmt.Sprintf("%v", _m.VisibleModelPatterns))

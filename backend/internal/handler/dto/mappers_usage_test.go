@@ -112,6 +112,30 @@ func TestUsageLogFromService_IncludesServiceTierForUserAndAdmin(t *testing.T) {
 	require.InDelta(t, 1.5, *adminDTO.AccountRateMultiplier, 1e-12)
 }
 
+func TestUsageLogFromService_IncludesImageQualityForUserAndAdmin(t *testing.T) {
+	t.Parallel()
+
+	imageSize := "2K"
+	imageQuality := "high"
+	log := &service.UsageLog{
+		RequestID:    "req_image_quality",
+		Model:        "gpt-image-2",
+		ImageCount:   1,
+		ImageSize:    &imageSize,
+		ImageQuality: &imageQuality,
+	}
+
+	userDTO := UsageLogFromService(log)
+	adminDTO := UsageLogFromServiceAdmin(log)
+
+	require.NotNil(t, userDTO.ImageSize)
+	require.Equal(t, imageSize, *userDTO.ImageSize)
+	require.NotNil(t, userDTO.ImageQuality)
+	require.Equal(t, imageQuality, *userDTO.ImageQuality)
+	require.NotNil(t, adminDTO.ImageQuality)
+	require.Equal(t, imageQuality, *adminDTO.ImageQuality)
+}
+
 func f64Ptr(value float64) *float64 {
 	return &value
 }

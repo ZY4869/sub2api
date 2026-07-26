@@ -24,6 +24,7 @@ func (s *OpenAIGatewayService) forwardNativeImagesStream(
 	originalModel string,
 	mappedModel string,
 	imageSize string,
+	imageQuality string,
 ) (*OpenAIForwardResult, error) {
 	if c == nil {
 		return nil, fmt.Errorf("streaming native images requires gin context")
@@ -111,19 +112,19 @@ func (s *OpenAIGatewayService) forwardNativeImagesStream(
 	if err := scanner.Err(); err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			logger.LegacyPrintf("service.openai_gateway", "Context canceled during native images streaming, returning collected image count")
-			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageCount), nil
+			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageQuality, imageCount), nil
 		}
 		if clientDisconnected {
 			logger.LegacyPrintf("service.openai_gateway", "Upstream read error after client disconnect (native images): %v, returning collected image count", err)
-			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageCount), nil
+			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageQuality, imageCount), nil
 		}
 		if errors.Is(err, bufio.ErrTooLong) {
-			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageCount), fmt.Errorf("native images stream line too long: %w", err)
+			return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageQuality, imageCount), fmt.Errorf("native images stream line too long: %w", err)
 		}
-		return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageCount), fmt.Errorf("native images stream read error: %w", err)
+		return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageQuality, imageCount), fmt.Errorf("native images stream read error: %w", err)
 	}
 
-	return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageCount), nil
+	return buildNativeImagesStreamingResult(resp, startTime, originalModel, mappedModel, imageSize, imageQuality, imageCount), nil
 }
 
 func buildNativeImagesStreamingResult(
@@ -132,6 +133,7 @@ func buildNativeImagesStreamingResult(
 	originalModel string,
 	mappedModel string,
 	imageSize string,
+	imageQuality string,
 	imageCount int,
 ) *OpenAIForwardResult {
 	requestID := ""
@@ -146,6 +148,7 @@ func buildNativeImagesStreamingResult(
 		Stream:        true,
 		ImageCount:    imageCount,
 		ImageSize:     ResolveOpenAIImageSizeTier(imageSize),
+		ImageQuality:  strings.TrimSpace(imageQuality),
 		MediaType:     "image",
 		Duration:      time.Since(startTime),
 	}

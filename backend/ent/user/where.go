@@ -75,6 +75,11 @@ func Email(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldEmail, v))
 }
 
+// EmailAlias applies equality check predicate on the "email_alias" field. It's identical to EmailAliasEQ.
+func EmailAlias(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldEmailAlias, v))
+}
+
 // PasswordHash applies equality check predicate on the "password_hash" field. It's identical to PasswordHashEQ.
 func PasswordHash(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
@@ -383,6 +388,71 @@ func EmailEqualFold(v string) predicate.User {
 // EmailContainsFold applies the ContainsFold predicate on the "email" field.
 func EmailContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldEmail, v))
+}
+
+// EmailAliasEQ applies the EQ predicate on the "email_alias" field.
+func EmailAliasEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldEmailAlias, v))
+}
+
+// EmailAliasNEQ applies the NEQ predicate on the "email_alias" field.
+func EmailAliasNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldEmailAlias, v))
+}
+
+// EmailAliasIn applies the In predicate on the "email_alias" field.
+func EmailAliasIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldEmailAlias, vs...))
+}
+
+// EmailAliasNotIn applies the NotIn predicate on the "email_alias" field.
+func EmailAliasNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldEmailAlias, vs...))
+}
+
+// EmailAliasGT applies the GT predicate on the "email_alias" field.
+func EmailAliasGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldEmailAlias, v))
+}
+
+// EmailAliasGTE applies the GTE predicate on the "email_alias" field.
+func EmailAliasGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldEmailAlias, v))
+}
+
+// EmailAliasLT applies the LT predicate on the "email_alias" field.
+func EmailAliasLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldEmailAlias, v))
+}
+
+// EmailAliasLTE applies the LTE predicate on the "email_alias" field.
+func EmailAliasLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldEmailAlias, v))
+}
+
+// EmailAliasContains applies the Contains predicate on the "email_alias" field.
+func EmailAliasContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldEmailAlias, v))
+}
+
+// EmailAliasHasPrefix applies the HasPrefix predicate on the "email_alias" field.
+func EmailAliasHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldEmailAlias, v))
+}
+
+// EmailAliasHasSuffix applies the HasSuffix predicate on the "email_alias" field.
+func EmailAliasHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldEmailAlias, v))
+}
+
+// EmailAliasEqualFold applies the EqualFold predicate on the "email_alias" field.
+func EmailAliasEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldEmailAlias, v))
+}
+
+// EmailAliasContainsFold applies the ContainsFold predicate on the "email_alias" field.
+func EmailAliasContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldEmailAlias, v))
 }
 
 // PasswordHashEQ applies the EQ predicate on the "password_hash" field.

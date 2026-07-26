@@ -9,7 +9,7 @@ export type RedeemCodeType =
   | "concurrency"
   | "subscription"
   | "invitation";
-export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2" | "cyber" | "blocked";
+export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2" | "cyber" | "blocked" | "live";
 export type UsageLogStatus = "succeeded" | "failed";
 export type UsageLogSimulatedClient = "codex" | "gemini_cli";
 export type TokenDisplayMode = "natural" | "k" | "m";
@@ -80,6 +80,7 @@ export interface UsageLog {
   // Image generation usage metrics.
   image_count: number;
   image_size: string | null;
+  image_quality?: string | null;
   image_output_tokens?: number | null;
   image_output_cost?: number | null;
   model_success_rate_7d?: number | null;

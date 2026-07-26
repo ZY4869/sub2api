@@ -28,6 +28,7 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.displayMode.used': 'Used',
           'admin.accounts.usageWindow.displayMode.remaining': 'Remaining',
           'admin.accounts.usageWindow.sampledBadge': 'Sampled',
+          'admin.accounts.usageWindow.grokSnapshotStale': 'Grok snapshot stale',
           'admin.accounts.usageWindow.refreshResetCredits': 'Refresh count',
           'admin.accounts.usageWindow.refreshingResetCredits': 'Refreshing',
           'admin.accounts.usageWindow.refreshResetCreditsTitle': 'Refresh OpenAI reset credits',
@@ -407,6 +408,40 @@ describe('AccountUsageVisualCell', () => {
     expect(rowTitles.some((title) => title?.includes('Grok W'))).toBe(true)
     expect(rowTitles.some((title) => title?.includes('Grok M'))).toBe(true)
     expect(wrapper.text()).toContain('Snapshot')
+  })
+
+  it('shows Grok quota rows as remaining even in used display mode', async () => {
+    useAccountUsageDisplayMode().setAccountUsageDisplayMode('used')
+    getUsage.mockResolvedValue({
+      source: 'active',
+      updated_at: '2099-07-15T10:00:00Z',
+      grok_last_headers_seen_at: '2099-07-15T10:00:00Z',
+      grok_request_quota: {
+        limit: 100,
+        remaining: 100,
+      },
+    })
+
+    const wrapper = mount(AccountUsageVisualCell, {
+      props: {
+        account: {
+          id: 95,
+          platform: 'grok',
+          type: 'oauth',
+          active_usage_available: true,
+          extra: {},
+        } as any,
+      },
+      global: {
+        plugins: [createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('100%')
+    expect(wrapper.find('[title*="请求数"]').attributes('title')).toContain('Remaining: 100%')
+    expect(wrapper.text()).not.toContain('Grok snapshot stale')
   })
 
   it('follows the shared remaining display mode', async () => {

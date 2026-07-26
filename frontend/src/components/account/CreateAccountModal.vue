@@ -124,7 +124,7 @@
         <AccountTierSelector
           v-if="accountCategory === 'oauth-based' && (form.platform === 'openai' || form.platform === 'anthropic')"
           v-model:tier="accountTier"
-          :platform="form.platform"
+          :platform="accountFormPlatform"
           @apply-capacity="applyAccountTierCapacity"
         />
 
@@ -180,7 +180,7 @@
           v-model:manual-models="manualModels"
           v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
-          :platform="form.platform"
+          :platform="accountFormPlatform"
           :account-type="showAntigravityUpstreamCredentialsSection ? 'apikey' : 'upstream'"
           :credentials="upstreamProbeCredentials"
           :extra="probeExtraForEditor"
@@ -758,6 +758,7 @@ const {
   geminiTierGcp,
   geminiTierAIStudio,
   accountTier,
+  accountFormPlatform,
   effectivePlatform,
   effectiveGroupPlatforms,
   showProtocolGatewayClaudeMimicEditor,

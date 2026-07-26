@@ -64,6 +64,7 @@ func userEntityToService(u *dbent.User) *service.User {
 	return &service.User{
 		ID:                              u.ID,
 		Email:                           u.Email,
+		EmailAlias:                      u.EmailAlias,
 		Username:                        u.Username,
 		Notes:                           u.Notes,
 		PasswordHash:                    u.PasswordHash,
@@ -163,7 +164,10 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		SortOrder:                       g.SortOrder,
 		Priority:                        g.Priority,
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
+		AllowLive:                       g.AllowLive,
 		DefaultMappedModel:              g.DefaultMappedModel,
+		MaxReasoningEffort:              g.MaxReasoningEffort,
+		ReasoningEffortMappings:         reasoningEffortMappingsFromDB(g.ReasoningEffortMappings),
 		CreatedAt:                       g.CreatedAt,
 		UpdatedAt:                       g.UpdatedAt,
 	}

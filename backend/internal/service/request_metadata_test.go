@@ -160,6 +160,7 @@ func TestRequestMetadataImageRouteFields(t *testing.T) {
 	SetImageProtocolModeMetadata(ctx, OpenAIImageProtocolModeCompat)
 	SetImageRequestSurfaceMetadata(ctx, "images_bridge")
 	SetImageSizeTierMetadata(ctx, OpenAIImageSizeTier2K)
+	SetImageQualityMetadata(ctx, " high ")
 	SetImageCapabilityProfileMetadata(ctx, "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on")
 	SetImageOutputCountMetadata(ctx, 2)
 
@@ -206,6 +207,9 @@ func TestRequestMetadataImageRouteFields(t *testing.T) {
 	sizeTier, ok := ImageSizeTierMetadataFromContext(ctx)
 	require.True(t, ok)
 	require.Equal(t, OpenAIImageSizeTier2K, sizeTier)
+	imageQuality, ok := ImageQualityMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "high", imageQuality)
 
 	capabilityProfile, ok := ImageCapabilityProfileMetadataFromContext(ctx)
 	require.True(t, ok)

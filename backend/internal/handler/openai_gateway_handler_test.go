@@ -536,6 +536,7 @@ func TestOpenAIResponses_RuntimeQuotaOnlySelectionFailureReturns429(t *testing.T
 		nil,
 		nil,
 		nil,
+		nil,
 		concurrencySvc,
 		nil,
 		nil,
@@ -621,6 +622,7 @@ func TestOpenAIResponses_ModelUnsupportedSelectionFailureReturns404ModelNotFound
 	concurrencySvc := service.NewConcurrencyService(cache)
 	gatewaySvc := service.NewOpenAIGatewayService(
 		accountRepo,
+		nil,
 		nil,
 		nil,
 		nil,

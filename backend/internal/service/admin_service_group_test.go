@@ -130,6 +130,18 @@ func (s *groupRepoStubForAdmin) UpdateSortOrders(_ context.Context, _ []GroupSor
 	return nil
 }
 
+func (s *groupRepoStubForAdmin) ListCompositeRoutes(_ context.Context, _ int64) ([]CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (s *groupRepoStubForAdmin) ReplaceCompositeRoutes(_ context.Context, _ int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	return routes, nil
+}
+
+func (s *groupRepoStubForAdmin) FindCompositeRoute(_ context.Context, _ int64, _ string) (*CompositeModelRoute, error) {
+	return nil, nil
+}
+
 // TestAdminService_CreateGroup_WithImagePricing 测试创建分组时 ImagePrice 字段正确传递
 func TestAdminService_CreateGroup_WithImagePricing(t *testing.T) {
 	repo := &groupRepoStubForAdmin{}
@@ -504,6 +516,18 @@ func (s *groupRepoStubForFallbackCycle) UpdateSortOrders(_ context.Context, _ []
 	return nil
 }
 
+func (s *groupRepoStubForFallbackCycle) ListCompositeRoutes(_ context.Context, _ int64) ([]CompositeModelRoute, error) {
+	panic("unexpected ListCompositeRoutes call")
+}
+
+func (s *groupRepoStubForFallbackCycle) ReplaceCompositeRoutes(_ context.Context, _ int64, _ []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	panic("unexpected ReplaceCompositeRoutes call")
+}
+
+func (s *groupRepoStubForFallbackCycle) FindCompositeRoute(_ context.Context, _ int64, _ string) (*CompositeModelRoute, error) {
+	panic("unexpected FindCompositeRoute call")
+}
+
 type groupRepoStubForInvalidRequestFallback struct {
 	groups  map[int64]*Group
 	created *Group
@@ -586,6 +610,18 @@ func (s *groupRepoStubForInvalidRequestFallback) BindAccountsToGroup(_ context.C
 
 func (s *groupRepoStubForInvalidRequestFallback) UpdateSortOrders(_ context.Context, _ []GroupSortOrderUpdate) error {
 	return nil
+}
+
+func (s *groupRepoStubForInvalidRequestFallback) ListCompositeRoutes(_ context.Context, _ int64) ([]CompositeModelRoute, error) {
+	panic("unexpected ListCompositeRoutes call")
+}
+
+func (s *groupRepoStubForInvalidRequestFallback) ReplaceCompositeRoutes(_ context.Context, _ int64, _ []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	panic("unexpected ReplaceCompositeRoutes call")
+}
+
+func (s *groupRepoStubForInvalidRequestFallback) FindCompositeRoute(_ context.Context, _ int64, _ string) (*CompositeModelRoute, error) {
+	panic("unexpected FindCompositeRoute call")
 }
 
 func TestAdminService_CreateGroup_InvalidRequestFallbackClearsUnsupportedPlatform(t *testing.T) {

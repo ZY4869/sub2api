@@ -72,13 +72,12 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { getPlatformEnglishName } from '@/utils/platformBranding'
+import { getPlatformEnglishName, isAccountPlatform } from '@/utils/platformBranding'
 import type {
   AdminDataImportCreatedAccount,
   AdminGroup,
   AccountPlatform,
-  AccountType,
-  GroupPlatform
+  AccountType
 } from '@/types'
 
 const props = defineProps<{
@@ -95,7 +94,7 @@ const emit = defineEmits<{
 
 interface ImportBindingSection {
   key: string
-  platform: GroupPlatform
+  platform: AccountPlatform
   type: AccountType
   title: string
   accounts: AdminDataImportCreatedAccount[]
@@ -109,7 +108,11 @@ const sectionSelections = reactive<Record<string, number[]>>({})
 const sections = computed<ImportBindingSection[]>(() => {
   const byKey = new Map<string, ImportBindingSection>()
   for (const account of props.accounts) {
-    const platform = account.platform as AccountPlatform
+    const rawPlatform = String(account.platform || '')
+    if (!isAccountPlatform(rawPlatform)) {
+      continue
+    }
+    const platform = rawPlatform
     const type = account.type as AccountType
     const key = `${platform}:${type}`
     const existing = byKey.get(key)
@@ -119,7 +122,7 @@ const sections = computed<ImportBindingSection[]>(() => {
     }
     byKey.set(key, {
       key,
-      platform: platform as GroupPlatform,
+      platform,
       type,
       title: `${getPlatformEnglishName(platform)} / ${formatAccountType(type)}`,
       accounts: [account]

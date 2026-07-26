@@ -70,6 +70,7 @@ export {
 
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000;
 const SEVEN_DAYS_SECONDS = 7 * 24 * 60 * 60;
+const GROK_SNAPSHOT_STALE_MS = 10 * 60 * 1000;
 
 function normalizeOpenAIResetCreditsCount(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
@@ -618,6 +619,50 @@ export function useAccountUsagePresentation(
 
     return parsed;
   });
+
+  const grokSnapshotUpdatedAt = computed(() => {
+    const candidates = [
+      usageInfo.value?.grok_last_headers_seen_at,
+      usageInfo.value?.grok_last_quota_probe_at,
+      usageInfo.value?.updated_at,
+      usageInfo.value?.grok_billing?.fetched_at,
+      usageInfo.value?.grok_billing?.updated_at,
+    ];
+    let latest: Date | null = null;
+    for (const raw of candidates) {
+      if (typeof raw !== "string" || raw.trim() === "") continue;
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) continue;
+      if (!latest || parsed.getTime() > latest.getTime()) {
+        latest = parsed;
+      }
+    }
+    return latest;
+  });
+
+  const grokSnapshotUpdatedAtText = computed(() => {
+    if (!grokSnapshotUpdatedAt.value) return "";
+    return formatLocalAbsoluteTime(grokSnapshotUpdatedAt.value, nowDate.value, {
+      today: t("dates.today"),
+      tomorrow: t("dates.tomorrow"),
+    });
+  });
+
+  const grokSnapshotUpdatedAtTooltip = computed(() => {
+    if (!grokSnapshotUpdatedAt.value) return "";
+    return formatLocalTimestamp(grokSnapshotUpdatedAt.value);
+  });
+
+  const isGrokSnapshotStale = computed(() => {
+    if (
+      getRuntimePlatform(account.value) !== "grok" ||
+      account.value.type !== "oauth"
+    )
+      return false;
+    const snapshotDate = grokSnapshotUpdatedAt.value;
+    if (!snapshotDate) return true;
+    return nowMs.value - snapshotDate.getTime() >= GROK_SNAPSHOT_STALE_MS;
+  });
   const fetchedSnapshotUpdatedAtText = computed(() => {
     if (!fetchedSnapshotUpdatedAt.value) return "";
     return formatLocalAbsoluteTime(
@@ -954,6 +999,11 @@ export function useAccountUsagePresentation(
     return buildUsageRow(key, label, (used / limit) * 100, quota?.reset_at || null, color, {
       inlineRemaining: true,
       detailedReset: true,
+      displayModeOverride: "remaining",
+      quotaTooltip: {
+        limit,
+        remaining,
+      },
     });
   };
 
@@ -1245,11 +1295,18 @@ export function useAccountUsagePresentation(
         ? "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200"
         : "";
       meta.snapshotUpdatedAtText =
-        fetchedSnapshotUpdatedAtText.value || undefined;
+        grokSnapshotUpdatedAtText.value ||
+        fetchedSnapshotUpdatedAtText.value ||
+        undefined;
       meta.snapshotUpdatedAtTooltip =
-        fetchedSnapshotUpdatedAtTooltip.value || undefined;
+        grokSnapshotUpdatedAtTooltip.value ||
+        fetchedSnapshotUpdatedAtTooltip.value ||
+        undefined;
       if (usageInfo.value?.source === "passive") {
         meta.sampledBadgeLabel = t("admin.accounts.usageWindow.sampledBadge");
+      }
+      if (isGrokSnapshotStale.value) {
+        meta.noteText = t("admin.accounts.usageWindow.grokSnapshotStale");
       }
 
       if (currentState.loading) {
@@ -1258,7 +1315,9 @@ export function useAccountUsagePresentation(
         state = "bars";
         windowRows = grokRows.value;
         if (currentState.error) {
-          meta.noteText = currentState.error;
+          meta.noteText = meta.noteText
+            ? `${meta.noteText} ${currentState.error}`
+            : currentState.error;
         }
       } else if (currentState.error) {
         state = "error";

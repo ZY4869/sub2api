@@ -141,7 +141,9 @@
       <span class="font-medium text-gray-900 dark:text-white"
         >{{ row.image_count }}{{ $t("usage.imageUnit") }}</span
       >
-      <span class="text-gray-400">({{ row.image_size || "2K" }})</span>
+      <span class="text-gray-400"
+        >({{ formatImageUsageDetail(row.image_size, row.image_quality) }})</span
+      >
     </div>
     <!-- Token 请求 -->
     <div v-else class="flex items-center gap-1.5">
@@ -391,6 +393,14 @@ const { t } = useI18n();
 const tableDensityClass = computed(() =>
   props.tableDensity === "compact" ? "usage-table--compact" : "usage-table--comfortable",
 );
+
+const formatImageUsageDetail = (
+  size: string | null | undefined,
+  quality: string | null | undefined,
+): string => {
+  const parts = [String(size || "2K").trim(), String(quality || "").trim()].filter(Boolean);
+  return parts.join(" · ");
+};
 
 const getCacheCreationTotal = (
   row: Pick<

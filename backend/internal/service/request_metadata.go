@@ -53,6 +53,7 @@ type RequestMetadata struct {
 	ImageProtocolMode              *string
 	ImageRequestSurface            *string
 	ImageSizeTier                  *string
+	ImageQuality                   *string
 	ImageCapabilityProfile         *string
 	ImageOutputCount               *int
 	ImagegenCompat                 *bool
@@ -771,6 +772,19 @@ func SetImageSizeTierMetadata(ctx context.Context, value string) {
 func ImageSizeTierMetadataFromContext(ctx context.Context) (string, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.ImageSizeTier != nil {
 		return strings.TrimSpace(*md.ImageSizeTier), true
+	}
+	return "", false
+}
+
+func SetImageQualityMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageQuality, value)
+	}
+}
+
+func ImageQualityMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageQuality != nil {
+		return strings.TrimSpace(*md.ImageQuality), true
 	}
 	return "", false
 }

@@ -188,7 +188,8 @@ const displayRows = computed<VisualUsageRow[]>(() => {
 })
 
 const rowTitle = (row: VisualUsageRow) => {
-  const mode = accountUsageDisplayMode.value === 'remaining'
+  const displayMode = row.displayModeOverride || accountUsageDisplayMode.value
+  const mode = displayMode === 'remaining'
     ? t('admin.accounts.usageWindow.displayMode.remaining')
     : t('admin.accounts.usageWindow.displayMode.used')
   return `${row.label} ${mode}: ${Math.round(row.displayPercent)}%`

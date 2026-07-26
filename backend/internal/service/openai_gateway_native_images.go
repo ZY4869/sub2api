@@ -56,6 +56,10 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 			runtimeModel = sourceModel
 		}
 	}
+	runtimeModel = ResolveGatewaySelectionModelFromContext(ctx, runtimeModel)
+	if runtimeModel == "" {
+		runtimeModel = originalModel
+	}
 	mappedModel := resolveOpenAIForwardModel(account, runtimeModel, "")
 	requestBody, rewrittenContentType, err := RewriteOpenAIImageRequestModel(body, contentType, mappedModel)
 	if err != nil {
@@ -80,6 +84,7 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 	}
 	normalizedRequest.DisplayModelID = originalModel
 	normalizedRequest.TargetModelID = mappedModel
+	imageQuality := strings.TrimSpace(normalizedRequest.Quality)
 	capabilityProfile, err := ValidateOpenAIImageCapabilities(normalizedRequest, OpenAIImageProtocolModeNative, mappedModel)
 	if err != nil {
 		return nil, err
@@ -154,10 +159,11 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 			originalModel,
 			mappedModel,
 			firstNonEmptyString(strings.TrimSpace(normalizedRequest.Size), strings.TrimSpace(imageSize)),
+			imageQuality,
 		)
 	}
 
-	result, err := s.handleNativeImagesNonStreamingResponse(resp, c, originalModel, mappedModel, imageSize)
+	result, err := s.handleNativeImagesNonStreamingResponse(resp, c, originalModel, mappedModel, imageSize, imageQuality)
 	if err != nil {
 		return nil, err
 	}
@@ -214,6 +220,7 @@ func (s *OpenAIGatewayService) handleNativeImagesNonStreamingResponse(
 	originalModel string,
 	mappedModel string,
 	imageSize string,
+	imageQuality string,
 ) (*OpenAIForwardResult, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(s.cfg)
 	body, err := readUpstreamResponseBodyLimitedFromResponse(resp, maxBytes)
@@ -249,6 +256,7 @@ func (s *OpenAIGatewayService) handleNativeImagesNonStreamingResponse(
 		UpstreamModel: mappedModel,
 		ImageCount:    CountOpenAIImageResponse(body),
 		ImageSize:     ResolveOpenAIImageSizeTier(imageSize),
+		ImageQuality:  strings.TrimSpace(imageQuality),
 		MediaType:     "image",
 	}, nil
 }

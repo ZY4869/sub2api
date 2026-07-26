@@ -65,6 +65,9 @@ func (s *BillingService) initFallbackPricing() {
 	// Claude 4.7 Opus (暂与4.6同价，待官方定价更新)
 	s.fallbackPrices["claude-opus-4.7"] = s.fallbackPrices["claude-opus-4.6"]
 
+	// Claude 5 Opus
+	s.fallbackPrices["claude-opus-5"] = s.fallbackPrices["claude-opus-4.5"]
+
 	// Gemini 3.1 Pro
 	s.fallbackPrices["gemini-3.1-pro"] = &ModelPricing{
 		InputPricePerToken:         2e-6,   // $2 per MTok

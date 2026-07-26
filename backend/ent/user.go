@@ -26,6 +26,8 @@ type User struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// Email holds the value of the "email" field.
 	Email string `json:"email,omitempty"`
+	// EmailAlias holds the value of the "email_alias" field.
+	EmailAlias string `json:"email_alias,omitempty"`
 	// PasswordHash holds the value of the "password_hash" field.
 	PasswordHash string `json:"password_hash,omitempty"`
 	// Role holds the value of the "role" field.
@@ -214,7 +216,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldAccountTodayStatsCycleMode, user.FieldAccountGroupDisplayMode, user.FieldAccountStatusDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldExternalModelCatalogViewMode, user.FieldTotpSecretEncrypted:
+		case user.FieldEmail, user.FieldEmailAlias, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldUsageModelDisplayMode, user.FieldVisualPresetPreference, user.FieldAccountVisualPresetOverride, user.FieldAccountTodayStatsCycleMode, user.FieldAccountGroupDisplayMode, user.FieldAccountStatusDisplayMode, user.FieldUsageContextBadgeDisplayMode, user.FieldAPIKeyModelBindingMode, user.FieldExternalModelCatalogViewMode, user.FieldTotpSecretEncrypted:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt:
 			values[i] = new(sql.NullTime)
@@ -263,6 +265,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field email", values[i])
 			} else if value.Valid {
 				_m.Email = value.String
+			}
+		case user.FieldEmailAlias:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field email_alias", values[i])
+			} else if value.Valid {
+				_m.EmailAlias = value.String
 			}
 		case user.FieldPasswordHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -527,6 +535,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("email=")
 	builder.WriteString(_m.Email)
+	builder.WriteString(", ")
+	builder.WriteString("email_alias=")
+	builder.WriteString(_m.EmailAlias)
 	builder.WriteString(", ")
 	builder.WriteString("password_hash=")
 	builder.WriteString(_m.PasswordHash)

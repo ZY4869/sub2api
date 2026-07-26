@@ -30,6 +30,10 @@ func (UsageLog) Fields() []ent.Field {
 		field.String("request_id").
 			MaxLen(64).
 			NotEmpty(),
+		field.String("session_id").
+			MaxLen(128).
+			Optional().
+			Nillable(),
 		field.String("model").
 			MaxLen(100).
 			NotEmpty(),
@@ -158,6 +162,10 @@ func (UsageLog) Fields() []ent.Field {
 			MaxLen(10).
 			Optional().
 			Nillable(),
+		field.String("image_quality").
+			MaxLen(32).
+			Optional().
+			Nillable(),
 		field.Bool("cache_ttl_overridden").
 			Default(false),
 		field.Time("created_at").
@@ -205,6 +213,7 @@ func (UsageLog) Indexes() []ent.Index {
 		index.Fields("created_at"),
 		index.Fields("model"),
 		index.Fields("requested_model"),
+		index.Fields("session_id"),
 		index.Fields("request_id"),
 		index.Fields("user_id", "created_at"),
 		index.Fields("api_key_id", "created_at"),

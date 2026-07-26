@@ -217,7 +217,9 @@
             <span class="font-medium text-gray-900 dark:text-white"
               >{{ row.image_count }}{{ t("usage.imageUnit") }}</span
             >
-            <span class="text-gray-400">({{ row.image_size || "2K" }})</span>
+            <span class="text-gray-400"
+              >({{ formatImageUsageDetail(row.image_size, row.image_quality) }})</span
+            >
           </div>
           <!-- Token 请求 -->
           <div v-else class="flex items-center gap-1.5">
@@ -943,6 +945,14 @@ const getChargeBadgeClass = (row: AdminUsageLog): string =>
 
 const formatTokens = (tokens: number | null | undefined): string =>
   formatTokenDisplay(tokens);
+
+const formatImageUsageDetail = (
+  size: string | null | undefined,
+  quality: string | null | undefined,
+): string => {
+  const parts = [String(size || "2K").trim(), String(quality || "").trim()].filter(Boolean);
+  return parts.join(" · ");
+};
 
 const getCacheCreationTotal = (
   row: Pick<

@@ -54,6 +54,10 @@ func (d gatewayRouteDispatchers) OpenAIResponsesWebSocket(c *gin.Context) {
 	dispatchOpenAIRoute(c, service.EndpointResponses, service.ProtocolCapabilityActionWebSocket, d.handlers.OpenAIGateway.ResponsesWebSocket, nil)
 }
 
+func (d gatewayRouteDispatchers) OpenAILive(c *gin.Context) {
+	dispatchOpenAIRoute(c, service.EndpointOpenAILive, service.ProtocolCapabilityActionLive, d.handlers.OpenAIGateway.Live, nil)
+}
+
 func (d gatewayRouteDispatchers) OpenAIChatCompletions(c *gin.Context) {
 	if c != nil && c.Request != nil && d.handlers != nil && d.handlers.Gateway != nil && d.handlers.Gateway.HasMultipleUsableGroups(c) {
 		d.handlers.OpenAIGateway.ChatCompletions(c)

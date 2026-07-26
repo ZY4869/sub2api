@@ -464,11 +464,199 @@ func sanitizeGrokOpenAICompatibleRequestBody(body []byte) []byte {
 	} {
 		delete(payload, key)
 	}
+	normalizeGrokResponsesTools(payload)
+	normalizeGrokResponsesToolChoice(payload)
+	normalizeGrokResponsesInputToolCalls(payload)
 	next, err := json.Marshal(payload)
 	if err != nil {
 		return body
 	}
 	return next
+}
+
+func normalizeGrokResponsesTools(payload map[string]any) {
+	if payload == nil {
+		return
+	}
+	rawTools, exists := payload["tools"]
+	if !exists {
+		return
+	}
+	tools, ok := rawTools.([]any)
+	if !ok {
+		return
+	}
+	normalized := make([]any, 0, len(tools))
+	for _, rawTool := range tools {
+		normalized = append(normalized, normalizeGrokResponsesTool(rawTool)...)
+	}
+	if len(normalized) == 0 {
+		delete(payload, "tools")
+		return
+	}
+	payload["tools"] = normalized
+}
+
+func normalizeGrokResponsesTool(raw any) []any {
+	tool, ok := cloneGrokStringAnyMap(raw)
+	if !ok {
+		return nil
+	}
+	toolType := strings.TrimSpace(grokStringValue(tool["type"]))
+	switch toolType {
+	case "namespace":
+		nested, _ := tool["tools"].([]any)
+		out := make([]any, 0, len(nested))
+		for _, nestedTool := range nested {
+			out = append(out, normalizeGrokResponsesTool(nestedTool)...)
+		}
+		return out
+	case "tool_search", "image_generation":
+		return nil
+	case "custom":
+		if strings.TrimSpace(grokStringValue(tool["name"])) == "apply_patch" {
+			return nil
+		}
+		tool["type"] = "function"
+		if _, exists := tool["parameters"]; !exists {
+			tool["parameters"] = map[string]any{"type": "object", "properties": map[string]any{}}
+		}
+		return []any{tool}
+	case "web_search":
+		delete(tool, "external_web_access")
+		return []any{tool}
+	case "", "function":
+		tool["type"] = "function"
+		if _, exists := tool["parameters"]; !exists {
+			tool["parameters"] = map[string]any{"type": "object", "properties": map[string]any{}}
+		}
+		return []any{tool}
+	default:
+		return []any{tool}
+	}
+}
+
+func normalizeGrokResponsesToolChoice(payload map[string]any) {
+	if payload == nil {
+		return
+	}
+	tools, hasTools := payload["tools"].([]any)
+	if !hasTools || len(tools) == 0 {
+		delete(payload, "tools")
+		delete(payload, "tool_choice")
+		delete(payload, "parallel_tool_calls")
+		return
+	}
+	choice, exists := payload["tool_choice"]
+	if !exists {
+		return
+	}
+	choiceMap, ok := cloneGrokStringAnyMap(choice)
+	if !ok {
+		return
+	}
+	choiceType := strings.TrimSpace(grokStringValue(choiceMap["type"]))
+	switch choiceType {
+	case "namespace", "image_generation", "tool_search", "custom":
+		delete(payload, "tool_choice")
+	case "function":
+		if name := strings.TrimSpace(grokStringValue(choiceMap["name"])); name != "" {
+			payload["tool_choice"] = map[string]any{"type": "function", "name": name}
+			return
+		}
+		if fn, ok := cloneGrokStringAnyMap(choiceMap["function"]); ok {
+			if name := strings.TrimSpace(grokStringValue(fn["name"])); name != "" {
+				payload["tool_choice"] = map[string]any{"type": "function", "name": name}
+			}
+		}
+	}
+}
+
+func normalizeGrokResponsesInputToolCalls(payload map[string]any) {
+	if payload == nil {
+		return
+	}
+	input, ok := payload["input"].([]any)
+	if !ok {
+		return
+	}
+	for _, rawItem := range input {
+		item, ok := rawItem.(map[string]any)
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(grokStringValue(item["type"])) {
+		case "custom_tool_call", "mcp_tool_call":
+			item["type"] = "function_call"
+			normalizeGrokResponsesFunctionCallArguments(item)
+			delete(item, "namespace")
+		case "custom_tool_call_output", "mcp_tool_call_output":
+			item["type"] = "function_call_output"
+			delete(item, "namespace")
+		case "tool_search_call":
+			item["type"] = "function_call"
+			if _, exists := item["name"]; !exists {
+				item["name"] = "tool_search"
+			}
+			normalizeGrokResponsesFunctionCallArguments(item)
+		case "tool_search_output":
+			item["type"] = "function_call_output"
+		}
+		if strings.TrimSpace(grokStringValue(item["type"])) == "reasoning" {
+			if v, exists := item["content"]; exists && v == nil {
+				delete(item, "content")
+			}
+			if v, exists := item["encrypted_content"]; exists && v == nil {
+				delete(item, "encrypted_content")
+			}
+		}
+	}
+}
+
+func normalizeGrokResponsesFunctionCallArguments(item map[string]any) {
+	if item == nil {
+		return
+	}
+	if _, exists := item["arguments"]; exists {
+		delete(item, "input")
+		return
+	}
+	rawInput, exists := item["input"]
+	if !exists {
+		return
+	}
+	switch typed := rawInput.(type) {
+	case string:
+		item["arguments"] = typed
+	default:
+		if data, err := json.Marshal(typed); err == nil {
+			item["arguments"] = string(data)
+		}
+	}
+	delete(item, "input")
+}
+
+func cloneGrokStringAnyMap(value any) (map[string]any, bool) {
+	src, ok := value.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	out := make(map[string]any, len(src))
+	for key, item := range src {
+		out[key] = item
+	}
+	return out, true
+}
+
+func grokStringValue(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return typed
+	case fmt.Stringer:
+		return typed.String()
+	default:
+		return ""
+	}
 }
 
 func openAIResultToForwardResult(result *OpenAIForwardResult) *ForwardResult {

@@ -75,6 +75,11 @@ func RequestID(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRequestID, v))
 }
 
+// SessionID applies equality check predicate on the "session_id" field. It's identical to SessionIDEQ.
+func SessionID(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldSessionID, v))
+}
+
 // Model applies equality check predicate on the "model" field. It's identical to ModelEQ.
 func Model(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldModel, v))
@@ -285,6 +290,11 @@ func ImageSize(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldImageSize, v))
 }
 
+// ImageQuality applies equality check predicate on the "image_quality" field. It's identical to ImageQualityEQ.
+func ImageQuality(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageQuality, v))
+}
+
 // CacheTTLOverridden applies equality check predicate on the "cache_ttl_overridden" field. It's identical to CacheTTLOverriddenEQ.
 func CacheTTLOverridden(v bool) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldCacheTTLOverridden, v))
@@ -418,6 +428,81 @@ func RequestIDEqualFold(v string) predicate.UsageLog {
 // RequestIDContainsFold applies the ContainsFold predicate on the "request_id" field.
 func RequestIDContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldRequestID, v))
+}
+
+// SessionIDEQ applies the EQ predicate on the "session_id" field.
+func SessionIDEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldSessionID, v))
+}
+
+// SessionIDNEQ applies the NEQ predicate on the "session_id" field.
+func SessionIDNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldSessionID, v))
+}
+
+// SessionIDIn applies the In predicate on the "session_id" field.
+func SessionIDIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldSessionID, vs...))
+}
+
+// SessionIDNotIn applies the NotIn predicate on the "session_id" field.
+func SessionIDNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldSessionID, vs...))
+}
+
+// SessionIDGT applies the GT predicate on the "session_id" field.
+func SessionIDGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldSessionID, v))
+}
+
+// SessionIDGTE applies the GTE predicate on the "session_id" field.
+func SessionIDGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldSessionID, v))
+}
+
+// SessionIDLT applies the LT predicate on the "session_id" field.
+func SessionIDLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldSessionID, v))
+}
+
+// SessionIDLTE applies the LTE predicate on the "session_id" field.
+func SessionIDLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldSessionID, v))
+}
+
+// SessionIDContains applies the Contains predicate on the "session_id" field.
+func SessionIDContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldSessionID, v))
+}
+
+// SessionIDHasPrefix applies the HasPrefix predicate on the "session_id" field.
+func SessionIDHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldSessionID, v))
+}
+
+// SessionIDHasSuffix applies the HasSuffix predicate on the "session_id" field.
+func SessionIDHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldSessionID, v))
+}
+
+// SessionIDIsNil applies the IsNil predicate on the "session_id" field.
+func SessionIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldSessionID))
+}
+
+// SessionIDNotNil applies the NotNil predicate on the "session_id" field.
+func SessionIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldSessionID))
+}
+
+// SessionIDEqualFold applies the EqualFold predicate on the "session_id" field.
+func SessionIDEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldSessionID, v))
+}
+
+// SessionIDContainsFold applies the ContainsFold predicate on the "session_id" field.
+func SessionIDContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldSessionID, v))
 }
 
 // ModelEQ applies the EQ predicate on the "model" field.
@@ -2423,6 +2508,81 @@ func ImageSizeEqualFold(v string) predicate.UsageLog {
 // ImageSizeContainsFold applies the ContainsFold predicate on the "image_size" field.
 func ImageSizeContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldImageSize, v))
+}
+
+// ImageQualityEQ applies the EQ predicate on the "image_quality" field.
+func ImageQualityEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldImageQuality, v))
+}
+
+// ImageQualityNEQ applies the NEQ predicate on the "image_quality" field.
+func ImageQualityNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldImageQuality, v))
+}
+
+// ImageQualityIn applies the In predicate on the "image_quality" field.
+func ImageQualityIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldImageQuality, vs...))
+}
+
+// ImageQualityNotIn applies the NotIn predicate on the "image_quality" field.
+func ImageQualityNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldImageQuality, vs...))
+}
+
+// ImageQualityGT applies the GT predicate on the "image_quality" field.
+func ImageQualityGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldImageQuality, v))
+}
+
+// ImageQualityGTE applies the GTE predicate on the "image_quality" field.
+func ImageQualityGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldImageQuality, v))
+}
+
+// ImageQualityLT applies the LT predicate on the "image_quality" field.
+func ImageQualityLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldImageQuality, v))
+}
+
+// ImageQualityLTE applies the LTE predicate on the "image_quality" field.
+func ImageQualityLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldImageQuality, v))
+}
+
+// ImageQualityContains applies the Contains predicate on the "image_quality" field.
+func ImageQualityContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldImageQuality, v))
+}
+
+// ImageQualityHasPrefix applies the HasPrefix predicate on the "image_quality" field.
+func ImageQualityHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldImageQuality, v))
+}
+
+// ImageQualityHasSuffix applies the HasSuffix predicate on the "image_quality" field.
+func ImageQualityHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldImageQuality, v))
+}
+
+// ImageQualityIsNil applies the IsNil predicate on the "image_quality" field.
+func ImageQualityIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldImageQuality))
+}
+
+// ImageQualityNotNil applies the NotNil predicate on the "image_quality" field.
+func ImageQualityNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldImageQuality))
+}
+
+// ImageQualityEqualFold applies the EqualFold predicate on the "image_quality" field.
+func ImageQualityEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldImageQuality, v))
+}
+
+// ImageQualityContainsFold applies the ContainsFold predicate on the "image_quality" field.
+func ImageQualityContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldImageQuality, v))
 }
 
 // CacheTTLOverriddenEQ applies the EQ predicate on the "cache_ttl_overridden" field.

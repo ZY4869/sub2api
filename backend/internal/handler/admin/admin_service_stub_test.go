@@ -271,6 +271,18 @@ func (s *stubAdminService) UpdateGroup(ctx context.Context, id int64, input *ser
 	return &group, nil
 }
 
+func (s *stubAdminService) ListCompositeRoutes(ctx context.Context, groupID int64) ([]service.CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (s *stubAdminService) ReplaceCompositeRoutes(ctx context.Context, groupID int64, routes []service.CompositeModelRoute) ([]service.CompositeModelRoute, error) {
+	return routes, nil
+}
+
+func (s *stubAdminService) PreviewCompositeRoute(ctx context.Context, input service.CompositeRoutePreviewInput) (*service.CompositeRoutePreviewResult, error) {
+	return &service.CompositeRoutePreviewResult{Matched: false, DisplayModelID: input.Model}, nil
+}
+
 func (s *stubAdminService) DeleteGroup(ctx context.Context, id int64) error {
 	if _, err := s.GetGroup(ctx, id); err != nil {
 		return err

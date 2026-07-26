@@ -1,0 +1,20 @@
+export default {
+  title: "Composite routes",
+  hint: "The parent group routes public model IDs to non-composite child groups. Target models are internal forwarding settings and do not expand public model visibility.",
+  displayModel: "Public model ID",
+  displayModelPlaceholder: "e.g. gpt-5.4",
+  targetGroup: "Target group",
+  targetGroupPlaceholder: "Select a non-composite group",
+  targetModel: "Target model",
+  targetModelPlaceholder: "Leave empty to reuse the public model ID",
+  priority: "Priority",
+  enabled: "Enabled",
+  notes: "Notes",
+  addRoute: "Add route",
+  removeRoute: "Remove route",
+  previewModel: "Preview model",
+  preview: "Preview",
+  previewNoMatch: "No route matched",
+  previewMatched: "Matched {group}, forwarding as {model}",
+  emptyRoutes: "No routes yet. Add at least one route before this composite group can forward requests."
+}

@@ -9,6 +9,7 @@ export type GroupPlatform =
   | "deepseek"
   | "gemini"
   | "antigravity"
+  | "composite"
   | "protocol_gateway"
   | "baidu_document_ai";
 
@@ -34,6 +35,43 @@ export type OpenAIImageProtocolMode = "native" | "compat";
 export type OpenAIGroupImageProtocolMode =
   | "inherit"
   | OpenAIImageProtocolMode;
+export type OpenAIReasoningEffort =
+  | "none"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh"
+  | "max";
+
+export interface ReasoningEffortMapping {
+  model: string;
+  from?: OpenAIReasoningEffort | "";
+  to?: OpenAIReasoningEffort | "";
+  reasoning_effort?: OpenAIReasoningEffort | "";
+}
+
+export interface CompositeModelRoute {
+  id?: number;
+  parent_group_id?: number;
+  display_model_id: string;
+  target_group_id: number;
+  target_model_id: string;
+  priority: number;
+  enabled: boolean;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+  target_group?: Group | null;
+}
+
+export interface CompositeRoutePreviewResult {
+  matched: boolean;
+  display_model_id?: string;
+  target_model_id?: string;
+  target_group_id?: number;
+  target_group?: Group | null;
+  route?: CompositeModelRoute | null;
+}
 
 export interface Group {
   id: number;
@@ -66,6 +104,9 @@ export interface Group {
   fallback_group_id_on_invalid_request: number | null;
   // Toggle OpenAI Messages dispatch support for this group.
   allow_messages_dispatch?: boolean;
+  allow_live?: boolean;
+  max_reasoning_effort?: OpenAIReasoningEffort | "";
+  reasoning_effort_mappings?: ReasoningEffortMapping[];
   gemini_mixed_protocol_enabled?: boolean;
   visible_model_patterns?: string[];
   image_batch_enabled?: boolean;
@@ -74,6 +115,7 @@ export interface Group {
   image_batch_max_items?: number;
   image_batch_max_download_bytes?: number;
   image_batch_download_concurrency?: number;
+  composite_routes?: CompositeModelRoute[];
   created_at: string;
   updated_at: string;
 }
@@ -249,6 +291,9 @@ export interface CreateGroupRequest {
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
   allow_messages_dispatch?: boolean;
+  allow_live?: boolean;
+  max_reasoning_effort?: OpenAIReasoningEffort | "";
+  reasoning_effort_mappings?: ReasoningEffortMapping[];
   default_mapped_model?: string;
   visible_model_patterns?: string[];
   image_batch_enabled?: boolean;
@@ -257,6 +302,7 @@ export interface CreateGroupRequest {
   image_batch_max_items?: number;
   image_batch_max_download_bytes?: number;
   image_batch_download_concurrency?: number;
+  composite_routes?: CompositeModelRoute[];
   // Optional source groups to clone accounts from during group creation.
   copy_accounts_from_group_ids?: number[];
 }
@@ -291,6 +337,9 @@ export interface UpdateGroupRequest {
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
   allow_messages_dispatch?: boolean;
+  allow_live?: boolean;
+  max_reasoning_effort?: OpenAIReasoningEffort | "";
+  reasoning_effort_mappings?: ReasoningEffortMapping[];
   default_mapped_model?: string;
   visible_model_patterns?: string[];
   image_batch_enabled?: boolean;
@@ -299,5 +348,6 @@ export interface UpdateGroupRequest {
   image_batch_max_items?: number;
   image_batch_max_download_bytes?: number;
   image_batch_download_concurrency?: number;
+  composite_routes?: CompositeModelRoute[];
   copy_accounts_from_group_ids?: number[];
 }

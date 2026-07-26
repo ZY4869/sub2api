@@ -8,6 +8,7 @@ export default {
     deepseek: "DeepSeek",
     gemini: "Google",
     antigravity: "Antigravity",
+    composite: "聚合分组",
     protocol_gateway: "协议网关",
     baidu_document_ai: "百度文档智能",
 }

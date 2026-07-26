@@ -487,16 +487,20 @@ func TestModelRegistryService_PublicSnapshotIncludesContextWindowTokens(t *testi
 	require.NoError(t, err)
 
 	var claudeTokens int64
+	var opus5Tokens int64
 	var deepseekTokens int64
 	for _, model := range snapshot.Models {
 		switch model.ID {
 		case "claude-opus-4.1":
 			claudeTokens = model.ContextWindowTokens
+		case "claude-opus-5":
+			opus5Tokens = model.ContextWindowTokens
 		case "deepseek-v4-pro":
 			deepseekTokens = model.ContextWindowTokens
 		}
 	}
 
 	require.EqualValues(t, 200000, claudeTokens)
+	require.EqualValues(t, 1000000, opus5Tokens)
 	require.EqualValues(t, 1048576, deepseekTokens)
 }

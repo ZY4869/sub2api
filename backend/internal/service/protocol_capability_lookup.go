@@ -47,6 +47,8 @@ func NormalizeProtocolCapabilityAction(action string) string {
 		return ProtocolCapabilityActionCountTokens
 	case ProtocolCapabilityActionWebSocket:
 		return ProtocolCapabilityActionWebSocket
+	case ProtocolCapabilityActionLive:
+		return ProtocolCapabilityActionLive
 	case ProtocolCapabilityActionGenerateContent:
 		return ProtocolCapabilityActionGenerateContent
 	case ProtocolCapabilityActionGenerateAnswer:

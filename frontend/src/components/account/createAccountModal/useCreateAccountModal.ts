@@ -58,6 +58,7 @@ import {
   createDefaultAccountPoolModeState,
   type ModelMapping
 } from '@/utils/accountFormShared'
+import { isAccountPlatform } from '@/utils/platformBranding'
 import {
   buildLocalAccountModelProbeSnapshot,
   createAccountModelProbeSnapshotDraft,
@@ -444,9 +445,12 @@ const geminiTierGoogleOne = ref<'google_one_free' | 'google_ai_pro' | 'google_ai
 const geminiTierGcp = ref<'gcp_standard' | 'gcp_enterprise'>('gcp_standard')
 const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
 const accountTier = ref<AccountTier | ''>(defaultAccountTierForPlatform('anthropic'))
-const effectivePlatform = computed<GroupPlatform>(() => {
+const effectivePlatform = computed<AccountPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(form.platform, gatewayProtocol.value)
-  return platform === 'protocol_gateway' ? 'openai' : platform
+  if (platform === 'protocol_gateway') {
+    return 'openai'
+  }
+  return isAccountPlatform(platform) ? platform : form.platform
 })
 const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
   if (!isProtocolGatewayPlatform(form.platform)) {
@@ -560,6 +564,9 @@ const form = reactive({
   group_ids: [] as number[],
   expires_at: null as number | null
 })
+const accountFormPlatform = computed<AccountPlatform>(() =>
+  isAccountPlatform(form.platform) ? form.platform : 'anthropic'
+)
 
 const isBaiduDocumentAISelected = computed(() => isBaiduDocumentAIPlatform(form.platform))
 
@@ -1077,7 +1084,7 @@ const modalContext = {
   batchArchiveAutoPrefetchEnabled, batchArchiveBillingMode, batchArchiveDownloadPriceUSD, batchArchiveEnabled, batchArchiveRetentionDays, buildAnthropicExtra, buildLocalAccountModelProbeSnapshot, buildModelMappingObject, buildOpenAIExtra, buildTempUnschedPayload,
   claudeCodeMimicEnabled, claudeSessionIDMaskingEnabled, claudeTLSFingerprintEnabled, codexCLIOnlyEnabled, codexImageToolPolicy, computed, createAccountModelProbeSnapshotDraft, customErrorCodesState, deepSeekModelConcurrencyLimits, editQuotaDailyLimit, editQuotaDailyResetHour,
   editQuotaDailyResetMode, editQuotaLimit, editQuotaResetTimezone, editQuotaWeeklyLimit, editQuotaWeeklyResetDay, editQuotaWeeklyResetHour, editQuotaWeeklyResetMode, effectivePlatform, emit, ensureMixedChannelConfirmed,
-  expiryProbeExtensionDays, form, gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
+  expiryProbeExtensionDays, form, accountFormPlatform, gatewayAcceptedProtocols, gatewayBatchEnabled, gatewayClientProfiles, gatewayClientRoutes, gatewayOpenAIImageProtocolMode, gatewayOpenAIRequestFormat, gatewayProtocol, gatewayTestModelId,
   gatewayTestProvider, geminiTierAIStudio, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexLocation, geminiVertexProjectId, geminiVertexServiceAccountJson,
   grokOAuthRef, handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
   mergeAccountModelProbeSnapshotIntoExtra, mergeResolvedUpstreamDraftIntoExtra, mixedScheduling, modelMappings, modelProbeSnapshot, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, oauth, oauthDraftCredentials,

@@ -1,11 +1,19 @@
 [
   {
     "platform": "anthropic",
+    "label": "Opus 5",
+    "from": "claude-opus-5",
+    "to": "claude-opus-5",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 1
+  },
+  {
+    "platform": "anthropic",
     "label": "Opus 4.1",
     "from": "claude-opus-4.1",
     "to": "claude-opus-4.1",
     "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
-    "order": 1
+    "order": 2
   },
   {
     "platform": "anthropic",
@@ -13,7 +21,7 @@
     "from": "claude-sonnet-4.5",
     "to": "claude-sonnet-4.5",
     "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
-    "order": 2
+    "order": 3
   },
   {
     "platform": "anthropic",
@@ -21,7 +29,7 @@
     "from": "claude-haiku-4.5",
     "to": "claude-haiku-4.5",
     "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
-    "order": 3
+    "order": 4
   },
   {
     "platform": "anthropic",
@@ -29,7 +37,7 @@
     "from": "claude-opus-4.1",
     "to": "claude-sonnet-4.5",
     "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
-    "order": 4
+    "order": 5
   },
   {
     "platform": "anthropic",
@@ -37,7 +45,7 @@
     "from": "claude-haiku-4.5",
     "to": "claude-sonnet-4.5",
     "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
-    "order": 5
+    "order": 6
   },
   {
     "platform": "anthropic",
@@ -45,7 +53,7 @@
     "from": "claude-opus-4-8",
     "to": "claude-opus-4-8",
     "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
-    "order": 6
+    "order": 7
   },
   {
     "platform": "anthropic",
@@ -53,7 +61,7 @@
     "from": "claude-opus-4-7",
     "to": "claude-opus-4-7",
     "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
-    "order": 7
+    "order": 8
   },
   {
     "platform": "openai",
@@ -417,11 +425,19 @@
   },
   {
     "platform": "antigravity",
+    "label": "Opus 5",
+    "from": "claude-opus-5",
+    "to": "claude-opus-5",
+    "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+    "order": 53
+  },
+  {
+    "platform": "antigravity",
     "label": "Opus 4.1",
     "from": "claude-opus-4.1",
     "to": "claude-opus-4.1",
     "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-    "order": 53
+    "order": 54
   },
   {
     "platform": "antigravity",
@@ -429,7 +445,7 @@
     "from": "claude-opus-4-7",
     "to": "claude-opus-4-7",
     "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-    "order": 54
+    "order": 55
   },
   {
     "platform": "antigravity",
@@ -437,6 +453,6 @@
     "from": "claude-opus-4-8",
     "to": "claude-opus-4-8",
     "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-    "order": 55
+    "order": 56
   }
 ]

@@ -8,6 +8,7 @@ export default {
     deepseek: "DeepSeek",
     gemini: "Google",
     antigravity: "Antigravity",
+    composite: "Composite",
     protocol_gateway: "Protocol Gateway",
     baidu_document_ai: "Baidu Document AI",
 }

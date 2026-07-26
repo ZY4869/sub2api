@@ -95,6 +95,15 @@ func (f *fakeGroupRepo) BindAccountsToGroup(context.Context, int64, []int64) err
 func (f *fakeGroupRepo) UpdateSortOrders(context.Context, []service.GroupSortOrderUpdate) error {
 	return nil
 }
+func (f *fakeGroupRepo) ListCompositeRoutes(context.Context, int64) ([]service.CompositeModelRoute, error) {
+	return nil, nil
+}
+func (f *fakeGroupRepo) ReplaceCompositeRoutes(context.Context, int64, []service.CompositeModelRoute) ([]service.CompositeModelRoute, error) {
+	return nil, nil
+}
+func (f *fakeGroupRepo) FindCompositeRoute(context.Context, int64, string) (*service.CompositeModelRoute, error) {
+	return nil, nil
+}
 
 type fakeConcurrencyCache struct{}
 

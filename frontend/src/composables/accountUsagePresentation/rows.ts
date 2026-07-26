@@ -40,6 +40,8 @@ export function buildUsageRow(
     color,
     inlineRemaining: options.inlineRemaining ?? false,
     detailedReset: options.detailedReset ?? false,
+    displayModeOverride: options.displayModeOverride ?? null,
+    quotaTooltip: options.quotaTooltip ?? null,
   };
 }
 

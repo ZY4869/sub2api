@@ -1,6 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { AdminGroup, GroupPlatform, OpenAIGroupImageProtocolMode } from '@/types'
-import { GROUP_PLATFORM_ORDER } from '@/utils/platformBranding'
+import { GROUP_MANAGEMENT_PLATFORM_ORDER } from '@/utils/platformBranding'
 export interface PlatformSelectOption {
   value: GroupPlatform | ''
   label: string
@@ -75,7 +75,7 @@ export function useGroupOptions(
   ])
 
   const platformOptions = computed<PlatformSelectOption[]>(() =>
-    GROUP_PLATFORM_ORDER.map((platform) => buildPlatformSelectOption(t, platform))
+    GROUP_MANAGEMENT_PLATFORM_ORDER.map((platform) => buildPlatformSelectOption(t, platform))
   )
 
   const platformFilterOptions = computed<PlatformSelectOption[]>(() => [

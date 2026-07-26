@@ -347,6 +347,18 @@ func (m *mockGroupRepoForGateway) UpdateSortOrders(ctx context.Context, updates 
 	return nil
 }
 
+func (m *mockGroupRepoForGateway) ListCompositeRoutes(ctx context.Context, parentGroupID int64) ([]CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (m *mockGroupRepoForGateway) ReplaceCompositeRoutes(ctx context.Context, parentGroupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	return nil, nil
+}
+
+func (m *mockGroupRepoForGateway) FindCompositeRoute(ctx context.Context, parentGroupID int64, displayModelID string) (*CompositeModelRoute, error) {
+	return nil, nil
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }

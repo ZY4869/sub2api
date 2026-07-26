@@ -221,6 +221,18 @@ func (s *groupRepoStub) UpdateSortOrders(ctx context.Context, updates []GroupSor
 	return nil
 }
 
+func (s *groupRepoStub) ListCompositeRoutes(ctx context.Context, parentGroupID int64) ([]CompositeModelRoute, error) {
+	panic("unexpected ListCompositeRoutes call")
+}
+
+func (s *groupRepoStub) ReplaceCompositeRoutes(ctx context.Context, parentGroupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	panic("unexpected ReplaceCompositeRoutes call")
+}
+
+func (s *groupRepoStub) FindCompositeRoute(ctx context.Context, parentGroupID int64, displayModelID string) (*CompositeModelRoute, error) {
+	panic("unexpected FindCompositeRoute call")
+}
+
 type proxyRepoStub struct {
 	deleteErr    error
 	countErr     error

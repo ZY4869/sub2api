@@ -18,6 +18,8 @@ import supportedScopes from './supportedScopes'
 import visibleModels from './visibleModels'
 import imageBatch from './imageBatch'
 import webSearchPricing from './webSearchPricing'
+import openaiRuntimePolicy from './openaiRuntimePolicy'
+import compositeRoutes from './compositeRoutes'
 
 export default {
   ...common,
@@ -40,4 +42,6 @@ export default {
   visibleModels,
   imageBatch,
   webSearchPricing,
+  openaiRuntimePolicy,
+  compositeRoutes,
 }

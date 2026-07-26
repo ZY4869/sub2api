@@ -1,6 +1,7 @@
 import type { MaybeRefOrGetter } from "vue";
 import type {
   Account,
+  AccountUsageDisplayMode,
   AccountUsageInfo,
   AccountUsagePresentationRow,
   AccountUsageRowColor,
@@ -23,6 +24,11 @@ export interface UsageRowOptions {
   remainingAnchorMs?: number | null;
   inlineRemaining?: boolean;
   detailedReset?: boolean;
+  displayModeOverride?: AccountUsageDisplayMode | null;
+  quotaTooltip?: {
+    limit: number;
+    remaining: number;
+  } | null;
 }
 
 export interface LoadUsageOptions {

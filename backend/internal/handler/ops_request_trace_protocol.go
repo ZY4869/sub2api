@@ -28,7 +28,7 @@ func opsTraceProtocolFamily(value string) string {
 		return normalized
 	case EndpointMessages:
 		return "anthropic"
-	case EndpointChatCompletions, EndpointEmbeddings, EndpointResponses, EndpointImagesGen, EndpointImagesEdits, EndpointVideosCreate, EndpointVideosGen, EndpointVideosStatus:
+	case EndpointChatCompletions, EndpointEmbeddings, EndpointResponses, EndpointOpenAILive, EndpointImagesGen, EndpointImagesEdits, EndpointVideosCreate, EndpointVideosGen, EndpointVideosStatus:
 		return "openai"
 	case EndpointGeminiModels,
 		EndpointGeminiFiles,
@@ -64,6 +64,8 @@ func opsTraceProtocolFamily(value string) string {
 		case strings.HasPrefix(normalized, "/v1/chat/completions"),
 			strings.HasPrefix(normalized, "/v1/embeddings"),
 			strings.HasPrefix(normalized, "/v1/responses"),
+			strings.HasPrefix(normalized, "/v1/live"),
+			strings.HasPrefix(normalized, "/backend-api/codex/realtime/calls"),
 			strings.HasPrefix(normalized, "/v1/images/"),
 			strings.HasPrefix(normalized, "/v1/videos"):
 			return "openai"

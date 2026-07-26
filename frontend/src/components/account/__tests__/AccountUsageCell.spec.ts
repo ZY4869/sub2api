@@ -59,6 +59,7 @@ vi.mock("vue-i18n", async () => {
             "Snapshot updated {time}",
           "admin.accounts.usageWindow.passiveSampled": "Passive snapshot note",
           "admin.accounts.usageWindow.sampledBadge": "Sampled",
+          "admin.accounts.usageWindow.grokSnapshotStale": "Grok snapshot stale",
           "admin.accounts.usageWindow.gemini3Image": "Gemini Image",
           "admin.accounts.usageWindow.gemini3Pro": "G3P",
           "admin.accounts.usageWindow.gemini3Flash": "G3F",
@@ -123,6 +124,7 @@ const usageBarStub = {
     "label",
     "utilization",
     "windowStats",
+    "quotaTooltip",
     "color",
     "displayMode",
     "resetsAt",
@@ -132,7 +134,7 @@ const usageBarStub = {
     "visualVariant",
   ],
   template:
-    '<div class="usage-bar" :data-color="color" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)" :data-visual-variant="visualVariant">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
+    '<div class="usage-bar" :data-color="color" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)" :data-quota-limit="quotaTooltip?.limit" :data-quota-remaining="quotaTooltip?.remaining" :data-visual-variant="visualVariant">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
 };
 
 const passiveUsageResponse = {
@@ -443,7 +445,7 @@ describe("AccountUsageCell", () => {
     }
   });
 
-  it("renders grok request and token quota rows with localized labels", async () => {
+  it("renders grok request and token quota rows with remaining semantics", async () => {
     getUsage.mockResolvedValueOnce({
       source: "active",
       updated_at: "2026-03-07T10:00:00Z",
@@ -479,6 +481,85 @@ describe("AccountUsageCell", () => {
 
     expect(wrapper.text()).toContain("请求数|25");
     expect(wrapper.text()).toContain("令牌数|75");
+    const rows = wrapper.findAll(".usage-bar");
+    expect(rows[0]?.attributes("data-display-mode")).toBe("remaining");
+    expect(rows[0]?.attributes("data-quota-limit")).toBe("100");
+    expect(rows[0]?.attributes("data-quota-remaining")).toBe("75");
+    expect(rows[1]?.attributes("data-display-mode")).toBe("remaining");
+  });
+
+  it("keeps grok full remaining quota from rendering as a used-mode zero", async () => {
+    useAccountUsageDisplayMode().setAccountUsageDisplayMode("used");
+    getUsage.mockResolvedValueOnce({
+      source: "active",
+      updated_at: "2099-03-07T10:00:00Z",
+      grok_last_headers_seen_at: "2099-03-07T10:00:00Z",
+      grok_quota_snapshot_state: "observed",
+      grok_request_quota: {
+        limit: 100,
+        remaining: 100,
+        reset_at: "2099-03-14T00:00:00Z",
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1055,
+          platform: "grok",
+          type: "oauth",
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const row = wrapper.get(".usage-bar");
+    expect(row.attributes("data-display-mode")).toBe("remaining");
+    expect(row.text()).toContain("请求数|0|");
+    expect(row.attributes("data-quota-remaining")).toBe("100");
+    expect(wrapper.text()).not.toContain("Grok snapshot stale");
+  });
+
+  it("shows a stale note for old grok quota snapshots", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-07T10:20:00Z"));
+    getUsage.mockResolvedValueOnce({
+      source: "passive",
+      updated_at: "2026-03-07T10:00:00Z",
+      grok_last_quota_probe_at: "2026-03-07T10:00:00Z",
+      grok_quota_snapshot_state: "observed",
+      grok_request_quota: {
+        limit: 100,
+        remaining: 100,
+      },
+    });
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1056,
+          platform: "grok",
+          type: "oauth",
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Grok snapshot stale");
   });
 
   it("aggregates antigravity image usage from multiple models", async () => {

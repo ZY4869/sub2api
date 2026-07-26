@@ -83,6 +83,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 	setOpsRequestContext(c, reqModel, false, body)
 	reqLog = reqLog.With(zap.String("model", reqModel))
 	imageSizeTier := service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, c.GetHeader("Content-Type")))
+	imageQuality := service.DetectOpenAIImageRequestQuality(body, c.GetHeader("Content-Type"))
 	expectedImageCount := service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
 	reservedImageUnits := 0
 	imageCountSettled := false
@@ -169,6 +170,28 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		if publicCatalogEntry != nil {
 			runtimeSelectionModel = runtimeRequestModel
 		}
+		if publicCatalogEntry == nil {
+			runtime, resolveErr := resolveOpenAICompositeRuntime(
+				c,
+				h.gatewayService,
+				h.billingCacheService,
+				reqLog,
+				currentAPIKey,
+				currentSubscription,
+				body,
+				publicRequestModel,
+				runtimeSelectionModel,
+			)
+			if resolveErr != nil {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+				status, code, message := compositeRouteErrorDetails(resolveErr)
+				h.handleStreamingAwareError(c, status, code, message, false)
+				return
+			}
+			currentAPIKey = runtime.apiKey
+			currentSubscription = runtime.subscription
+			runtimeSelectionModel = runtime.selectionModel
+		}
 
 		selection, _, err := h.gatewayService.SelectAccountWithScheduler(
 			c.Request.Context(),
@@ -208,6 +231,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			reqModel,
 			runtimeRequestModel,
 			imageSizeTier,
+			imageQuality,
 			c.GetHeader("Content-Type"),
 		)
 		setOpsSelectedAccountDetails(c, account)
@@ -350,6 +374,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 					UserAgent:          userAgent,
 					IPAddress:          clientIP,
 					RequestPayloadHash: requestPayloadHash,
+					SessionID:          h.gatewayService.ExtractSessionID(c, body),
 					APIKeyService:      h.apiKeyService,
 				})
 			})
@@ -365,6 +390,7 @@ func setOpenAIImageTraceMetadata(
 	displayModel string,
 	targetModel string,
 	sizeTier string,
+	quality string,
 	contentType string,
 ) {
 	if c == nil || c.Request == nil {
@@ -392,5 +418,6 @@ func setOpenAIImageTraceMetadata(
 		service.SetImageRequestSurfaceMetadata(ctx, "images_api")
 	}
 	service.SetImageSizeTierMetadata(ctx, sizeTier)
+	service.SetImageQualityMetadata(ctx, quality)
 	c.Request = c.Request.WithContext(ctx)
 }

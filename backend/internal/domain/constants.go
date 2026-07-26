@@ -28,6 +28,7 @@ const (
 	PlatformGrok            = "grok"
 	PlatformDeepSeek        = "deepseek"
 	PlatformBaiduDocumentAI = "baidu_document_ai"
+	PlatformComposite       = "composite"
 )
 
 // Account type constants.
@@ -121,6 +122,7 @@ var DefaultAntigravityModelMapping = map[string]string{
 // DefaultBedrockModelMapping maps Anthropic model ids to Bedrock model ids.
 var DefaultBedrockModelMapping = map[string]string{
 	"claude-fable-5":             "us.anthropic.claude-fable-5-v1:0",
+	"claude-opus-5":              "us.anthropic.claude-opus-5",
 	"claude-opus-4-8":            "us.anthropic.claude-opus-4-8",
 	"claude-opus-4-7":            "us.anthropic.claude-opus-4-7-v1",
 	"claude-opus-4-6-thinking":   "us.anthropic.claude-opus-4-6-v1",

@@ -389,6 +389,37 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if publicCatalogEntry != nil {
 			runtimeSelectionModel = routingRequestModel
 		}
+		runtime := &openAICompositeRuntime{
+			apiKey:         currentAPIKey,
+			subscription:   currentSubscription,
+			displayModel:   publicRequestModel,
+			runtimeModel:   runtimeSelectionModel,
+			selectionModel: runtimeSelectionModel,
+			body:           body,
+		}
+		if publicCatalogEntry == nil {
+			runtime, err = resolveOpenAICompositeRuntime(
+				c,
+				h.gatewayService,
+				h.billingCacheService,
+				reqLog,
+				currentAPIKey,
+				currentSubscription,
+				body,
+				publicRequestModel,
+				runtimeSelectionModel,
+			)
+			if err != nil {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+				status, code, message := compositeRouteErrorDetails(err)
+				h.handleStreamingAwareError(c, status, code, message, streamStarted)
+				return
+			}
+			currentAPIKey = runtime.apiKey
+			currentSubscription = runtime.subscription
+			runtimeSelectionModel = runtime.selectionModel
+			channelState, _ = service.GatewayChannelStateFromContext(c.Request.Context())
+		}
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
@@ -807,6 +838,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					UserAgent:          userAgent,
 					IPAddress:          clientIP,
 					RequestPayloadHash: requestPayloadHash,
+					SessionID:          h.gatewayService.ExtractSessionID(c, sessionHashBody),
 					APIKeyService:      h.apiKeyService,
 				}); err != nil {
 					logger.L().With(

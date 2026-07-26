@@ -11,6 +11,7 @@ import (
 type User struct {
 	ID                              int64
 	Email                           string
+	EmailAlias                      string
 	Username                        string
 	Notes                           string
 	PasswordHash                    string
@@ -51,6 +52,41 @@ type User struct {
 
 	APIKeys       []APIKey
 	Subscriptions []UserSubscription
+}
+
+func NormalizeUserEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func NormalizeEmailAlias(email string) string {
+	normalized := NormalizeUserEmail(email)
+	at := strings.LastIndex(normalized, "@")
+	if at <= 0 || at == len(normalized)-1 {
+		return normalized
+	}
+	local := normalized[:at]
+	domain := normalized[at+1:]
+	if plus := strings.Index(local, "+"); plus >= 0 {
+		local = local[:plus]
+	}
+	if domain == "googlemail.com" {
+		domain = "gmail.com"
+	}
+	if domain == "gmail.com" {
+		local = strings.ReplaceAll(local, ".", "")
+	}
+	if local == "" || domain == "" {
+		return normalized
+	}
+	return local + "@" + domain
+}
+
+func (u *User) SyncEmailAlias() {
+	if u == nil {
+		return
+	}
+	u.Email = strings.TrimSpace(u.Email)
+	u.EmailAlias = NormalizeEmailAlias(u.Email)
 }
 
 func (u *User) IsAdmin() bool {

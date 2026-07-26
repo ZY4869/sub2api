@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.406"
+const expectedReleaseVersion = "0.1.407"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -399,6 +399,123 @@ func TestUpstream152To153CleanroomMatrixGuards(t *testing.T) {
 	assertNoAPIDocsRoutes(t, root)
 }
 
+func TestUpstream163To165CleanroomMatrixAndLicenseGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.163-v0.1.165-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"`v0.1.162=27f094e0960ebd8e52de7ff7e763c6fec2ff4057`",
+		"`v0.1.163=d0bdd7e771636a8d315f542cafd39484f39bd60c`",
+		"`v0.1.164=cd8bb98c44303b2c8f04c0da340447c992f0cb7d`",
+		"`v0.1.165=e9a58c1cb8b5ef626a75c93b4d953fde5e67aa29`",
+		"本地基线：`0.1.407`",
+		"clean-room 本地重写",
+		"不执行 `git pull`、`git fetch`、merge、rebase、cherry-pick",
+		"MIT-only",
+		"`platform=composite`",
+		"`display_model_id`",
+		"`target_model_id` 仅内部转发",
+		"`groups.allow_live` 默认关闭",
+		"`/v1/live`",
+		"`/backend-api/codex/realtime/calls`",
+		"`max_reasoning_effort`",
+		"`reasoning_effort_mappings`",
+		"`usage_logs.session_id`",
+		"`users.email_alias`",
+		"Ollama Cloud 用量请求驱动刷新与 15 分钟下限 | 不适用",
+		"Alipay 移动端 deep link | 明确排除",
+		"`claude-opus-5` 模型/定价/Bedrock 映射/前端预设/限流 scope | 已覆盖",
+		"`model_registry_available_models_bootstrap_v20260726`",
+		"图像请求日志记录 `quality`/`size` | 已覆盖",
+		"`169_add_usage_log_image_quality.sql`",
+		"`usage_logs.image_quality`",
+		"只做日志诊断，不改变公开计费语义",
+		"Airwallex",
+		"`payment_mobile_force_qrcode_enabled`",
+		"前端后台分组 UI 只把 `composite` 暴露给分组管理",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+	for _, forbidden := range []string{
+		"Ollama Cloud 用量请求驱动刷新与 15 分钟下限 | 已覆盖",
+		"Alipay 移动端 deep link | 已覆盖",
+		"`claude-opus-5` 模型/定价/Bedrock 映射/前端预设/限流 scope | 明确排除",
+		"图像请求日志记录 `quality`/`size` | 部分覆盖",
+		"`quality` 字段，本轮不新增数据语义",
+		"Ollama PG<=16 due 判定、会话脱敏、刷新饥饿 | 已覆盖",
+	} {
+		require.NotContains(t, matrix, forbidden)
+	}
+
+	for _, migration := range []string{
+		"165_add_group_live_reasoning_fields.sql",
+		"166_create_composite_model_routes.sql",
+		"167_add_usage_log_session_id.sql",
+		"168_add_user_email_alias.sql",
+		"169_add_usage_log_image_quality.sql",
+	} {
+		_, err := os.Stat(filepath.Join(root, "backend", "migrations", migration))
+		require.NoError(t, err)
+	}
+
+	groupSchema := readRepoFile(t, root, "backend", "ent", "schema", "group.go")
+	require.Contains(t, groupSchema, "allow_live")
+	require.Contains(t, groupSchema, "max_reasoning_effort")
+	require.Contains(t, groupSchema, "reasoning_effort_mappings")
+
+	compositeSchema := readRepoFile(t, root, "backend", "ent", "schema", "composite_model_route.go")
+	require.Contains(t, compositeSchema, "display_model_id")
+	require.Contains(t, compositeSchema, "target_group_id")
+	require.Contains(t, compositeSchema, "target_model_id")
+
+	userSchema := readRepoFile(t, root, "backend", "ent", "schema", "user.go")
+	require.Contains(t, userSchema, "email_alias")
+	userAliasMigration := readRepoFile(t, root, "backend", "migrations", "168_add_user_email_alias.sql")
+	require.Contains(t, userAliasMigration, "users_email_alias_unique_active")
+
+	usageLogSchema := readRepoFile(t, root, "backend", "ent", "schema", "usage_log.go")
+	require.Contains(t, usageLogSchema, "image_quality")
+	usageLogDTO := readRepoFile(t, root, "backend", "internal", "handler", "dto", "types.go")
+	require.Contains(t, usageLogDTO, `json:"image_quality"`)
+	adminUsageTable := readRepoFile(t, root, "frontend", "src", "components", "admin", "usage", "UsageTable.vue")
+	require.Contains(t, adminUsageTable, "row.image_quality")
+	userUsageTable := readRepoFile(t, root, "frontend", "src", "views", "user", "usage", "UsageTable.vue")
+	require.Contains(t, userUsageTable, "row.image_quality")
+
+	modelRegistrySeed := readRepoFile(t, root, "backend", "internal", "modelregistry", "registry_seed.json")
+	require.Contains(t, modelRegistrySeed, `"id": "claude-opus-5"`)
+	modelCatalogSeed := readRepoFile(t, root, "backend", "internal", "service", "model_catalog_seed.json")
+	require.Contains(t, modelCatalogSeed, `"model":"claude-opus-5"`)
+	pricingCatalog := readRepoFile(t, root, "backend", "resources", "model-pricing", "model_prices_and_context_window.json")
+	require.Contains(t, pricingCatalog, `"claude-opus-5"`)
+	bedrockMapping := readRepoFile(t, root, "backend", "internal", "domain", "constants.go")
+	require.Contains(t, bedrockMapping, `"claude-opus-5":`)
+	require.Contains(t, bedrockMapping, `"us.anthropic.claude-opus-5"`)
+	modelAvailability := readRepoFile(t, root, "backend", "internal", "service", "model_registry_availability.go")
+	require.Contains(t, modelAvailability, `"claude-opus-5"`)
+	require.Contains(t, modelAvailability, "ensureAvailableModelsBootstrapV20260726")
+	frontendWhitelist := readRepoFile(t, root, "frontend", "src", "composables", "useModelWhitelist.ts")
+	require.Contains(t, frontendWhitelist, `"claude-opus-5"`)
+	generatedRegistry := readRepoFile(t, root, "frontend", "src", "generated", "modelRegistry.ts")
+	require.Contains(t, generatedRegistry, `"id": "claude-opus-5"`)
+
+	adminRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "admin.go")
+	require.Contains(t, adminRoutes, `groups.GET("/:id/composite-routes"`)
+	require.Contains(t, adminRoutes, `groups.PUT("/:id/composite-routes"`)
+	require.Contains(t, adminRoutes, `groups.POST("/:id/composite-routes/preview"`)
+
+	gatewayRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "gateway.go")
+	require.Contains(t, gatewayRoutes, `gateway.GET("/live"`)
+	require.Contains(t, gatewayRoutes, `codexBackend.GET("/realtime/calls"`)
+	require.Contains(t, gatewayRoutes, `codexBackend.POST("/realtime/calls"`)
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+	assertNoCopyleftLicenseTextInRuntimeCode(t, root)
+}
+
 func repositoryTestRepoRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
@@ -446,6 +563,42 @@ func assertNoAPIDocsRoutes(t *testing.T, root string) {
 			require.NotContains(t, text, `"/admin/api-docs`)
 			require.NotContains(t, text, `'/admin/api-docs`)
 			require.NotContains(t, text, "`/admin/api-docs")
+			return nil
+		}))
+	}
+}
+
+func assertNoCopyleftLicenseTextInRuntimeCode(t *testing.T, root string) {
+	t.Helper()
+	for _, dir := range []string{
+		filepath.Join(root, "backend", "cmd"),
+		filepath.Join(root, "backend", "ent", "schema"),
+		filepath.Join(root, "backend", "internal"),
+		filepath.Join(root, "frontend", "src"),
+	} {
+		require.NoError(t, filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+			require.NoError(t, err)
+			if entry.IsDir() {
+				if entry.Name() == "__tests__" || entry.Name() == "__generated__" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.Contains(entry.Name(), "_test.") || strings.Contains(entry.Name(), ".spec.") {
+				return nil
+			}
+			switch filepath.Ext(path) {
+			case ".go", ".ts", ".vue", ".js":
+			default:
+				return nil
+			}
+			body, readErr := os.ReadFile(path)
+			require.NoError(t, readErr)
+			text := string(body)
+			require.NotContains(t, text, "GNU LESSER GENERAL PUBLIC LICENSE")
+			require.NotContains(t, text, "GNU GENERAL PUBLIC LICENSE")
+			require.NotContains(t, text, "LGPL-3.0")
+			require.NotContains(t, text, "Contributor License Agreement")
 			return nil
 		}))
 	}

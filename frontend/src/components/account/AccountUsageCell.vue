@@ -124,8 +124,9 @@
         :label="row.label"
         :utilization="row.utilization"
         :window-stats="row.windowStats"
+        :quota-tooltip="row.quotaTooltip"
         :color="row.color"
-        :display-mode="accountUsageDisplayMode"
+        :display-mode="row.displayModeOverride || accountUsageDisplayMode"
         :visual-variant="visualVariant"
       />
       <p

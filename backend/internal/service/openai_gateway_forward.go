@@ -101,6 +101,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel, originalModel, routingModel)
 		if normalizeErr == nil {
+			effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, reqModel, routingModel)
+			if policyBody, policyErr := applyOpenAIEffortResolutionToBodyBytes(normalizedBody, effortResolution); policyErr == nil {
+				normalizedBody = policyBody
+			}
 			originalBody = normalizedBody
 		}
 		if liteRequest {
@@ -156,6 +160,8 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	liteRequest := account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, reqBody, body)
 	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel, reqModel, routingModel)
+	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, reqModel, routingModel)
+	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
 	bodyModified := false
 	patchDisabled := false
 	patchHasOp := false

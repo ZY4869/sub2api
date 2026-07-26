@@ -314,6 +314,29 @@
 
         <GroupImageBatchSettingsFields :form="createForm" :t="t" />
 
+        <GroupOpenAIRuntimePolicyFields
+          :form="createForm"
+          :t="t"
+          :get-mapping-key="getCreateReasoningMappingKey"
+          @add-mapping="addCreateReasoningMapping"
+          @remove-mapping="removeCreateReasoningMapping"
+        />
+
+        <GroupCompositeRoutesFields
+          :form="createForm"
+          :t="t"
+          :target-group-options="compositeTargetGroupOptions"
+          :preview-model="createCompositePreviewModel"
+          :preview-loading="createCompositePreviewLoading"
+          :preview-result="createCompositePreviewResult"
+          :is-group-select-option="isGroupSelectOption"
+          :get-route-key="getCreateCompositeRouteKey"
+          @add-route="addCreateCompositeRoute"
+          @remove-route="removeCreateCompositeRoute"
+          @update-preview-model="createCompositePreviewModel = $event"
+          @preview-route="previewCreateCompositeRoute"
+        />
+
         <div class="border-t pt-4">
           <label class="input-label">{{ t('admin.groups.visibleModels.title') }}</label>
           <textarea
@@ -773,6 +796,8 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupImageBatchSettingsFields from './GroupImageBatchSettingsFields.vue'
+import GroupOpenAIRuntimePolicyFields from './GroupOpenAIRuntimePolicyFields.vue'
+import GroupCompositeRoutesFields from './GroupCompositeRoutesFields.vue'
 import GroupPeakRateFields from './GroupPeakRateFields.vue'
 import { unref } from 'vue'
 
@@ -793,6 +818,10 @@ const {
   fallbackGroupOptions,
   invalidRequestFallbackOptions,
   copyAccountsGroupSelectOptions,
+  compositeTargetGroupOptions,
+  createCompositePreviewModel,
+  createCompositePreviewLoading,
+  createCompositePreviewResult,
   isPlatformSelectOption,
   isGroupSelectOption,
   closeCreateModal,
@@ -803,12 +832,19 @@ const {
   toggleCreateScope,
   getCreateRuleRenderKey,
   getCreateRuleSearchKey,
+  getCreateReasoningMappingKey,
+  getCreateCompositeRouteKey,
   searchAccountsByRule,
   onAccountSearchFocus,
   selectAccount,
   removeSelectedAccount,
   addCreateRoutingRule,
-  removeCreateRoutingRule
+  removeCreateRoutingRule,
+  addCreateReasoningMapping,
+  removeCreateReasoningMapping,
+  addCreateCompositeRoute,
+  removeCreateCompositeRoute,
+  previewCreateCompositeRoute
 } = props.ctx
 
 const selectOption = (option: unknown) => (option ?? {}) as Record<string, any>

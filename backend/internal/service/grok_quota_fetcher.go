@@ -44,9 +44,13 @@ func (f *GrokQuotaFetcher) BuildUsageInfo(account *Account) *UsageInfo {
 		if parsedAt, parseErr := time.Parse(time.RFC3339, billing.UpdatedAt); parseErr == nil {
 			usage.UpdatedAt = &parsedAt
 		}
-		if billing.FetchedAt != "" {
-			usage.GrokLastQuotaProbeAt = billing.FetchedAt
-		}
+		usage.GrokLastQuotaProbeAt = latestRFC3339String(
+			usage.GrokLastQuotaProbeAt,
+			billing.FetchedAt,
+			billing.UpdatedAt,
+			billing.WeeklyUpdatedAt,
+			billing.MonthlyUpdatedAt,
+		)
 		usage.GrokQuotaSnapshotState = "billing_observed"
 		usage.GrokLastStatusCode = billing.StatusCode
 		applyGrokStatusToUsage(usage, billing.StatusCode)
@@ -75,17 +79,20 @@ func (f *GrokQuotaFetcher) BuildUsageInfo(account *Account) *UsageInfo {
 	if usage.GrokEntitlementStatus == "" {
 		usage.GrokEntitlementStatus = snapshot.EntitlementStatus
 	}
-	if usage.GrokLastQuotaProbeAt == "" {
-		usage.GrokLastQuotaProbeAt = snapshot.LastProbeAt
-	}
-	usage.GrokLastHeadersSeenAt = snapshot.LastHeadersSeenAt
+	usage.GrokLastQuotaProbeAt = latestRFC3339String(
+		usage.GrokLastQuotaProbeAt,
+		snapshot.LastProbeAt,
+		snapshot.UpdatedAt,
+	)
+	usage.GrokLastHeadersSeenAt = latestRFC3339String(
+		usage.GrokLastHeadersSeenAt,
+		snapshot.LastHeadersSeenAt,
+	)
 	if snapshot.StatusCode >= http.StatusBadRequest || usage.GrokLastStatusCode == 0 {
 		usage.GrokLastStatusCode = snapshot.StatusCode
 	}
 	if snapshot.HasObservedHeaders() {
-		if usage.GrokQuotaSnapshotState == "" {
-			usage.GrokQuotaSnapshotState = "observed"
-		}
+		usage.GrokQuotaSnapshotState = "observed"
 	} else if billing == nil {
 		usage.GrokQuotaSnapshotState = "no_headers"
 		usage.ErrorCode = "quota_unknown"
@@ -125,6 +132,29 @@ func applyGrokCredentialUsageFallback(usage *UsageInfo, account *Account) {
 	if usage.GrokEntitlementStatus == "" {
 		usage.GrokEntitlementStatus = strings.TrimSpace(account.GetCredential("entitlement_status"))
 	}
+}
+
+func latestRFC3339String(values ...string) string {
+	var latest time.Time
+	latestRaw := ""
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		parsed, err := time.Parse(time.RFC3339, value)
+		if err != nil {
+			if latestRaw == "" {
+				latestRaw = value
+			}
+			continue
+		}
+		if latestRaw == "" || latest.IsZero() || parsed.After(latest) {
+			latest = parsed
+			latestRaw = value
+		}
+	}
+	return latestRaw
 }
 
 func grokBillingSnapshotFromExtra(extra map[string]any) (*xai.BillingSummary, error) {

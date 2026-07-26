@@ -130,6 +130,7 @@ func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo U
 	cfg.Default.RateMultiplier = 1.1
 	svc := NewOpenAIGatewayService(
 		nil,
+		nil,
 		usageRepo,
 		nil,
 		userRepo,
@@ -927,6 +928,69 @@ func TestOpenAIGatewayServiceRecordUsage_ReasoningNoneMarksThinkingDisabled(t *t
 	require.Equal(t, "none", *usageRepo.lastLog.ReasoningEffort)
 	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
 	require.False(t, *usageRepo.lastLog.ThinkingEnabled)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_PersistsLiveRequestTypeAndSessionID(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_live_session",
+			Model:     "gpt-5.4",
+			Usage: OpenAIUsage{
+				InputTokens:  10,
+				OutputTokens: 5,
+			},
+			Duration: time.Second,
+		},
+		APIKey:      &APIKey{ID: 10},
+		User:        &User{ID: 20},
+		Account:     &Account{ID: 30},
+		SessionID:   " live-session-1 ",
+		RequestType: RequestTypeLive,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, "live-session-1", usageRepo.lastLog.SessionID)
+	require.Equal(t, RequestTypeLive, usageRepo.lastLog.RequestType)
+	require.False(t, usageRepo.lastLog.Stream)
+	require.False(t, usageRepo.lastLog.OpenAIWSMode)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_PersistsImageQuality(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID:    "resp_image_quality",
+			Model:        "gpt-image-2",
+			Usage:        OpenAIUsage{},
+			ImageCount:   1,
+			ImageSize:    "2K",
+			ImageQuality: " high ",
+			MediaType:    "image",
+			Duration:     time.Second,
+		},
+		APIKey:  &APIKey{ID: 10},
+		User:    &User{ID: 20},
+		Account: &Account{ID: 30},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ImageSize)
+	require.Equal(t, "2K", *usageRepo.lastLog.ImageSize)
+	require.NotNil(t, usageRepo.lastLog.ImageQuality)
+	require.Equal(t, "high", *usageRepo.lastLog.ImageQuality)
+	require.NotNil(t, usageRepo.lastLog.MediaType)
+	require.Equal(t, "image", *usageRepo.lastLog.MediaType)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_SubscriptionBillingSetsSubscriptionFields(t *testing.T) {

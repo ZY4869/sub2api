@@ -114,6 +114,7 @@ type OpenAIForwardResult struct {
 	ResponseHeaders          http.Header
 	ImageCount               int
 	ImageSize                string
+	ImageQuality             string
 	MediaType                string
 	Duration                 time.Duration
 	FirstTokenMs             *int

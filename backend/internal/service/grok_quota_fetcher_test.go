@@ -229,11 +229,71 @@ func TestGrokQuotaFetcherBuildUsageInfoFromBillingAndQuotaSnapshots(t *testing.T
 	require.NotNil(t, usage.GrokRetryAfterSeconds)
 	require.Equal(t, retryAfter, *usage.GrokRetryAfterSeconds)
 	require.Equal(t, "active", usage.GrokEntitlementStatus)
-	require.Equal(t, "billing_observed", usage.GrokQuotaSnapshotState)
+	require.Equal(t, "observed", usage.GrokQuotaSnapshotState)
 	require.Equal(t, http.StatusTooManyRequests, usage.GrokLastStatusCode)
 	require.Equal(t, "rate_limited", usage.ErrorCode)
 	require.NotNil(t, usage.UpdatedAt)
 	require.Equal(t, time.Date(2026, 7, 15, 10, 1, 0, 0, time.UTC), *usage.UpdatedAt)
+	require.Equal(t, "2026-07-15T10:01:00Z", usage.GrokLastQuotaProbeAt)
+	require.Equal(t, "2026-07-15T10:01:00Z", usage.GrokLastHeadersSeenAt)
+}
+
+func TestGrokQuotaFetcherBuildUsageInfoKeepsBillingStateWithoutHeaders(t *testing.T) {
+	account := &Account{
+		ID:       92,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			grokBillingExtraKey: map[string]any{
+				"period_type":       "weekly",
+				"usage_percent":     12.5,
+				"plan":              "SuperGrok",
+				"status_code":       http.StatusOK,
+				"updated_at":        "2026-07-15T10:00:00Z",
+				"fetched_at":        "2026-07-15T10:00:00Z",
+				"weekly_updated_at": "2026-07-15T10:00:00Z",
+			},
+		},
+	}
+
+	usage := NewGrokQuotaFetcher().BuildUsageInfo(account)
+
+	require.Equal(t, "billing_observed", usage.GrokQuotaSnapshotState)
+	require.Equal(t, "2026-07-15T10:00:00Z", usage.GrokLastQuotaProbeAt)
+	require.Empty(t, usage.GrokLastHeadersSeenAt)
+}
+
+func TestGrokQuotaFetcherBuildUsageInfoUsesLatestProbeAndHeaderObservation(t *testing.T) {
+	account := &Account{
+		ID:       93,
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			grokBillingExtraKey: map[string]any{
+				"plan":        "SuperGrok",
+				"status_code": http.StatusOK,
+				"updated_at":  "2026-07-15T10:00:00Z",
+				"fetched_at":  "2026-07-15T10:00:00Z",
+			},
+			grokQuotaSnapshotExtraKey: map[string]any{
+				"requests": map[string]any{
+					"limit":     int64(100),
+					"remaining": int64(100),
+				},
+				"status_code":          http.StatusOK,
+				"headers_observed":     true,
+				"last_probe_at":        "2026-07-15T10:04:00Z",
+				"last_headers_seen_at": "2026-07-15T10:05:00Z",
+				"updated_at":           "2026-07-15T10:05:00Z",
+			},
+		},
+	}
+
+	usage := NewGrokQuotaFetcher().BuildUsageInfo(account)
+
+	require.Equal(t, "observed", usage.GrokQuotaSnapshotState)
+	require.Equal(t, "2026-07-15T10:05:00Z", usage.GrokLastQuotaProbeAt)
+	require.Equal(t, "2026-07-15T10:05:00Z", usage.GrokLastHeadersSeenAt)
 }
 
 func TestClassifyGrokOAuthReconcileAccount(t *testing.T) {

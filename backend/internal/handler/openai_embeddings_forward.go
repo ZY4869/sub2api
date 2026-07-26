@@ -118,6 +118,7 @@ func (h *OpenAIGatewayHandler) recordEmbeddingsSuccess(
 			UserAgent:          userAgent,
 			IPAddress:          clientIP,
 			RequestPayloadHash: input.req.requestPayloadHash,
+			SessionID:          h.gatewayService.ExtractSessionID(c, input.req.body),
 			APIKeyService:      h.apiKeyService,
 		}); err != nil {
 			logger.L().With(

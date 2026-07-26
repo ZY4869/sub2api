@@ -28,6 +28,12 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 	if input.lease == nil {
 		return nil, errors.New("upstream websocket lease is nil")
 	}
+	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(input.payload, input.originalModel)
+	effortResolution = ApplyContextOpenAIReasoningPolicy(input.ctx, effortResolution, input.originalModel)
+	if normalizedPayload, err := applyOpenAIEffortResolutionToBodyBytes(input.payload, effortResolution); err == nil {
+		input.payload = normalizedPayload
+		input.payloadBytes = len(normalizedPayload)
+	}
 	turnStart := time.Now()
 	wroteDownstream := false
 	if err := input.lease.WriteJSONWithContextTimeout(input.ctx, json.RawMessage(input.payload), s.openAIWSWriteTimeout()); err != nil {
@@ -147,7 +153,6 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 			if input.debugEnabled {
 				logOpenAIWSModeDebug("ingress_ws_turn_completed account_id=%d turn=%d conn_id=%s response_id=%s duration_ms=%d events=%d token_events=%d terminal_events=%d first_event=%s last_event=%s first_token_ms=%d client_disconnected=%v", account.ID, turn, truncateOpenAIWSLogValue(input.lease.ConnID(), openAIWSIDValueMaxLen), truncateOpenAIWSLogValue(responseID, openAIWSIDValueMaxLen), time.Since(turnStart).Milliseconds(), eventCount, tokenEventCount, terminalEventCount, truncateOpenAIWSLogValue(firstEventType, openAIWSLogValueMaxLen), truncateOpenAIWSLogValue(lastEventType, openAIWSLogValueMaxLen), firstTokenMsValue, clientDisconnected)
 			}
-			effortResolution := extractOpenAIReasoningEffortResolutionFromBody(input.payload, input.originalModel)
 			return &OpenAIForwardResult{
 				RequestID:                responseID,
 				Usage:                    usage,

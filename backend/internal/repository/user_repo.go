@@ -39,6 +39,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 	if userIn == nil {
 		return nil
 	}
+	userIn.SyncEmailAlias()
 	balance, err := service.NormalizeAndValidateNonNegativeBillingAmount(userIn.Balance)
 	if err != nil {
 		return err
@@ -67,6 +68,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 
 	created, err := txClient.User.Create().
 		SetEmail(userIn.Email).
+		SetEmailAlias(userIn.EmailAlias).
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
@@ -130,7 +132,15 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*service.User, 
 }
 
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service.User, error) {
+	email = strings.TrimSpace(email)
+	emailAlias := service.NormalizeEmailAlias(email)
 	m, err := r.client.User.Query().Where(dbuser.EmailEQ(email)).Only(ctx)
+	if err != nil && emailAlias != "" && !dbent.IsNotFound(err) {
+		return nil, translatePersistenceError(err, service.ErrUserNotFound, nil)
+	}
+	if err != nil && emailAlias != "" {
+		m, err = r.client.User.Query().Where(dbuser.EmailAliasEQ(emailAlias)).Only(ctx)
+	}
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
@@ -153,6 +163,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 	if userIn == nil {
 		return nil
 	}
+	userIn.SyncEmailAlias()
 	balance, err := service.NormalizeAndValidateNonNegativeBillingAmount(userIn.Balance)
 	if err != nil {
 		return err
@@ -180,6 +191,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 
 	updated, err := txClient.User.UpdateOneID(userIn.ID).
 		SetEmail(userIn.Email).
+		SetEmailAlias(userIn.EmailAlias).
 		SetUsername(userIn.Username).
 		SetNotes(userIn.Notes).
 		SetUsageModelDisplayMode(userIn.EffectiveUsageModelDisplayMode()).
@@ -487,7 +499,15 @@ func (r *userRepository) UpdateConcurrency(ctx context.Context, id int64, amount
 }
 
 func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
-	return r.client.User.Query().Where(dbuser.EmailEQ(email)).Exist(ctx)
+	email = strings.TrimSpace(email)
+	emailAlias := service.NormalizeEmailAlias(email)
+	if emailAlias == "" || emailAlias == email {
+		return r.client.User.Query().Where(dbuser.EmailEQ(email)).Exist(ctx)
+	}
+	return r.client.User.Query().Where(dbuser.Or(
+		dbuser.EmailEQ(email),
+		dbuser.EmailAliasEQ(emailAlias),
+	)).Exist(ctx)
 }
 
 func (r *userRepository) AddGroupToAllowedGroups(ctx context.Context, userID int64, groupID int64) error {
@@ -754,6 +774,7 @@ func applyUserEntityToService(dst *service.User, src *dbent.User) {
 		return
 	}
 	dst.ID = src.ID
+	dst.EmailAlias = src.EmailAlias
 	dst.GlobalRealtimeCountdownEnabled = src.GlobalRealtimeCountdownEnabled
 	dst.AccountRealtimeCountdownEnabled = src.AccountRealtimeCountdownEnabled
 	dst.VisualPresetPreference = service.NormalizeVisualPresetPreference(src.VisualPresetPreference)

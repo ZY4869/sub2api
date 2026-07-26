@@ -54,6 +54,28 @@ func DetectOpenAIImageRequestSize(body []byte, contentType string) string {
 	return strings.TrimSpace(gjson.GetBytes(body, "size").String())
 }
 
+func DetectOpenAIImageRequestQuality(body []byte, contentType string) string {
+	if len(body) == 0 {
+		return ""
+	}
+	mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(contentType))
+	if err != nil {
+		mediaType = strings.TrimSpace(contentType)
+	}
+	if strings.HasPrefix(strings.ToLower(mediaType), "multipart/form-data") {
+		boundary := strings.TrimSpace(params["boundary"])
+		if boundary == "" {
+			return ""
+		}
+		quality, _ := detectMultipartImageField(body, boundary, "quality")
+		return strings.TrimSpace(quality)
+	}
+	if !gjson.ValidBytes(body) {
+		return ""
+	}
+	return strings.TrimSpace(gjson.GetBytes(body, "quality").String())
+}
+
 func DetectOpenAIImageRequestN(body []byte, contentType string) int {
 	if len(body) == 0 {
 		return 1

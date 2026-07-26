@@ -70,11 +70,12 @@ const (
 	RequestTypeWSV2    RequestType = 3
 	RequestTypeCyber   RequestType = 4
 	RequestTypeBlocked RequestType = 5
+	RequestTypeLive    RequestType = 6
 )
 
 func (t RequestType) IsValid() bool {
 	switch t {
-	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2, RequestTypeCyber, RequestTypeBlocked:
+	case RequestTypeUnknown, RequestTypeSync, RequestTypeStream, RequestTypeWSV2, RequestTypeCyber, RequestTypeBlocked, RequestTypeLive:
 		return true
 	default:
 		return false
@@ -100,6 +101,8 @@ func (t RequestType) String() string {
 		return "cyber"
 	case RequestTypeBlocked:
 		return "blocked"
+	case RequestTypeLive:
+		return "live"
 	default:
 		return "unknown"
 	}
@@ -123,8 +126,10 @@ func ParseUsageRequestType(value string) (RequestType, error) {
 		return RequestTypeCyber, nil
 	case "blocked":
 		return RequestTypeBlocked, nil
+	case "live":
+		return RequestTypeLive, nil
 	default:
-		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2, cyber, blocked")
+		return RequestTypeUnknown, fmt.Errorf("invalid request_type, allowed values: unknown, sync, stream, ws_v2, cyber, blocked, live")
 	}
 }
 
@@ -157,6 +162,7 @@ type UsageLog struct {
 	APIKeyID  int64
 	AccountID int64
 	RequestID string
+	SessionID string
 	Model     string
 	// RequestedModel records the client-requested model for stable display and analytics.
 	// Empty should be treated as Model for backward compatibility.
@@ -262,6 +268,7 @@ type UsageLog struct {
 	// 图片生成字段
 	ImageCount        int
 	ImageSize         *string
+	ImageQuality      *string
 	MediaType         *string
 	ImageOutputTokens *int
 	ImageOutputCost   *float64

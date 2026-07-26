@@ -18,6 +18,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/apikeygroup"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -101,6 +102,7 @@ func checkColumn(t, c string) error {
 			accountgroup.Table:            accountgroup.ValidColumn,
 			announcement.Table:            announcement.ValidColumn,
 			announcementread.Table:        announcementread.ValidColumn,
+			compositemodelroute.Table:     compositemodelroute.ValidColumn,
 			errorpassthroughrule.Table:    errorpassthroughrule.ValidColumn,
 			group.Table:                   group.ValidColumn,
 			idempotencyrecord.Table:       idempotencyrecord.ValidColumn,

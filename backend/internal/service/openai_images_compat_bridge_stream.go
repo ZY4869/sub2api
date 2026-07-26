@@ -148,6 +148,7 @@ func (s *OpenAIGatewayService) forwardCompatImagesStream(
 		UpstreamModel: normalizedRequest.TargetModelID,
 		ImageCount:    outputCount,
 		ImageSize:     ResolveOpenAIImageSizeTier(normalizedRequest.Size),
+		ImageQuality:  strings.TrimSpace(normalizedRequest.Quality),
 		MediaType:     "image",
 		Duration:      time.Since(startTime),
 	}, nil

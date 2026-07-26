@@ -144,6 +144,13 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	millionContextEffective := optionalContextBool(service.ClaudeMillionContextEffectiveMetadataFromContext(requestCtx))
 	millionContextSource := optionalContextString(service.ClaudeMillionContextSourceMetadataFromContext(requestCtx))
 	millionContextBetaToken := optionalContextString(service.ClaudeMillionContextBetaTokenMetadataFromContext(requestCtx))
+	imageSize, _ := service.ImageSizeTierMetadataFromContext(requestCtx)
+	imageQuality, _ := service.ImageQualityMetadataFromContext(requestCtx)
+	imageOutputCount, _ := service.ImageOutputCountMetadataFromContext(requestCtx)
+	imageMediaType := ""
+	if strings.TrimSpace(imageSize) != "" || strings.TrimSpace(imageQuality) != "" || imageOutputCount > 0 {
+		imageMediaType = "image"
+	}
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
 		recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.OpenAIRecordFailedUsageInput{
@@ -170,6 +177,10 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 			MillionContextEffective:  millionContextEffective,
 			MillionContextSource:     millionContextSource,
 			MillionContextBetaToken:  millionContextBetaToken,
+			ImageCount:               imageOutputCount,
+			ImageSize:                imageSize,
+			ImageQuality:             imageQuality,
+			MediaType:                imageMediaType,
 		})
 		if recordErr != nil {
 			logger.L().With(

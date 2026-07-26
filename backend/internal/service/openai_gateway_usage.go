@@ -60,6 +60,8 @@ type OpenAIRecordUsageInput struct {
 	UpstreamEndpoint   string
 	UpstreamURL        string
 	UpstreamService    string
+	SessionID          string
+	RequestType        RequestType
 	UserAgent          string
 	IPAddress          string
 	RequestPayloadHash string
@@ -161,6 +163,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		APIKeyID:                 apiKey.ID,
 		AccountID:                account.ID,
 		RequestID:                requestID,
+		SessionID:                strings.TrimSpace(input.SessionID),
 		Model:                    result.Model,
 		RequestedModel:           result.Model,
 		UpstreamModel:            optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
@@ -213,6 +216,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result.ImageSize != "" {
 		imageSize := result.ImageSize
 		usageLog.ImageSize = &imageSize
+	}
+	if imageQuality := strings.TrimSpace(result.ImageQuality); imageQuality != "" {
+		usageLog.ImageQuality = &imageQuality
+	}
+	if requestType := input.RequestType.Normalize(); requestType != RequestTypeUnknown {
+		usageLog.RequestType = requestType
 	}
 	if mediaType := strings.TrimSpace(result.MediaType); mediaType != "" {
 		usageLog.MediaType = &mediaType

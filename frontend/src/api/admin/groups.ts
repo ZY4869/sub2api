@@ -6,6 +6,8 @@
 import { apiClient } from '../client'
 import type {
   AdminGroup,
+  CompositeModelRoute,
+  CompositeRoutePreviewResult,
   GroupPlatform,
   CreateGroupRequest,
   UpdateGroupRequest,
@@ -154,6 +156,35 @@ export async function getStats(id: number): Promise<{
   return data
 }
 
+export async function listCompositeRoutes(id: number): Promise<CompositeModelRoute[]> {
+  const { data } = await apiClient.get<CompositeModelRoute[]>(
+    `/admin/groups/${id}/composite-routes`
+  )
+  return data
+}
+
+export async function replaceCompositeRoutes(
+  id: number,
+  routes: CompositeModelRoute[]
+): Promise<CompositeModelRoute[]> {
+  const { data } = await apiClient.put<CompositeModelRoute[]>(
+    `/admin/groups/${id}/composite-routes`,
+    { routes }
+  )
+  return data
+}
+
+export async function previewCompositeRoute(
+  id: number,
+  model: string
+): Promise<CompositeRoutePreviewResult> {
+  const { data } = await apiClient.post<CompositeRoutePreviewResult>(
+    `/admin/groups/${id}/composite-routes/preview`,
+    { model }
+  )
+  return data
+}
+
 /**
  * Get API keys in a group
  * @param id - Group ID
@@ -276,6 +307,9 @@ export const groupsAPI = {
   delete: deleteGroup,
   toggleStatus,
   getStats,
+  listCompositeRoutes,
+  replaceCompositeRoutes,
+  previewCompositeRoute,
   getGroupApiKeys,
   getGroupRateMultipliers,
   clearGroupRateMultipliers,

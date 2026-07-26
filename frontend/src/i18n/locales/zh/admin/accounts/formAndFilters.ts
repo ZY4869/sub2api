@@ -19,6 +19,7 @@ export default {
         passiveSampled: "此视图基于被动采样快照，可能会短暂滞后于实时用量。",
         sampledBadge: "采样",
         activeQuery: "此视图来自主动实时查询。",
+        grokSnapshotStale: "Grok 额度快照可能已过期，请刷新真实账户额度后再判断。",
         refreshResetCredits: "刷新次数",
         refreshingResetCredits: "刷新中",
         refreshResetCreditsTitle: "刷新 OpenAI 重置次数",

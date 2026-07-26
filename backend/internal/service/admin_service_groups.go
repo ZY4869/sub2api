@@ -41,6 +41,13 @@ func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, erro
 	if err := EnsureValidPrimaryGroupPlatform(group.Platform); err != nil {
 		return nil, err
 	}
+	if group.Platform == PlatformComposite {
+		routes, err := s.groupRepo.ListCompositeRoutes(ctx, group.ID)
+		if err != nil {
+			return nil, err
+		}
+		group.CompositeRoutes = routes
+	}
 	return group, nil
 }
 func (s *adminServiceImpl) GetGroupByName(ctx context.Context, name string) (*Group, error) {
@@ -61,6 +68,20 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	}
 	if err := EnsureValidPrimaryGroupPlatform(platform); err != nil {
 		return nil, err
+	}
+	if platform != PlatformComposite && len(input.CompositeRoutes) > 0 {
+		return nil, ErrCompositeGroupRequired
+	}
+	normalizedCompositeRoutes := make([]CompositeModelRoute, 0)
+	if platform == PlatformComposite {
+		for i := range input.CompositeRoutes {
+			input.CompositeRoutes[i].ParentGroupID = 0
+		}
+		normalizedRoutes, err := s.validateCompositeRouteInputs(ctx, 0, input.CompositeRoutes)
+		if err != nil {
+			return nil, err
+		}
+		normalizedCompositeRoutes = normalizedRoutes
 	}
 	subscriptionType := input.SubscriptionType
 	if subscriptionType == "" {
@@ -135,7 +156,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if err != nil {
 		return nil, err
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, WebSearchPricePerCall: webSearchPricePerCall, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, WebSearchPricePerCall: webSearchPricePerCall, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, AllowLive: input.AllowLive, MaxReasoningEffort: NormalizeOpenAIReasoningEffortSetting(input.MaxReasoningEffort), ReasoningEffortMappings: NormalizeReasoningEffortMappings(input.ReasoningEffortMappings), VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
 	sanitizeGroupPlatformFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
@@ -145,6 +166,17 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 			return nil, fmt.Errorf("failed to bind accounts to new group: %w", err)
 		}
 		group.AccountCount = int64(len(accountIDsToCopy))
+	}
+	if platform == PlatformComposite && len(normalizedCompositeRoutes) > 0 {
+		routes := append([]CompositeModelRoute(nil), normalizedCompositeRoutes...)
+		for i := range routes {
+			routes[i].ParentGroupID = group.ID
+		}
+		updatedRoutes, err := s.groupRepo.ReplaceCompositeRoutes(ctx, group.ID, routes)
+		if err != nil {
+			return nil, err
+		}
+		group.CompositeRoutes = updatedRoutes
 	}
 	return group, nil
 }
@@ -200,6 +232,9 @@ func (s *adminServiceImpl) DuplicateGroup(ctx context.Context, id int64, input *
 		SupportedModelScopes:            append([]string(nil), source.SupportedModelScopes...),
 		AllowMessagesDispatch:           source.AllowMessagesDispatch,
 		DefaultMappedModel:              source.DefaultMappedModel,
+		AllowLive:                       source.AllowLive,
+		MaxReasoningEffort:              source.MaxReasoningEffort,
+		ReasoningEffortMappings:         append([]ReasoningEffortMapping(nil), source.ReasoningEffortMappings...),
 		VisibleModelPatterns:            append([]string(nil), source.VisibleModelPatterns...),
 		ImageBatchEnabled:               source.ImageBatchEnabled,
 		ImageBatchAllowedProviders:      append([]string(nil), source.ImageBatchAllowedProviders...),
@@ -299,6 +334,12 @@ func sanitizeGroupPlatformFields(group *Group) {
 
 	if group.Platform != PlatformOpenAI && group.Platform != PlatformGrok {
 		group.WebSearchPricePerCall = nil
+	}
+
+	if group.Platform != PlatformOpenAI && group.Platform != PlatformComposite {
+		group.AllowLive = false
+		group.MaxReasoningEffort = ""
+		group.ReasoningEffortMappings = nil
 	}
 
 	if group.Platform != PlatformAntigravity && group.Platform != PlatformGemini && group.Platform != PlatformGrok {
@@ -408,6 +449,24 @@ func (s *adminServiceImpl) validateFallbackGroupOnInvalidRequest(ctx context.Con
 	}
 	return nil
 }
+
+func (s *adminServiceImpl) validateCompositeRouteInputs(ctx context.Context, parentGroupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	normalized, err := NormalizeCompositeModelRoutes(parentGroupID, routes)
+	if err != nil {
+		return nil, err
+	}
+	for _, route := range normalized {
+		target, err := s.groupRepo.GetByIDLite(ctx, route.TargetGroupID)
+		if err != nil {
+			return nil, fmt.Errorf("target group %d not found: %w", route.TargetGroupID, err)
+		}
+		if target == nil || CanonicalizePlatformValue(target.Platform) == PlatformComposite {
+			return nil, ErrCompositeTargetGroupInvalid
+		}
+	}
+	return normalized, nil
+}
+
 func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *UpdateGroupInput) (*Group, error) {
 	group, err := s.groupRepo.GetByID(ctx, id)
 	if err != nil {
@@ -523,6 +582,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if input.DefaultMappedModel != nil {
 		group.DefaultMappedModel = *input.DefaultMappedModel
 	}
+	if input.AllowLive != nil {
+		group.AllowLive = *input.AllowLive
+	}
+	if input.MaxReasoningEffort != nil {
+		group.MaxReasoningEffort = NormalizeOpenAIReasoningEffortSetting(*input.MaxReasoningEffort)
+	}
+	if input.ReasoningEffortMappings != nil {
+		group.ReasoningEffortMappings = NormalizeReasoningEffortMappings(*input.ReasoningEffortMappings)
+	}
 	if input.VisibleModelPatterns != nil {
 		group.VisibleModelPatterns = NormalizeGroupVisibleModelPatterns(*input.VisibleModelPatterns)
 	}
@@ -543,6 +611,24 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.ImageBatchDownloadConcurrency != nil {
 		group.ImageBatchDownloadConcurrency = NormalizeImageBatchDownloadConcurrency(*input.ImageBatchDownloadConcurrency)
+	}
+	var normalizedCompositeRoutes []CompositeModelRoute
+	compositeRoutesSet := input.CompositeRoutes != nil
+	if compositeRoutesSet {
+		if group.Platform != PlatformComposite && len(*input.CompositeRoutes) > 0 {
+			return nil, ErrCompositeGroupRequired
+		}
+		if group.Platform == PlatformComposite {
+			routes := append([]CompositeModelRoute(nil), (*input.CompositeRoutes)...)
+			for i := range routes {
+				routes[i].ParentGroupID = id
+			}
+			normalizedRoutes, err := s.validateCompositeRouteInputs(ctx, id, routes)
+			if err != nil {
+				return nil, err
+			}
+			normalizedCompositeRoutes = normalizedRoutes
+		}
 	}
 	peakEnabled := group.PeakRateEnabled
 	if input.PeakRateEnabled != nil {
@@ -567,6 +653,13 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	sanitizeGroupPlatformFields(group)
 	if err := s.groupRepo.Update(ctx, group); err != nil {
 		return nil, err
+	}
+	if compositeRoutesSet && group.Platform == PlatformComposite {
+		updatedRoutes, err := s.groupRepo.ReplaceCompositeRoutes(ctx, id, normalizedCompositeRoutes)
+		if err != nil {
+			return nil, err
+		}
+		group.CompositeRoutes = updatedRoutes
 	}
 	if len(input.CopyAccountsFromGroupIDs) > 0 {
 		seen := make(map[int64]struct{})
@@ -656,6 +749,71 @@ func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, p
 }
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
 	return s.groupRepo.UpdateSortOrders(ctx, updates)
+}
+
+func (s *adminServiceImpl) ListCompositeRoutes(ctx context.Context, groupID int64) ([]CompositeModelRoute, error) {
+	group, err := s.groupRepo.GetByIDLite(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil || CanonicalizePlatformValue(group.Platform) != PlatformComposite {
+		return nil, ErrCompositeGroupRequired
+	}
+	return s.groupRepo.ListCompositeRoutes(ctx, groupID)
+}
+
+func (s *adminServiceImpl) ReplaceCompositeRoutes(ctx context.Context, groupID int64, routes []CompositeModelRoute) ([]CompositeModelRoute, error) {
+	group, err := s.groupRepo.GetByIDLite(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil || CanonicalizePlatformValue(group.Platform) != PlatformComposite {
+		return nil, ErrCompositeGroupRequired
+	}
+	replaced, err := s.groupRepo.ReplaceCompositeRoutes(ctx, groupID, routes)
+	if err != nil {
+		return nil, err
+	}
+	if s.authCacheInvalidator != nil {
+		s.authCacheInvalidator.InvalidateAuthCacheByGroupID(ctx, groupID)
+	}
+	return replaced, nil
+}
+
+func (s *adminServiceImpl) PreviewCompositeRoute(ctx context.Context, input CompositeRoutePreviewInput) (*CompositeRoutePreviewResult, error) {
+	group, err := s.groupRepo.GetByIDLite(ctx, input.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil || CanonicalizePlatformValue(group.Platform) != PlatformComposite {
+		return nil, ErrCompositeGroupRequired
+	}
+	model := strings.TrimSpace(input.Model)
+	if model == "" {
+		return &CompositeRoutePreviewResult{Matched: false}, nil
+	}
+	route, err := s.groupRepo.FindCompositeRoute(ctx, input.GroupID, model)
+	if err != nil {
+		return nil, err
+	}
+	if route == nil {
+		return &CompositeRoutePreviewResult{Matched: false, DisplayModelID: model}, nil
+	}
+	targetModel := strings.TrimSpace(route.TargetModelID)
+	if targetModel == "" {
+		targetModel = model
+	}
+	if route.TargetGroup == nil {
+		route.TargetGroup, _ = s.groupRepo.GetByIDLite(ctx, route.TargetGroupID)
+	}
+	return &CompositeRoutePreviewResult{
+		Matched:        true,
+		DisplayModelID: model,
+		TargetModelID:  targetModel,
+		TargetGroupID:  route.TargetGroupID,
+		TargetGroup:    route.TargetGroup,
+		Route:          route,
+	}, nil
 }
 
 func (s *adminServiceImpl) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]APIKeyGroupBinding, error) {

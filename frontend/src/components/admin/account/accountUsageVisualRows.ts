@@ -46,7 +46,8 @@ export const createVisualUsageRows = (
   .slice(0, 2)
   .map((row) => {
     const usedPercent = normalizePercent(row.utilization)
-    const displayPercent = displayMode === 'remaining'
+    const rowDisplayMode = row.displayModeOverride || displayMode
+    const displayPercent = rowDisplayMode === 'remaining'
       ? 100 - usedPercent
       : usedPercent
     return {

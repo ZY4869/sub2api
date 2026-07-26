@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-07-15T03:04:48Z"
+export const generatedModelRegistryBuiltAt = "2026-07-26T09:30:48Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"eeb42e941640b659ade9c711c0b250f6182b0e1f786db6853e4f0239c4fa90ee\"",
-  "updated_at": "2026-07-15T03:04:48Z",
+  "etag": "W/\"e6b6030761116144d73d4bc4b56a82df0bf689732f799b1cf2bf04adab1f8909\"",
+  "updated_at": "2026-07-26T09:30:48Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -534,6 +534,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 1,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "display_name": "Claude Opus 5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-opus-5"
+      ],
+      "aliases": [
+        "claude-opus-5.0"
+      ],
+      "pricing_lookup_ids": [
+        "claude-opus-5"
+      ],
+      "context_window_tokens": 1000000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 1,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -6893,9 +6924,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
   "presets": [
     {
       "platform": "anthropic",
-      "label": "Opus 4.1",
-      "from": "claude-opus-4.1",
-      "to": "claude-opus-4.1",
+      "label": "Opus 5",
+      "from": "claude-opus-5",
+      "to": "claude-opus-5",
       "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
       "order": 1
     },
@@ -6909,10 +6940,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Sonnet 4.5",
-      "from": "claude-sonnet-4.5",
-      "to": "claude-sonnet-4.5",
-      "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+      "label": "Opus 4.1",
+      "from": "claude-opus-4.1",
+      "to": "claude-opus-4.1",
+      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
       "order": 2
     },
     {
@@ -6925,10 +6956,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Haiku 4.5",
-      "from": "claude-haiku-4.5",
-      "to": "claude-haiku-4.5",
-      "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+      "label": "Sonnet 4.5",
+      "from": "claude-sonnet-4.5",
+      "to": "claude-sonnet-4.5",
+      "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
       "order": 3
     },
     {
@@ -6941,10 +6972,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Opus-\u003eSonnet",
-      "from": "claude-opus-4.1",
-      "to": "claude-sonnet-4.5",
-      "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+      "label": "Haiku 4.5",
+      "from": "claude-haiku-4.5",
+      "to": "claude-haiku-4.5",
+      "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
       "order": 4
     },
     {
@@ -6957,10 +6988,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Haiku-\u003eSonnet",
-      "from": "claude-haiku-4.5",
+      "label": "Opus-\u003eSonnet",
+      "from": "claude-opus-4.1",
       "to": "claude-sonnet-4.5",
-      "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+      "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
       "order": 5
     },
     {
@@ -6973,10 +7004,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Opus 4.8",
-      "from": "claude-opus-4-8",
-      "to": "claude-opus-4-8",
-      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+      "label": "Haiku-\u003eSonnet",
+      "from": "claude-haiku-4.5",
+      "to": "claude-sonnet-4.5",
+      "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
       "order": 6
     },
     {
@@ -6989,9 +7020,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Opus 4.7",
-      "from": "claude-opus-4-7",
-      "to": "claude-opus-4-7",
+      "label": "Opus 4.8",
+      "from": "claude-opus-4-8",
+      "to": "claude-opus-4-8",
       "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
       "order": 7
     },
@@ -7002,6 +7033,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "gpt-4o-mini",
       "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
       "order": 7
+    },
+    {
+      "platform": "anthropic",
+      "label": "Opus 4.7",
+      "from": "claude-opus-4-7",
+      "to": "claude-opus-4-7",
+      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+      "order": 8
     },
     {
       "platform": "openai",
@@ -7309,11 +7348,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
+      "label": "Opus 5",
+      "from": "claude-opus-5",
+      "to": "claude-opus-5",
+      "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+      "order": 53
+    },
+    {
+      "platform": "antigravity",
       "label": "Opus 4.1",
       "from": "claude-opus-4.1",
       "to": "claude-opus-4.1",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 53
+      "order": 54
     },
     {
       "platform": "antigravity",
@@ -7321,7 +7368,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-opus-4-7",
       "to": "claude-opus-4-7",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 54
+      "order": 55
     },
     {
       "platform": "antigravity",
@@ -7329,7 +7376,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "claude-opus-4-8",
       "to": "claude-opus-4-8",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
-      "order": 55
+      "order": 56
     }
   ]
 }

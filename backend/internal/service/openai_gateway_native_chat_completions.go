@@ -51,6 +51,7 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 		mappedModel = resolveOpenAIForwardModel(account, normalizedRequestedModel, defaultMappedModel)
 	}
 	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
+	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalRequestedModel, normalizedRequestedModel, mappedModel)
 	chatReq.Model = mappedModel
 	if chatReq.Stream && !clientRequestedUsage {
 		if chatReq.StreamOptions == nil {

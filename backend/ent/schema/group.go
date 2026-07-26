@@ -140,10 +140,21 @@ func (Group) Fields() []ent.Field {
 		field.Bool("allow_messages_dispatch").
 			Default(false).
 			Comment("Whether /v1/messages dispatch is allowed"),
+		field.Bool("allow_live").
+			Default(false).
+			Comment("Whether live/realtime OpenAI-compatible ingress is allowed for this group"),
 		field.String("default_mapped_model").
 			MaxLen(100).
 			Default("").
 			Comment("Default mapped model ID"),
+		field.String("max_reasoning_effort").
+			MaxLen(20).
+			Default("").
+			Comment("Maximum OpenAI reasoning effort allowed for this group; empty means unlimited"),
+		field.JSON("reasoning_effort_mappings", []map[string]string{}).
+			Default([]map[string]string{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Group-level OpenAI reasoning effort exact mappings"),
 		field.JSON("visible_model_patterns", []string{}).
 			Default([]string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

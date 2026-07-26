@@ -975,6 +975,7 @@ func TestAPIContracts(t *testing.T) {
 						"claude_code_only": false,
 						"fallback_group_id": null,
 						"fallback_group_id_on_invalid_request": null,
+						"allow_live": false,
 						"allow_messages_dispatch": false,
 						"created_at": "2025-01-02T03:04:05Z",
 						"updated_at": "2025-01-02T03:04:05Z"
@@ -1220,6 +1221,7 @@ func TestAPIContracts(t *testing.T) {
 							"image_count": 0,
 							"image_input_tokens": 0,
 							"image_input_cost": 0,
+							"image_quality": null,
 							"image_size": null,
 							"cache_ttl_overridden": false,
 							"created_at": "2025-01-02T03:04:05Z",
@@ -2436,6 +2438,18 @@ func (stubGroupRepo) GetAccountIDsByGroupIDs(ctx context.Context, groupIDs []int
 
 func (stubGroupRepo) UpdateSortOrders(ctx context.Context, updates []service.GroupSortOrderUpdate) error {
 	return nil
+}
+
+func (stubGroupRepo) ListCompositeRoutes(ctx context.Context, parentGroupID int64) ([]service.CompositeModelRoute, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubGroupRepo) ReplaceCompositeRoutes(ctx context.Context, parentGroupID int64, routes []service.CompositeModelRoute) ([]service.CompositeModelRoute, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (stubGroupRepo) FindCompositeRoute(ctx context.Context, parentGroupID int64, displayModelID string) (*service.CompositeModelRoute, error) {
+	return nil, nil
 }
 
 type stubAccountRepo struct {

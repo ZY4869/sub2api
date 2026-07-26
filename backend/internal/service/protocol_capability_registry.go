@@ -134,6 +134,22 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointOpenAILive,
+		SourceProtocol:    PlatformOpenAI,
+		HandlerFamily:     "openai_live",
+		NormalizePrefixes: []string{"/openai"},
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1/live"},
+			{Method: http.MethodGet, Pattern: "/backend-api/codex/realtime/calls"},
+			{Method: http.MethodPost, Pattern: "/backend-api/codex/realtime/calls"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointOpenAILive, RequestFormat: EndpointOpenAILive, Action: ProtocolCapabilityActionLive, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointOpenAILive, RequestFormat: "/backend-api/codex/realtime/calls", Action: ProtocolCapabilityActionLive, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointOpenAILive, RequestFormat: EndpointOpenAILive, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointImagesGen,
 		SourceProtocol:    PlatformOpenAI,
 		HandlerFamily:     "public_images_generation",

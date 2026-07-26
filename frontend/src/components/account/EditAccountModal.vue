@@ -139,7 +139,7 @@
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
           v-model:gemini-tier-ai-studio="geminiTierAIStudio"
-          :platform="account.platform"
+          :platform="accountFormPlatform"
           :gateway-protocol="gatewayProtocol"
           :effective-platform="effectivePlatform"
           mode="edit"
@@ -657,6 +657,7 @@ const {
   baiduDocumentAIAccessToken,
   baiduDocumentAIAsyncBaseUrl,
   baiduDocumentAIDirectApiUrlsText,
+  accountFormPlatform,
   effectivePlatform,
   effectiveGroupPlatforms,
   isProtocolGatewayAccount,

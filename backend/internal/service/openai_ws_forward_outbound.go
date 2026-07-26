@@ -24,6 +24,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 	if c != nil && c.Request != nil {
 		c.Request = c.Request.WithContext(ctx)
 	}
+	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, originalModel, mappedModel)
+	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, mappedModel)
+	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
 	wsURL, err := s.buildOpenAIResponsesWSURL(account)
 	if err != nil {
 		return nil, wrapOpenAIWSFallback("build_ws_url", err)
@@ -414,7 +417,6 @@ openAIWSAcquired:
 		firstTokenMsValue = *firstTokenMs
 	}
 	logOpenAIWSModeDebug("completed account_id=%d conn_id=%s response_id=%s stream=%v duration_ms=%d events=%d token_events=%d terminal_events=%d buffered_events=%d buffered_flushed=%d first_event=%s last_event=%s first_token_ms=%d wrote_downstream=%v client_disconnected=%v", account.ID, connID, truncateOpenAIWSLogValue(strings.TrimSpace(responseID), openAIWSIDValueMaxLen), reqStream, time.Since(startTime).Milliseconds(), eventCount, tokenEventCount, terminalEventCount, bufferedEventCount, flushedBufferedEventCount, truncateOpenAIWSLogValue(firstEventType, openAIWSLogValueMaxLen), truncateOpenAIWSLogValue(lastEventType, openAIWSLogValueMaxLen), firstTokenMsValue, wroteDownstream, clientDisconnected)
-	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, originalModel, mappedModel)
 	return &OpenAIForwardResult{
 		RequestID:                responseID,
 		Usage:                    *usage,

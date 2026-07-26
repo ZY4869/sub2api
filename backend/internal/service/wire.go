@@ -812,6 +812,7 @@ func ProvideGatewayService(
 
 func ProvideOpenAIGatewayService(
 	accountRepo AccountRepository,
+	groupRepo GroupRepository,
 	usageLogRepo UsageLogRepository,
 	usageBillingRepo UsageBillingRepository,
 	userRepo UserRepository,
@@ -832,7 +833,7 @@ func ProvideOpenAIGatewayService(
 	modelCatalogService *ModelCatalogService,
 	channelService *ChannelService,
 ) *OpenAIGatewayService {
-	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, settingService)
+	svc := NewOpenAIGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider, settingService)
 	svc.SetChannelService(channelService)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetModelCatalogService(modelCatalogService)

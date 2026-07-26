@@ -34,6 +34,7 @@ type OpenAIRecordFailedUsageInput struct {
 	SimulatedClient          string
 	Stream                   bool
 	OpenAIWSMode             bool
+	RequestType              RequestType
 	Duration                 time.Duration
 	ReasoningEffort          *string
 	ReasoningEffortRaw       *string
@@ -45,6 +46,10 @@ type OpenAIRecordFailedUsageInput struct {
 	MillionContextSource     *string
 	MillionContextBetaToken  *string
 	ThinkingEnabled          *bool
+	ImageCount               int
+	ImageSize                string
+	ImageQuality             string
+	MediaType                string
 }
 
 type RecordFailedUsageInput struct {
@@ -68,6 +73,7 @@ type RecordFailedUsageInput struct {
 	SimulatedClient          string
 	Stream                   bool
 	OpenAIWSMode             bool
+	RequestType              RequestType
 	Duration                 time.Duration
 	ReasoningEffort          *string
 	ReasoningEffortRaw       *string
@@ -81,6 +87,7 @@ type RecordFailedUsageInput struct {
 	ThinkingEnabled          *bool
 	ImageCount               int
 	ImageSize                string
+	ImageQuality             string
 	MediaType                string
 }
 
@@ -151,6 +158,10 @@ func optionalImageSizePtr(value string) *string {
 	return optionalTrimmedStringPtr(value)
 }
 
+func optionalImageQualityPtr(value string) *string {
+	return optionalTrimmedStringPtr(value)
+}
+
 func buildFailedUsageLogBase(
 	ctx context.Context,
 	apiKey *APIKey,
@@ -215,8 +226,12 @@ func buildFailedUsageLogBase(
 		SimulatedClient:          NormalizeUsageLogSimulatedClient(input.SimulatedClient),
 		ImageCount:               input.ImageCount,
 		ImageSize:                optionalImageSizePtr(input.ImageSize),
+		ImageQuality:             optionalImageQualityPtr(input.ImageQuality),
 		MediaType:                optionalMediaTypePtr(input.MediaType),
 		CreatedAt:                time.Now(),
+	}
+	if requestType := input.RequestType.Normalize(); requestType != RequestTypeUnknown {
+		log.RequestType = requestType
 	}
 	if apiKey.GroupID != nil {
 		log.GroupID = apiKey.GroupID
@@ -267,6 +282,7 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 		SimulatedClient:          input.SimulatedClient,
 		Stream:                   input.Stream,
 		OpenAIWSMode:             input.OpenAIWSMode,
+		RequestType:              input.RequestType,
 		Duration:                 input.Duration,
 		ReasoningEffort:          input.ReasoningEffort,
 		ReasoningEffortRaw:       input.ReasoningEffortRaw,
@@ -278,6 +294,10 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 		MillionContextSource:     input.MillionContextSource,
 		MillionContextBetaToken:  input.MillionContextBetaToken,
 		ThinkingEnabled:          input.ThinkingEnabled,
+		ImageCount:               input.ImageCount,
+		ImageSize:                input.ImageSize,
+		ImageQuality:             input.ImageQuality,
+		MediaType:                input.MediaType,
 	})
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 	if s.deferredService != nil && input.Account != nil {

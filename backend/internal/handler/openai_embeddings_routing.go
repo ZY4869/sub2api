@@ -43,6 +43,29 @@ func (h *OpenAIGatewayHandler) runEmbeddingsRoutingLoop(
 		if !ok {
 			return
 		}
+		if req.publicCatalogEntry == nil {
+			runtime, resolveErr := resolveOpenAICompositeRuntime(
+				c,
+				h.gatewayService,
+				h.billingCacheService,
+				req.reqLog,
+				currentAPIKey,
+				currentSubscription,
+				req.body,
+				req.publicRequestModel,
+				runtimeSelectionModel,
+			)
+			if resolveErr != nil {
+				releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+				status, code, message := compositeRouteErrorDetails(resolveErr)
+				h.handleStreamingAwareError(c, status, code, message, false)
+				return
+			}
+			currentAPIKey = runtime.apiKey
+			currentSubscription = runtime.subscription
+			runtimeSelectionModel = runtime.selectionModel
+			channelState, _ = service.GatewayChannelStateFromContext(c.Request.Context())
+		}
 		if h.tryEmbeddingsAccounts(c, openAIEmbeddingsForwardInput{
 			req:                   req,
 			currentAPIKey:         currentAPIKey,

@@ -59,7 +59,7 @@ func TestResolveSelectedAPIKey_PublicCatalogEntryPinsMatchedGroup(t *testing.T) 
 				return resolveSelectedOpenAIAPIKey(
 					ctx,
 					settingService,
-					service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, &config.Config{}, nil, nil, nil, nil, billingCacheService, nil, nil, nil, settingService),
+					service.NewOpenAIGatewayService(nil, nil, nil, nil, nil, nil, nil, nil, &config.Config{}, nil, nil, nil, nil, billingCacheService, nil, nil, nil, settingService),
 					billingCacheService,
 					apiKey,
 					nil,

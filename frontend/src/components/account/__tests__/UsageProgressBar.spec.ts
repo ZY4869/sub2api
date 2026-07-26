@@ -136,6 +136,31 @@ describe("UsageProgressBar", () => {
     expect(wrapper.text()).toContain("U $15.72");
   });
 
+  it("shows raw quota limit and remaining values in the tooltip", async () => {
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: "请求数",
+        utilization: 0,
+        color: "orange",
+        displayMode: "remaining",
+        quotaTooltip: {
+          limit: 100,
+          remaining: 100,
+        },
+      },
+    });
+
+    expect(wrapper.text()).not.toContain("limit 100");
+
+    await wrapper
+      .find('[data-testid="usage-progress-trigger"]')
+      .trigger("mouseenter");
+
+    expect(wrapper.text()).toContain("limit 100");
+    expect(wrapper.text()).toContain("remaining 100");
+    expect(wrapper.text()).toContain("100%");
+  });
+
   it("hides inline remaining text when a placeholder row has no reset time", () => {
     const wrapper = mount(UsageProgressBar, {
       props: {

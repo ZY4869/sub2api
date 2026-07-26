@@ -77,6 +77,20 @@ func (_u *UserUpdate) SetNillableEmail(v *string) *UserUpdate {
 	return _u
 }
 
+// SetEmailAlias sets the "email_alias" field.
+func (_u *UserUpdate) SetEmailAlias(v string) *UserUpdate {
+	_u.mutation.SetEmailAlias(v)
+	return _u
+}
+
+// SetNillableEmailAlias sets the "email_alias" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableEmailAlias(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetEmailAlias(*v)
+	}
+	return _u
+}
+
 // SetPasswordHash sets the "password_hash" field.
 func (_u *UserUpdate) SetPasswordHash(v string) *UserUpdate {
 	_u.mutation.SetPasswordHash(v)
@@ -833,6 +847,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "User.email": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EmailAlias(); ok {
+		if err := user.EmailAliasValidator(v); err != nil {
+			return &ValidationError{Name: "email_alias", err: fmt.Errorf(`ent: validator failed for field "User.email_alias": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PasswordHash(); ok {
 		if err := user.PasswordHashValidator(v); err != nil {
 			return &ValidationError{Name: "password_hash", err: fmt.Errorf(`ent: validator failed for field "User.password_hash": %w`, err)}
@@ -924,6 +943,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EmailAlias(); ok {
+		_spec.SetField(user.FieldEmailAlias, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
@@ -1496,6 +1518,20 @@ func (_u *UserUpdateOne) SetEmail(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableEmail(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetEmail(*v)
+	}
+	return _u
+}
+
+// SetEmailAlias sets the "email_alias" field.
+func (_u *UserUpdateOne) SetEmailAlias(v string) *UserUpdateOne {
+	_u.mutation.SetEmailAlias(v)
+	return _u
+}
+
+// SetNillableEmailAlias sets the "email_alias" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableEmailAlias(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetEmailAlias(*v)
 	}
 	return _u
 }
@@ -2269,6 +2305,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "User.email": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.EmailAlias(); ok {
+		if err := user.EmailAliasValidator(v); err != nil {
+			return &ValidationError{Name: "email_alias", err: fmt.Errorf(`ent: validator failed for field "User.email_alias": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PasswordHash(); ok {
 		if err := user.PasswordHashValidator(v); err != nil {
 			return &ValidationError{Name: "password_hash", err: fmt.Errorf(`ent: validator failed for field "User.password_hash": %w`, err)}
@@ -2377,6 +2418,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.EmailAlias(); ok {
+		_spec.SetField(user.FieldEmailAlias, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)

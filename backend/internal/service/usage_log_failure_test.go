@@ -48,6 +48,10 @@ func TestBuildFailedUsageLogBase_SanitizesAndMarksFailed(t *testing.T) {
 			SimulatedClient:     GatewayClientProfileGeminiCLI,
 			Stream:              true,
 			Duration:            1500 * time.Millisecond,
+			ImageCount:          1,
+			ImageSize:           "4K",
+			ImageQuality:        "high",
+			MediaType:           "image",
 		},
 	)
 
@@ -75,6 +79,13 @@ func TestBuildFailedUsageLogBase_SanitizesAndMarksFailed(t *testing.T) {
 	require.Equal(t, RequestTypeStream, log.RequestType)
 	require.Equal(t, groupID, *log.GroupID)
 	require.Equal(t, subscriptionID, *log.SubscriptionID)
+	require.Equal(t, 1, log.ImageCount)
+	require.NotNil(t, log.ImageSize)
+	require.Equal(t, "4K", *log.ImageSize)
+	require.NotNil(t, log.ImageQuality)
+	require.Equal(t, "high", *log.ImageQuality)
+	require.NotNil(t, log.MediaType)
+	require.Equal(t, "image", *log.MediaType)
 	require.Equal(t, 0.0, log.ActualCost)
 }
 

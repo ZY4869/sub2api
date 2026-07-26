@@ -472,6 +472,11 @@ export interface AccountUsagePresentationRow extends AccountUsageResetRow {
   color: AccountUsageRowColor;
   inlineRemaining?: boolean;
   detailedReset?: boolean;
+  displayModeOverride?: AccountUsageDisplayMode | null;
+  quotaTooltip?: {
+    limit: number;
+    remaining: number;
+  } | null;
 }
 
 export interface AccountUsagePresentationMeta {

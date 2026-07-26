@@ -87,6 +87,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	// 3. Model mapping
 	mappedModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, anthropicReq.Model, defaultMappedModel))
 	responsesReq.Model = mappedModel
+	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalModel, anthropicReq.Model, mappedModel)
 
 	logger.L().Debug("openai messages: model mapping applied",
 		zap.Int64("account_id", account.ID),
@@ -108,6 +109,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		if normalizedBody, setErr := sjson.SetBytes(responsesBody, "reasoning.effort", effective); setErr == nil {
 			responsesBody = normalizedBody
 		}
+		responsesReq.Reasoning = &apicompat.ResponsesReasoning{Effort: effective}
 	}
 
 	if isChatGPTOpenAIOAuthAccount(account) {

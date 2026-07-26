@@ -427,6 +427,56 @@ var (
 			},
 		},
 	}
+	// CompositeModelRoutesColumns holds the columns for the "composite_model_routes" table.
+	CompositeModelRoutesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "display_model_id", Type: field.TypeString, Size: 191},
+		{Name: "target_model_id", Type: field.TypeString, Size: 191, Default: ""},
+		{Name: "priority", Type: field.TypeInt, Default: 50},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "notes", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "parent_group_id", Type: field.TypeInt64},
+		{Name: "target_group_id", Type: field.TypeInt64},
+	}
+	// CompositeModelRoutesTable holds the schema information for the "composite_model_routes" table.
+	CompositeModelRoutesTable = &schema.Table{
+		Name:       "composite_model_routes",
+		Columns:    CompositeModelRoutesColumns,
+		PrimaryKey: []*schema.Column{CompositeModelRoutesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "composite_model_routes_groups_parent_group",
+				Columns:    []*schema.Column{CompositeModelRoutesColumns[8]},
+				RefColumns: []*schema.Column{GroupsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "composite_model_routes_groups_target_group",
+				Columns:    []*schema.Column{CompositeModelRoutesColumns[9]},
+				RefColumns: []*schema.Column{GroupsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "compositemodelroute_parent_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{CompositeModelRoutesColumns[8]},
+			},
+			{
+				Name:    "compositemodelroute_target_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{CompositeModelRoutesColumns[9]},
+			},
+			{
+				Name:    "compositemodelroute_parent_group_id_display_model_id_enabled_priority",
+				Unique:  false,
+				Columns: []*schema.Column{CompositeModelRoutesColumns[8], CompositeModelRoutesColumns[3], CompositeModelRoutesColumns[6], CompositeModelRoutesColumns[5]},
+			},
+		},
+	}
 	// ErrorPassthroughRulesColumns holds the columns for the "error_passthrough_rules" table.
 	ErrorPassthroughRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -501,7 +551,10 @@ var (
 		{Name: "priority", Type: field.TypeInt, Default: 1},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "allow_messages_dispatch", Type: field.TypeBool, Default: false},
+		{Name: "allow_live", Type: field.TypeBool, Default: false},
 		{Name: "default_mapped_model", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "max_reasoning_effort", Type: field.TypeString, Size: 20, Default: ""},
+		{Name: "reasoning_effort_mappings", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "visible_model_patterns", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
@@ -856,6 +909,7 @@ var (
 	UsageLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
 		{Name: "request_id", Type: field.TypeString, Size: 64},
+		{Name: "session_id", Type: field.TypeString, Nullable: true, Size: 128},
 		{Name: "model", Type: field.TypeString, Size: 100},
 		{Name: "requested_model", Type: field.TypeString, Nullable: true, Size: 100},
 		{Name: "upstream_model", Type: field.TypeString, Nullable: true, Size: 100},
@@ -896,6 +950,7 @@ var (
 		{Name: "ip_address", Type: field.TypeString, Nullable: true, Size: 45},
 		{Name: "image_count", Type: field.TypeInt, Default: 0},
 		{Name: "image_size", Type: field.TypeString, Nullable: true, Size: 10},
+		{Name: "image_quality", Type: field.TypeString, Nullable: true, Size: 32},
 		{Name: "cache_ttl_overridden", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "api_key_id", Type: field.TypeInt64},
@@ -912,31 +967,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[44]},
+				Columns:    []*schema.Column{UsageLogsColumns[46]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[45]},
+				Columns:    []*schema.Column{UsageLogsColumns[47]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[46]},
+				Columns:    []*schema.Column{UsageLogsColumns[48]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[47]},
+				Columns:    []*schema.Column{UsageLogsColumns[49]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[48]},
+				Columns:    []*schema.Column{UsageLogsColumns[50]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -945,42 +1000,47 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[47]},
+				Columns: []*schema.Column{UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[44]},
+				Columns: []*schema.Column{UsageLogsColumns[46]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[47]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[46]},
+				Columns: []*schema.Column{UsageLogsColumns[48]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[48]},
+				Columns: []*schema.Column{UsageLogsColumns[50]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[43]},
+				Columns: []*schema.Column{UsageLogsColumns[45]},
 			},
 			{
 				Name:    "usagelog_model",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[2]},
+				Columns: []*schema.Column{UsageLogsColumns[3]},
 			},
 			{
 				Name:    "usagelog_requested_model",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[3]},
+				Columns: []*schema.Column{UsageLogsColumns[4]},
+			},
+			{
+				Name:    "usagelog_session_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsageLogsColumns[2]},
 			},
 			{
 				Name:    "usagelog_request_id",
@@ -990,17 +1050,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[47], UsageLogsColumns[43]},
+				Columns: []*schema.Column{UsageLogsColumns[49], UsageLogsColumns[45]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[44], UsageLogsColumns[43]},
+				Columns: []*schema.Column{UsageLogsColumns[46], UsageLogsColumns[45]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[46], UsageLogsColumns[43]},
+				Columns: []*schema.Column{UsageLogsColumns[48], UsageLogsColumns[45]},
 			},
 		},
 	}
@@ -1011,6 +1071,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "email", Type: field.TypeString, Size: 255},
+		{Name: "email_alias", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "password_hash", Type: field.TypeString, Size: 255},
 		{Name: "role", Type: field.TypeString, Size: 20, Default: "user"},
 		{Name: "balance", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
@@ -1047,7 +1108,12 @@ var (
 			{
 				Name:    "user_status",
 				Unique:  false,
-				Columns: []*schema.Column{UsersColumns[9]},
+				Columns: []*schema.Column{UsersColumns[10]},
+			},
+			{
+				Name:    "user_email_alias",
+				Unique:  false,
+				Columns: []*schema.Column{UsersColumns[5]},
 			},
 			{
 				Name:    "user_deleted_at",
@@ -1275,6 +1341,7 @@ var (
 		AccountGroupsTable,
 		AnnouncementsTable,
 		AnnouncementReadsTable,
+		CompositeModelRoutesTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -1322,6 +1389,11 @@ func init() {
 	AnnouncementReadsTable.ForeignKeys[1].RefTable = UsersTable
 	AnnouncementReadsTable.Annotation = &entsql.Annotation{
 		Table: "announcement_reads",
+	}
+	CompositeModelRoutesTable.ForeignKeys[0].RefTable = GroupsTable
+	CompositeModelRoutesTable.ForeignKeys[1].RefTable = GroupsTable
+	CompositeModelRoutesTable.Annotation = &entsql.Annotation{
+		Table: "composite_model_routes",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

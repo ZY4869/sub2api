@@ -99,6 +99,7 @@ func RegisterGatewayRoutes(
 		gateway.GET("/responses/*subpath", dispatchers.OpenAIResponses)
 		gateway.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
 		gateway.GET("/responses", dispatchers.OpenAIResponsesWebSocket)
+		gateway.GET("/live", dispatchers.OpenAILive)
 		gateway.POST("/chat/completions", audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)
 		gateway.POST("/completions", dispatchers.OpenAICompletions)
 		gateway.POST("/embeddings", openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIEmbeddings, service.EndpointEmbeddings), dispatchers.OpenAIEmbeddings)
@@ -360,6 +361,8 @@ func RegisterGatewayRoutes(
 	{
 		codexBackend.POST("/responses/compact", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 		codexBackend.POST("/responses/compact/*subpath", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+		codexBackend.GET("/realtime/calls", dispatchers.OpenAILive)
+		codexBackend.POST("/realtime/calls", dispatchers.OpenAILive)
 	}
 	// OpenAI Chat Completions API（不带v1前缀的别名）
 	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, audit(securityaudit.ProtocolOpenAIChat), dispatchers.OpenAIChatCompletions)

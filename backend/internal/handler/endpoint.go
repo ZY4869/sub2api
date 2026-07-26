@@ -22,6 +22,7 @@ const (
 	EndpointAlphaSearch                    = service.EndpointAlphaSearch
 	EndpointResponses                      = service.EndpointResponses
 	EndpointResponsesCompact               = service.EndpointResponsesCompact
+	EndpointOpenAILive                     = service.EndpointOpenAILive
 	EndpointImagesGen                      = service.EndpointImagesGen
 	EndpointImagesEdits                    = service.EndpointImagesEdits
 	EndpointVideosCreate                   = service.EndpointVideosCreate
@@ -193,6 +194,7 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		EndpointAlphaSearch,
 		EndpointResponses,
 		EndpointResponsesCompact,
+		EndpointOpenAILive,
 		EndpointVideosCreate,
 		EndpointVideosGen,
 		EndpointVideosEdits,
@@ -251,6 +253,8 @@ func DeriveUpstreamEndpointForAccount(account *service.Account, inbound, rawRequ
 		switch normalizedInbound {
 		case EndpointEmbeddings, EndpointAlphaSearch:
 			return normalizedInbound
+		case EndpointOpenAILive:
+			return EndpointResponses
 		case EndpointChatCompletions, EndpointResponses, EndpointResponsesCompact:
 			requestFormat := service.ResolveOpenAITextRequestFormatForAccount(resolvedAccount, normalizedInbound)
 			if requestFormat == service.GatewayOpenAIRequestFormatChatCompletions {

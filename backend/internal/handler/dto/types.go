@@ -151,6 +151,7 @@ type Group struct {
 
 	// OpenAI Messages 调度开关（用户侧需要此字段判断是否展示 Claude Code 教程）
 	AllowMessagesDispatch      bool `json:"allow_messages_dispatch"`
+	AllowLive                  bool `json:"allow_live"`
 	GeminiMixedProtocolEnabled bool `json:"gemini_mixed_protocol_enabled"`
 
 	// 分组可见模型收敛配置；为空时不额外限制 /v1/models。
@@ -173,7 +174,9 @@ type AdminGroup struct {
 	MCPXMLInject bool `json:"mcp_xml_inject"`
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	DefaultMappedModel string `json:"default_mapped_model"`
+	DefaultMappedModel      string                           `json:"default_mapped_model"`
+	MaxReasoningEffort      string                           `json:"max_reasoning_effort"`
+	ReasoningEffortMappings []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes    []string       `json:"supported_model_scopes"`
@@ -186,12 +189,27 @@ type AdminGroup struct {
 	// 分组排序
 	SortOrder int `json:"sort_order"`
 
-	ImageBatchEnabled             bool     `json:"image_batch_enabled"`
-	ImageBatchAllowedProviders    []string `json:"image_batch_allowed_providers"`
-	ImageBatchAllowedModels       []string `json:"image_batch_allowed_models"`
-	ImageBatchMaxItems            int      `json:"image_batch_max_items"`
-	ImageBatchMaxDownloadBytes    int64    `json:"image_batch_max_download_bytes"`
-	ImageBatchDownloadConcurrency int      `json:"image_batch_download_concurrency"`
+	ImageBatchEnabled             bool                  `json:"image_batch_enabled"`
+	ImageBatchAllowedProviders    []string              `json:"image_batch_allowed_providers"`
+	ImageBatchAllowedModels       []string              `json:"image_batch_allowed_models"`
+	ImageBatchMaxItems            int                   `json:"image_batch_max_items"`
+	ImageBatchMaxDownloadBytes    int64                 `json:"image_batch_max_download_bytes"`
+	ImageBatchDownloadConcurrency int                   `json:"image_batch_download_concurrency"`
+	CompositeRoutes               []CompositeModelRoute `json:"composite_routes,omitempty"`
+}
+
+type CompositeModelRoute struct {
+	ID             int64     `json:"id"`
+	ParentGroupID  int64     `json:"parent_group_id"`
+	DisplayModelID string    `json:"display_model_id"`
+	TargetGroupID  int64     `json:"target_group_id"`
+	TargetModelID  string    `json:"target_model_id"`
+	Priority       int       `json:"priority"`
+	Enabled        bool      `json:"enabled"`
+	Notes          string    `json:"notes"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	TargetGroup    *Group    `json:"target_group,omitempty"`
 }
 
 type Account struct {
@@ -458,6 +476,7 @@ type UsageLog struct {
 	APIKeyID  int64  `json:"api_key_id"`
 	AccountID int64  `json:"account_id"`
 	RequestID string `json:"request_id"`
+	SessionID string `json:"session_id,omitempty"`
 	Model     string `json:"model"`
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.
 	// Omitted when no mapping was applied (requested model was used as-is).
@@ -531,6 +550,7 @@ type UsageLog struct {
 	// 图片生成字段
 	ImageCount        int      `json:"image_count"`
 	ImageSize         *string  `json:"image_size"`
+	ImageQuality      *string  `json:"image_quality"`
 	ImageOutputTokens *int     `json:"image_output_tokens,omitempty"`
 	ImageOutputCost   *float64 `json:"image_output_cost,omitempty"`
 

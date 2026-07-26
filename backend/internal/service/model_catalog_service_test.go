@@ -161,11 +161,13 @@ func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
 	}
 
 	_, hasAnthropicOfficial := models["claude-opus-4.1"]
+	_, hasOpus5 := models["claude-opus-5"]
 	_, hasOldAnthropic := models["claude-opus-4.6"]
 	_, hasCurrentCodex := models["gpt-5.3-codex-spark"]
 	_, hasLegacyCodex := models["gpt-5-codex"]
 	_, hasOldCodex := models["gpt-5.3-codex"]
 	require.True(t, hasAnthropicOfficial)
+	require.True(t, hasOpus5)
 	require.False(t, hasOldAnthropic)
 	require.True(t, hasCurrentCodex)
 	require.False(t, hasLegacyCodex)

@@ -78,6 +78,20 @@ func (_c *UserCreate) SetEmail(v string) *UserCreate {
 	return _c
 }
 
+// SetEmailAlias sets the "email_alias" field.
+func (_c *UserCreate) SetEmailAlias(v string) *UserCreate {
+	_c.mutation.SetEmailAlias(v)
+	return _c
+}
+
+// SetNillableEmailAlias sets the "email_alias" field if the given value is not nil.
+func (_c *UserCreate) SetNillableEmailAlias(v *string) *UserCreate {
+	if v != nil {
+		_c.SetEmailAlias(*v)
+	}
+	return _c
+}
+
 // SetPasswordHash sets the "password_hash" field.
 func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
 	_c.mutation.SetPasswordHash(v)
@@ -596,6 +610,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.EmailAlias(); !ok {
+		v := user.DefaultEmailAlias
+		_c.mutation.SetEmailAlias(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -704,6 +722,14 @@ func (_c *UserCreate) check() error {
 	if v, ok := _c.mutation.Email(); ok {
 		if err := user.EmailValidator(v); err != nil {
 			return &ValidationError{Name: "email", err: fmt.Errorf(`ent: validator failed for field "User.email": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.EmailAlias(); !ok {
+		return &ValidationError{Name: "email_alias", err: errors.New(`ent: missing required field "User.email_alias"`)}
+	}
+	if v, ok := _c.mutation.EmailAlias(); ok {
+		if err := user.EmailAliasValidator(v); err != nil {
+			return &ValidationError{Name: "email_alias", err: fmt.Errorf(`ent: validator failed for field "User.email_alias": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.PasswordHash(); !ok {
@@ -882,6 +908,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 		_node.Email = value
+	}
+	if value, ok := _c.mutation.EmailAlias(); ok {
+		_spec.SetField(user.FieldEmailAlias, field.TypeString, value)
+		_node.EmailAlias = value
 	}
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
@@ -1226,6 +1256,18 @@ func (u *UserUpsert) SetEmail(v string) *UserUpsert {
 // UpdateEmail sets the "email" field to the value that was provided on create.
 func (u *UserUpsert) UpdateEmail() *UserUpsert {
 	u.SetExcluded(user.FieldEmail)
+	return u
+}
+
+// SetEmailAlias sets the "email_alias" field.
+func (u *UserUpsert) SetEmailAlias(v string) *UserUpsert {
+	u.Set(user.FieldEmailAlias, v)
+	return u
+}
+
+// UpdateEmailAlias sets the "email_alias" field to the value that was provided on create.
+func (u *UserUpsert) UpdateEmailAlias() *UserUpsert {
+	u.SetExcluded(user.FieldEmailAlias)
 	return u
 }
 
@@ -1662,6 +1704,20 @@ func (u *UserUpsertOne) SetEmail(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateEmail() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateEmail()
+	})
+}
+
+// SetEmailAlias sets the "email_alias" field.
+func (u *UserUpsertOne) SetEmailAlias(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetEmailAlias(v)
+	})
+}
+
+// UpdateEmailAlias sets the "email_alias" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateEmailAlias() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateEmailAlias()
 	})
 }
 
@@ -2321,6 +2377,20 @@ func (u *UserUpsertBulk) SetEmail(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateEmail() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateEmail()
+	})
+}
+
+// SetEmailAlias sets the "email_alias" field.
+func (u *UserUpsertBulk) SetEmailAlias(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetEmailAlias(v)
+	})
+}
+
+// UpdateEmailAlias sets the "email_alias" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateEmailAlias() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateEmailAlias()
 	})
 }
 

@@ -30,7 +30,11 @@ func (s *OpenAIGatewayService) ForwardEmbeddings(ctx context.Context, c *gin.Con
 	}
 
 	originalModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	mappedModel := account.GetMappedModel(originalModel)
+	runtimeModel := ResolveGatewaySelectionModelFromContext(ctx, originalModel)
+	if runtimeModel == "" {
+		runtimeModel = originalModel
+	}
+	mappedModel := account.GetMappedModel(runtimeModel)
 	if mappedModel != "" && mappedModel != originalModel {
 		patched, err := sjson.SetBytes(body, "model", mappedModel)
 		if err != nil {

@@ -189,6 +189,8 @@ func TestIsBedrockClaude45OrNewer(t *testing.T) {
 		{"us.anthropic.claude-opus-4-7-v1", true},
 		{"us.anthropic.claude-opus-4-8", true},
 		{"anthropic.claude-opus-4-8", true},
+		{"us.anthropic.claude-opus-5", true},
+		{"anthropic.claude-opus-5", true},
 		// 旧版本
 		{"anthropic.claude-opus-4-1-v1", false},
 		{"anthropic.claude-sonnet-4-0-v1", false},
@@ -466,6 +468,34 @@ func TestResolveBedrockModelID(t *testing.T) {
 		modelID, ok := ResolveBedrockModelID(account, "claude-opus-4-8")
 		require.True(t, ok)
 		assert.Equal(t, "global.anthropic.claude-opus-4-8", modelID)
+	})
+
+	t.Run("opus 5 default alias resolves to official us inference id", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeBedrock,
+			Credentials: map[string]any{
+				"aws_region": "us-east-1",
+			},
+		}
+
+		modelID, ok := ResolveBedrockModelID(account, "claude-opus-5")
+		require.True(t, ok)
+		assert.Equal(t, "us.anthropic.claude-opus-5", modelID)
+	})
+
+	t.Run("opus 5 default alias adjusts to eu inference id", func(t *testing.T) {
+		account := &Account{
+			Platform: PlatformAnthropic,
+			Type:     AccountTypeBedrock,
+			Credentials: map[string]any{
+				"aws_region": "eu-west-1",
+			},
+		}
+
+		modelID, ok := ResolveBedrockModelID(account, "claude-opus-5")
+		require.True(t, ok)
+		assert.Equal(t, "eu.anthropic.claude-opus-5", modelID)
 	})
 
 	t.Run("opus 4.8 direct bedrock model id passes through", func(t *testing.T) {

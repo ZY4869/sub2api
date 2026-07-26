@@ -77,6 +77,7 @@ var codexCLIOnlyDebugHeaderWhitelist = []string{
 
 type OpenAIGatewayService struct {
 	accountRepo                   AccountRepository
+	groupRepo                     GroupRepository
 	usageLogRepo                  UsageLogRepository
 	usageBillingRepo              UsageBillingRepository
 	userRepo                      UserRepository
@@ -115,9 +116,10 @@ type OpenAIGatewayService struct {
 	codexSnapshotThrottle         *accountWriteThrottle
 }
 
-func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider, settingService *SettingService) *OpenAIGatewayService {
+func NewOpenAIGatewayService(accountRepo AccountRepository, groupRepo GroupRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider, settingService *SettingService) *OpenAIGatewayService {
 	svc := &OpenAIGatewayService{
 		accountRepo:           accountRepo,
+		groupRepo:             groupRepo,
 		usageLogRepo:          usageLogRepo,
 		usageBillingRepo:      usageBillingRepo,
 		userRepo:              userRepo,
