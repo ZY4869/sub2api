@@ -1002,36 +1002,36 @@ func (s *stubSchedulerCache) SetAccount(ctx context.Context, account *Account) e
 	return s.setAccountErr
 }
 
-// TestUpdateAccountModelRateLimitInCache_UpdatesExtraAndCallsCache 测试模型限流后更新缓存
+// TestUpdateAccountModelRateLimitInCache_UpdatesExtraAndCallsCache 测试模型限流后更新缓存：
+// 必须从 DB 重读账号后再写缓存，不得用请求期旧对象整体回写（防止覆盖管理端的暂停状态）。
 func TestUpdateAccountModelRateLimitInCache_UpdatesExtraAndCallsCache(t *testing.T) {
 	cache := &stubSchedulerCache{}
-	snapshotService := &SchedulerSnapshotService{cache: cache}
+	fresh := &Account{ID: 100, Name: "test-account", Platform: PlatformAntigravity, Status: StatusActive, Schedulable: false}
+	repo := &mockAccountRepoForPlatform{accountsByID: map[int64]*Account{100: fresh}}
+	snapshotService := NewSchedulerSnapshotService(cache, nil, repo, nil, nil)
 	svc := &AntigravityGatewayService{
 		schedulerSnapshot: snapshotService,
 	}
 
-	account := &Account{
-		ID:       100,
-		Name:     "test-account",
-		Platform: PlatformAntigravity,
-	}
+	// 请求期持有的旧对象：仍认为账号可调度
+	stale := &Account{ID: 100, Name: "test-account", Platform: PlatformAntigravity, Schedulable: true}
 	modelKey := "claude-sonnet-4-5"
 	resetAt := time.Now().Add(30 * time.Second)
 
-	svc.updateAccountModelRateLimitInCache(context.Background(), account, modelKey, resetAt)
+	svc.updateAccountModelRateLimitInCache(context.Background(), stale, modelKey, resetAt)
 
-	// 验证 Extra 字段被正确更新
-	require.NotNil(t, account.Extra)
-	limits, ok := account.Extra["model_rate_limits"].(map[string]any)
+	// 验证写入缓存的是 DB 重读对象：限流字段生效、暂停状态未被复活
+	require.Len(t, cache.setAccountCalls, 1)
+	written := cache.setAccountCalls[0]
+	require.Equal(t, int64(100), written.ID)
+	require.False(t, written.Schedulable, "不得用请求期旧对象覆盖 DB 中的暂停状态")
+	require.NotNil(t, written.Extra)
+	limits, ok := written.Extra["model_rate_limits"].(map[string]any)
 	require.True(t, ok)
 	modelLimit, ok := limits[modelKey].(map[string]any)
 	require.True(t, ok)
 	require.NotEmpty(t, modelLimit["rate_limited_at"])
 	require.NotEmpty(t, modelLimit["rate_limit_reset_at"])
-
-	// 验证 cache.SetAccount 被调用
-	require.Len(t, cache.setAccountCalls, 1)
-	require.Equal(t, account.ID, cache.setAccountCalls[0].ID)
 }
 
 // TestUpdateAccountModelRateLimitInCache_NilSchedulerSnapshot 测试 schedulerSnapshot 为 nil 时不 panic
@@ -1049,15 +1049,10 @@ func TestUpdateAccountModelRateLimitInCache_NilSchedulerSnapshot(t *testing.T) {
 	require.Nil(t, account.Extra)
 }
 
-// TestUpdateAccountModelRateLimitInCache_PreservesExistingExtra 测试保留已有的 Extra 数据
+// TestUpdateAccountModelRateLimitInCache_PreservesExistingExtra 测试保留 DB 中已有的 Extra 数据
 func TestUpdateAccountModelRateLimitInCache_PreservesExistingExtra(t *testing.T) {
 	cache := &stubSchedulerCache{}
-	snapshotService := &SchedulerSnapshotService{cache: cache}
-	svc := &AntigravityGatewayService{
-		schedulerSnapshot: snapshotService,
-	}
-
-	account := &Account{
+	fresh := &Account{
 		ID:       200,
 		Name:     "test-account",
 		Platform: PlatformAntigravity,
@@ -1071,12 +1066,19 @@ func TestUpdateAccountModelRateLimitInCache_PreservesExistingExtra(t *testing.T)
 			},
 		},
 	}
+	repo := &mockAccountRepoForPlatform{accountsByID: map[int64]*Account{200: fresh}}
+	snapshotService := NewSchedulerSnapshotService(cache, nil, repo, nil, nil)
+	svc := &AntigravityGatewayService{
+		schedulerSnapshot: snapshotService,
+	}
 
-	svc.updateAccountModelRateLimitInCache(context.Background(), account, "claude-sonnet-4-5", time.Now().Add(30*time.Second))
+	svc.updateAccountModelRateLimitInCache(context.Background(), &Account{ID: 200}, "claude-sonnet-4-5", time.Now().Add(30*time.Second))
 
-	// 验证已有数据被保留
-	require.Equal(t, "existing_value", account.Extra["existing_key"])
-	limits := account.Extra["model_rate_limits"].(map[string]any)
+	// 验证写入缓存的对象保留 DB 中已有数据并追加新模型限流
+	require.Len(t, cache.setAccountCalls, 1)
+	written := cache.setAccountCalls[0]
+	require.Equal(t, "existing_value", written.Extra["existing_key"])
+	limits := written.Extra["model_rate_limits"].(map[string]any)
 	require.NotNil(t, limits["gemini-3-flash"])
 	require.NotNil(t, limits["claude-sonnet-4-5"])
 }
