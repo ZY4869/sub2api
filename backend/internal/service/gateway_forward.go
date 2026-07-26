@@ -159,7 +159,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if account.Platform != PlatformKiro {
 		token, tokenType, err = s.GetAccessToken(ctx, account)
 		if err != nil {
-			return nil, err
+			// 令牌获取失败属账号级问题，交给 failover 换号而非直接失败。
+			return nil, s.transportFailoverError(ctx, c, account, "token_error", false, err)
 		}
 	}
 	proxyURL := resolveGatewayProxyURL(account)
@@ -198,11 +199,8 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
 			}
-			safeErr := sanitizeUpstreamErrorMessage(err.Error())
-			setOpsUpstreamError(c, 0, safeErr, "")
-			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: 0, Kind: "request_error", Message: safeErr})
-			c.JSON(http.StatusBadGateway, gin.H{"type": "error", "error": gin.H{"type": "upstream_error", "message": "Upstream request failed"}})
-			return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+			// 传输层失败时上游未返回任何响应，不在此写 502，包装后交给 failover 换号。
+			return nil, s.transportFailoverError(ctx, c, account, "request_error", false, err)
 		}
 		if resp.StatusCode == 400 {
 			respBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 2<<20))

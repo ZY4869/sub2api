@@ -197,9 +197,17 @@ type UpstreamFailoverError struct {
 	ForceCacheBilling      bool
 	RetryableOnSameAccount bool
 	TempUnscheduleAccount  bool
+	// TransportError 表示未收到上游 HTTP 响应（网络/TLS/代理失败或令牌获取失败），
+	// 此时 StatusCode 恒为 0，不伪造上游状态码。
+	TransportError bool
+	// Message 为已脱敏的底层错误摘要，仅用于日志、账号测试与 ops 展示。
+	Message string
 }
 
 func (e *UpstreamFailoverError) Error() string {
+	if e.TransportError {
+		return fmt.Sprintf("upstream transport error (failover): %s", e.Message)
+	}
 	return fmt.Sprintf("upstream error: %d (failover)", e.StatusCode)
 }
 

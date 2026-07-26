@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,4 +157,27 @@ func (s *GatewayService) handleRetryExhaustedError(ctx context.Context, resp *ht
 		return nil, fmt.Errorf("upstream error: %d (retries exhausted)", resp.StatusCode)
 	}
 	return nil, fmt.Errorf("upstream error: %d (retries exhausted) message=%s", resp.StatusCode, upstreamMsg)
+}
+
+// transportFailoverError 将传输层失败（未收到上游 HTTP 响应）与令牌获取失败归类为
+// 参与账号切换的 failover 错误，并记录 ops 事件（上游状态码留空，不伪造）。
+// 请求上下文已取消或整体超时时返回普通包装错误，由 handler 直接收尾，不触发换号。
+// kind 取值："request_error"（上游请求失败）/ "token_error"（令牌获取失败）。
+func (s *GatewayService) transportFailoverError(ctx context.Context, c *gin.Context, account *Account, kind string, passthrough bool, err error) error {
+	safeErr := sanitizeUpstreamErrorMessage(err.Error())
+	setOpsUpstreamError(c, 0, safeErr, "")
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: 0, Passthrough: passthrough, Kind: kind, Message: safeErr})
+	cause := ctx.Err()
+	if cause == nil {
+		switch {
+		case errors.Is(err, context.Canceled):
+			cause = context.Canceled
+		case errors.Is(err, context.DeadlineExceeded):
+			cause = context.DeadlineExceeded
+		}
+	}
+	if cause != nil {
+		return fmt.Errorf("upstream request failed: %s: %w", safeErr, cause)
+	}
+	return &UpstreamFailoverError{TransportError: true, Message: safeErr}
 }
