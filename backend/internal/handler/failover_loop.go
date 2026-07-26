@@ -145,7 +145,9 @@ func (s *FailoverState) HandleFailoverError(
 }
 
 // HandleSelectionExhausted 处理选号失败（所有候选账号都在排除列表中）时的退避重试决策。
-// 触发条件是最后一次失败为容量类错误（503 MODEL_CAPACITY_EXHAUSTED / 529 overloaded），
+// 触发条件是失败账号中存在最后一次失败为容量类错误（503 MODEL_CAPACITY_EXHAUSTED /
+// 529 overloaded）的账号。按逐账号状态判定而非全局最后一次错误，避免
+// "A 账号 503 可退避、B 账号最后 429"时因全局错误是 429 而提前放弃 A。
 // 典型场景是 Antigravity 单账号分组，但对所有平台同样适用。
 //
 // 退避后只把"最后一次失败属容量类"的账号放回候选池；
@@ -155,9 +157,7 @@ func (s *FailoverState) HandleFailoverError(
 // 返回 FailoverExhausted 时，调用方应返回错误响应。
 // 返回 FailoverCanceled 时，调用方应直接 return。
 func (s *FailoverState) HandleSelectionExhausted(ctx context.Context) FailoverAction {
-	if s.LastFailoverErr == nil ||
-		!isCapacityFailoverStatus(s.LastFailoverErr.StatusCode) ||
-		s.SelectionBackoffCount >= maxSelectionBackoffs {
+	if s.LastFailoverErr == nil || s.SelectionBackoffCount >= maxSelectionBackoffs {
 		return FailoverExhausted
 	}
 

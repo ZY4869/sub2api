@@ -44,9 +44,10 @@ func (h *GatewayHandler) resolveGatewayMessagesRoute(c *gin.Context, req *gatewa
 	)
 	if err != nil {
 		req.reqLog.Info("gateway.group_selection_failed", zap.Error(err))
-		// 所有分组都已因上游失败被排除时，向客户端映射最后一次真实上游错误
-		// （429 -> 429、529 -> 503 等，并应用错误透传规则），而不是笼统的选组失败。
-		if req.lastFailoverErr != nil {
+		// 仅当选组失败属于"分组已耗尽"类错误时，才向客户端映射最后一次真实上游错误
+		// （429 -> 429、529 -> 503 等，并应用错误透传规则）；
+		// 余额/订阅/权限等业务错误必须保留原始错误码，不得被上游错误覆盖。
+		if req.lastFailoverErr != nil && isGroupSelectionExhaustedError(err) {
 			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, req.apiKey)
 			h.handleFailoverExhausted(c, req.lastFailoverErr, req.lastFailoverPlatform, req.streamStarted)
 			return nil, false, false

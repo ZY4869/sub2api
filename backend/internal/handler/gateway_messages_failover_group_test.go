@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -135,6 +137,18 @@ func TestRetryNextGatewayMessagesGroup(t *testing.T) {
 		require.False(t, retry)
 		require.NotContains(t, req.excludedGroupIDs, int64(6))
 	})
+
+	t.Run("传输层错误同样可跨组重试", func(t *testing.T) {
+		req := newTestGatewayMessagesRequest()
+		req.apiKey = newTestAPIKeyWithGroups(6, 6, 7)
+		route := &gatewayMessagesRoute{apiKey: req.apiKey}
+		transportErr := &service.UpstreamFailoverError{TransportError: true}
+
+		retry := h.retryNextGatewayMessagesGroup(newTestGinContext(), req, route, transportErr, service.PlatformAnthropic)
+
+		require.True(t, retry)
+		require.Same(t, transportErr, req.lastFailoverErr)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -175,4 +189,38 @@ func TestHandleFailoverExhausted_MapsUpstreamStatus(t *testing.T) {
 			require.Equal(t, tc.wantErrType, errorPayload["type"])
 		})
 	}
+
+	t.Run("传输层错误无上游状态码映射为502", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+		h := &GatewayHandler{}
+		h.handleFailoverExhausted(c, &service.UpstreamFailoverError{
+			TransportError: true,
+			Message:        "connection refused",
+		}, service.PlatformAnthropic, false)
+
+		require.Equal(t, http.StatusBadGateway, rec.Code)
+
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+		errorPayload, ok := payload["error"].(map[string]any)
+		require.True(t, ok)
+		require.Equal(t, "upstream_error", errorPayload["type"])
+		require.Equal(t, "Upstream request failed", errorPayload["message"])
+	})
+}
+
+// ---------------------------------------------------------------------------
+// isGroupSelectionExhaustedError（回归：业务错误不得被上游 failover 错误覆盖）
+// ---------------------------------------------------------------------------
+
+func TestIsGroupSelectionExhaustedError(t *testing.T) {
+	require.True(t, isGroupSelectionExhaustedError(infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")))
+	require.True(t, isGroupSelectionExhaustedError(service.ErrNoAvailableGroup))
+	require.False(t, isGroupSelectionExhaustedError(infraerrors.Forbidden("USER_PLATFORM_QUOTA_EXCEEDED", "quota exceeded")), "余额/配额类错误不属于分组耗尽")
+	require.False(t, isGroupSelectionExhaustedError(errors.New("plain error")))
+	require.False(t, isGroupSelectionExhaustedError(nil))
 }

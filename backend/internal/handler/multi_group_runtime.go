@@ -260,6 +260,21 @@ func groupSelectionErrorDetails(err error) (int, string, string) {
 	return int(appErr.Code), code, appErr.Message
 }
 
+// isGroupSelectionExhaustedError 判断选组失败是否属于"分组已被排除/耗尽"类错误。
+// 只有这类错误才应该用最后一次上游 failover 错误向客户端映射真实状态码；
+// 余额、订阅、权限等业务错误必须保留原始错误码与文案，不得被上游错误覆盖。
+func isGroupSelectionExhaustedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch infraerrors.FromError(err).Reason {
+	case "GROUP_EXHAUSTED", "NO_AVAILABLE_GROUP":
+		return true
+	default:
+		return false
+	}
+}
+
 func excludeSelectedGroup(excludedGroupIDs map[int64]struct{}, apiKey *service.APIKey) bool {
 	if excludedGroupIDs == nil || apiKey == nil || apiKey.GroupID == nil {
 		return false

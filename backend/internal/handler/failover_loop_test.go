@@ -667,6 +667,53 @@ func TestHandleFailoverError_EdgeCases(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// HandleFailoverError — 传输层错误（TransportError, StatusCode=0）
+// ---------------------------------------------------------------------------
+
+func TestHandleFailoverError_TransportError(t *testing.T) {
+	newTransportErr := func() *service.UpstreamFailoverError {
+		return &service.UpstreamFailoverError{TransportError: true, Message: "connection refused"}
+	}
+
+	t.Run("直接换号_不同账号重试_不触发TempUnschedule", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(3, false)
+
+		action := fs.HandleFailoverError(context.Background(), mock, 100, service.PlatformAnthropic, newTransportErr())
+
+		require.Equal(t, FailoverContinue, action)
+		require.Equal(t, 1, fs.SwitchCount)
+		require.Contains(t, fs.FailedAccountIDs, int64(100))
+		require.Equal(t, 0, fs.LastStatusByAccount[100])
+		require.Empty(t, mock.calls, "传输错误不应触发临时封禁")
+	})
+
+	t.Run("连续传输错误直至耗尽", func(t *testing.T) {
+		mock := &mockTempUnscheduler{}
+		fs := NewFailoverState(2, false)
+
+		require.Equal(t, FailoverContinue, fs.HandleFailoverError(context.Background(), mock, 100, service.PlatformAnthropic, newTransportErr()))
+		require.Equal(t, FailoverContinue, fs.HandleFailoverError(context.Background(), mock, 200, service.PlatformAnthropic, newTransportErr()))
+		require.Equal(t, FailoverExhausted, fs.HandleFailoverError(context.Background(), mock, 300, service.PlatformAnthropic, newTransportErr()))
+		require.Len(t, fs.FailedAccountIDs, 3)
+	})
+
+	t.Run("传输错误不算容量类_选号耗尽立即返回不空等", func(t *testing.T) {
+		fs := NewFailoverState(10, false)
+		fs.LastFailoverErr = &service.UpstreamFailoverError{TransportError: true}
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 0
+
+		start := time.Now()
+		action := fs.HandleSelectionExhausted(context.Background())
+
+		require.Equal(t, FailoverExhausted, action)
+		require.Contains(t, fs.FailedAccountIDs, int64(100), "传输失败账号不应被放回候选池")
+		require.Less(t, time.Since(start), 100*time.Millisecond, "不应等待")
+	})
+}
+
+// ---------------------------------------------------------------------------
 // HandleSelectionExhausted 测试
 // ---------------------------------------------------------------------------
 
@@ -745,6 +792,23 @@ func TestHandleSelectionExhausted(t *testing.T) {
 		require.Equal(t, FailoverContinue, action)
 		require.Contains(t, fs.FailedAccountIDs, int64(100), "429 账号应保持排除")
 		require.NotContains(t, fs.FailedAccountIDs, int64(200), "503 账号应被放回")
+	})
+
+	t.Run("全局最后错误为429但存在容量类账号仍退避放回", func(t *testing.T) {
+		// 回归：门槛若用全局 LastFailoverErr 判定，"A 账号 503、B 账号最后 429"
+		// 会提前放弃可退避的 A；应按逐账号状态判定。
+		fs := NewFailoverState(10, false)
+		fs.LastFailoverErr = newTestFailoverErr(429, false, false)
+		fs.FailedAccountIDs[100] = struct{}{}
+		fs.LastStatusByAccount[100] = 503
+		fs.FailedAccountIDs[200] = struct{}{}
+		fs.LastStatusByAccount[200] = 429
+
+		action := fs.HandleSelectionExhausted(context.Background())
+
+		require.Equal(t, FailoverContinue, action)
+		require.NotContains(t, fs.FailedAccountIDs, int64(100), "容量类账号应被放回")
+		require.Contains(t, fs.FailedAccountIDs, int64(200), "429 账号保持排除")
 	})
 
 	t.Run("无失败账号时返回Exhausted", func(t *testing.T) {

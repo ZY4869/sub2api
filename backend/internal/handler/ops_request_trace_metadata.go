@@ -71,11 +71,16 @@ func enrichOpsTraceRequestThinkingConfig(payload map[string]any, result *service
 	}
 
 	if thinking, ok := payload["thinking"].(map[string]any); ok && thinking != nil {
-		result.HasThinking = true
+		level := strings.TrimSpace(stringValueFromMap(thinking, "type"))
+		// thinking.type=disabled 表示客户端显式关闭思考，不应打 Thinking 标记
+		// （否则会污染采集原因与面板筛选）；仍记录 source/level 便于排查。
+		if !strings.EqualFold(level, "disabled") {
+			result.HasThinking = true
+		}
 		if result.ThinkingSource == "" {
 			result.ThinkingSource = "compat_thinking"
 		}
-		if level := strings.TrimSpace(stringValueFromMap(thinking, "type")); level != "" && result.ThinkingLevel == "" {
+		if level != "" && result.ThinkingLevel == "" {
 			result.ThinkingLevel = strings.ToUpper(level)
 		}
 		if budget := firstNonNilInt(thinking["budget_tokens"], thinking["budgetTokens"]); budget != nil && result.ThinkingBudget == nil {
