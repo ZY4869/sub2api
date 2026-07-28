@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"log/slog"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -42,11 +43,19 @@ func NormalizeRunMode(value string) string {
 }
 func GetServerAddress() string {
 	v := viper.New()
-	v.SetConfigName("config")
-	v.SetConfigType("yaml")
-	v.AddConfigPath(".")
-	v.AddConfigPath("./config")
-	v.AddConfigPath("/etc/sub2api")
+	if configFile := strings.TrimSpace(os.Getenv("CONFIG_FILE")); configFile != "" {
+		v.SetConfigFile(configFile)
+	} else {
+		v.SetConfigName("config")
+		v.SetConfigType("yaml")
+		if dataDir := strings.TrimSpace(os.Getenv("DATA_DIR")); dataDir != "" {
+			v.AddConfigPath(dataDir)
+		}
+		v.AddConfigPath("/app/data")
+		v.AddConfigPath(".")
+		v.AddConfigPath("./config")
+		v.AddConfigPath("/etc/sub2api")
+	}
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.SetDefault("server.host", "0.0.0.0")

@@ -281,7 +281,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 				upstreamDetail = truncateString(string(respBody), maxBytes)
 			}
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: upstreamReqID, Kind: "failover", Message: upstreamMsg, Detail: upstreamDetail})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody}
+			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: geminiPoolRetryableOnSameAccount(account, resp.StatusCode)}
 		}
 		upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 		return nil, s.writeGeminiMappedError(c, account, resp.StatusCode, upstreamReqID, respBody)
@@ -622,7 +622,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 				upstreamDetail = truncateString(string(evBody), maxBytes)
 			}
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: requestID, Kind: "failover", Message: upstreamMsg, Detail: upstreamDetail})
-			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: evBody}
+			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: evBody, RetryableOnSameAccount: geminiPoolRetryableOnSameAccount(account, resp.StatusCode)}
 		}
 		respBody = unwrapIfNeeded(isOAuth, respBody)
 		upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))

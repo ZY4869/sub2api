@@ -23,7 +23,7 @@ func (a *Account) GetBaseURL() string {
 		return "https://api.anthropic.com"
 	}
 	if a.Platform == PlatformAntigravity {
-		return strings.TrimRight(baseURL, "/") + "/antigravity"
+		return appendPathSuffixOnce(baseURL, "/antigravity")
 	}
 	if a.Platform == PlatformDeepSeek {
 		return deepSeekAnthropicBaseURL(baseURL)
@@ -65,9 +65,21 @@ func (a *Account) GetGeminiBaseURL(defaultBaseURL string) string {
 		return defaultBaseURL
 	}
 	if a.Platform == PlatformAntigravity && a.Type == AccountTypeAPIKey {
-		return strings.TrimRight(baseURL, "/") + "/antigravity"
+		return appendPathSuffixOnce(baseURL, "/antigravity")
 	}
 	return baseURL
+}
+
+func appendPathSuffixOnce(baseURL string, suffix string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	suffix = "/" + strings.Trim(strings.TrimSpace(suffix), "/")
+	if normalized == "" || suffix == "/" {
+		return normalized
+	}
+	if strings.HasSuffix(strings.ToLower(normalized), strings.ToLower(suffix)) {
+		return normalized
+	}
+	return normalized + suffix
 }
 
 func (a *Account) GetExtraString(key string) string {

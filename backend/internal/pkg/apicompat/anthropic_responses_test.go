@@ -1142,3 +1142,25 @@ func TestAnthropicToResponses_ToolWithNilSchema(t *testing.T) {
 	assert.JSONEq(t, `"object"`, string(params["type"]))
 	assert.JSONEq(t, `{}`, string(params["properties"]))
 }
+
+func TestAnthropicCompat_EmptyInputSchemaNormalizesToObjectProperties(t *testing.T) {
+	req := &AnthropicRequest{
+		Model:     "gpt-5.2",
+		MaxTokens: 1024,
+		Messages: []AnthropicMessage{
+			{Role: "user", Content: json.RawMessage(`"Hello"`)},
+		},
+		Tools: []AnthropicTool{
+			{Name: "empty_schema_tool", InputSchema: json.RawMessage(``)},
+			{Name: "null_schema_tool", InputSchema: json.RawMessage(`null`)},
+		},
+	}
+
+	resp, err := AnthropicToResponses(req)
+
+	require.NoError(t, err)
+	require.Len(t, resp.Tools, 2)
+	for _, tool := range resp.Tools {
+		require.JSONEq(t, `{"type":"object","properties":{}}`, string(tool.Parameters))
+	}
+}

@@ -17,6 +17,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
 	clientIPDefaults, _ := json.Marshal(DefaultClientIPSettingsFromConfig(s.cfg))
+	panelRateLimitDefaults, _ := json.Marshal(DefaultPanelRateLimitSettings())
 	imageBatchStorageDefaults, _ := json.Marshal(DefaultImageBatchStorageSettingsFromConfig(s.cfg))
 	defaults := map[string]string{
 		SettingKeyRegistrationEnabled:                                "true",
@@ -140,6 +141,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyVisualPresetDefault:                                VisualPresetClassic,
 		SettingKeyAccountAiryWhiteSurfaceEnabled:                     "false",
 		SettingKeyClientIPSettings:                                   string(clientIPDefaults),
+		SettingKeyPanelRateLimitSettings:                            string(panelRateLimitDefaults),
 		SettingKeyImageBatchStorageSettings:                          string(imageBatchStorageDefaults),
 	}
 	return s.settingRepo.SetMultiple(ctx, defaults)

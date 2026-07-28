@@ -1784,6 +1784,37 @@
     ]
   },
   {
+    "id": "gemini-3.6-flash",
+    "display_name": "Gemini 3.6 Flash",
+    "provider": "gemini",
+    "platforms": [
+      "antigravity",
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.6-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.6-flash"
+    ],
+    "modalities": [
+      "text",
+      "image",
+      "audio",
+      "video"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 6,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "gemini-2.5-flash-lite",
     "display_name": "Gemini 2.5 Flash Lite",
     "provider": "gemini",

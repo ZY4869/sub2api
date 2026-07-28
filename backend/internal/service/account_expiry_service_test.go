@@ -566,6 +566,23 @@ func TestShouldRunAccountExpiryProbe_SkipsWhileTemporaryPriorityStillActive(t *t
 	require.False(t, shouldRunAccountExpiryProbe(account, now))
 }
 
+func TestAccountExpiryProbePriorityUntil_ProbeParsesRFC3339Nano(t *testing.T) {
+	now := time.Date(2026, 5, 8, 12, 0, 0, 123456789, time.UTC)
+	priorityUntil := now.Add(2 * time.Hour)
+	account := &Account{
+		Extra: map[string]any{
+			accountExpiryProbePriorityUntilKey: priorityUntil.Format(time.RFC3339Nano),
+		},
+	}
+
+	parsed := AccountExpiryProbePriorityUntil(account)
+
+	require.NotNil(t, parsed)
+	require.Equal(t, priorityUntil.Format(time.RFC3339Nano), parsed.UTC().Format(time.RFC3339Nano))
+	require.True(t, AccountHasActiveExpiryProbePriority(account, now))
+	require.False(t, AccountHasActiveExpiryProbePriority(account, now.Add(3*time.Hour)))
+}
+
 func TestShouldRunAccountExpiryProbe_SkipsArchivedAccounts(t *testing.T) {
 	now := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
 	expiresAt := now.Add(-1 * time.Hour)

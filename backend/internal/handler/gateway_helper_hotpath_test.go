@@ -181,6 +181,53 @@ func TestSetClaudeCodeClientContext_FastPathAndStrictPath(t *testing.T) {
 	})
 }
 
+func TestSetClaudeCodeClientContext_ClaudeCodeBodyDetectionForProxiedUA(t *testing.T) {
+	t.Run("non_cli_ua_with_claude_code_body_sets_true", func(t *testing.T) {
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
+		c.Request.Header.Set("User-Agent", "enterprise-proxy/1.0")
+		c.Request.Header.Set("X-App", "claude-code")
+		c.Request.Header.Set("anthropic-beta", "message-batches-2024-09-24")
+		c.Request.Header.Set("anthropic-version", "2023-06-01")
+
+		SetClaudeCodeClientContext(c, validClaudeCodeBodyJSON(), nil)
+		require.True(t, service.IsClaudeCodeClient(c.Request.Context()))
+		require.Empty(t, service.GetClaudeCodeVersion(c.Request.Context()), "proxied body detection must not invent a CLI version")
+	})
+
+	t.Run("body_fingerprint_keeps_prompt_cache_control", func(t *testing.T) {
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
+		c.Request.Header.Set("User-Agent", "enterprise-proxy/1.0")
+		c.Request.Header.Set("X-App", "claude-code")
+		c.Request.Header.Set("anthropic-beta", "message-batches-2024-09-24")
+		c.Request.Header.Set("anthropic-version", "2023-06-01")
+		body := []byte(`{
+			"model":"claude-3-5-sonnet-20241022",
+			"system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude.","cache_control":{"type":"ephemeral"}}],
+			"metadata":{"user_id":"user_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_account__session_aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
+		}`)
+
+		parsedReq, err := service.ParseGatewayRequest(body, "")
+		require.NoError(t, err)
+		SetClaudeCodeClientContext(c, []byte(`{invalid`), parsedReq)
+
+		require.True(t, service.IsClaudeCodeClient(c.Request.Context()))
+		systemEntries, ok := parsedReq.System.([]any)
+		require.True(t, ok)
+		firstSystem, ok := systemEntries[0].(map[string]any)
+		require.True(t, ok)
+		require.Contains(t, firstSystem, "cache_control")
+	})
+
+	t.Run("non_cli_ua_without_strict_headers_stays_false", func(t *testing.T) {
+		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")
+		c.Request.Header.Set("User-Agent", "enterprise-proxy/1.0")
+		c.Request.Header.Set("anthropic-version", "2023-06-01")
+
+		SetClaudeCodeClientContext(c, validClaudeCodeBodyJSON(), nil)
+		require.False(t, service.IsClaudeCodeClient(c.Request.Context()))
+	})
+}
+
 func TestSetClaudeCodeClientContext_ReuseParsedRequestAndContextCache(t *testing.T) {
 	t.Run("reuse parsed request without body unmarshal", func(t *testing.T) {
 		c, _ := newHelperTestContext(http.MethodPost, "/v1/messages")

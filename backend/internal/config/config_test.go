@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +28,40 @@ func TestLoadForBootstrapAllowsMissingJWTSecret(t *testing.T) {
 	if cfg.JWT.Secret != "" {
 		t.Fatalf("LoadForBootstrap() should keep empty jwt.secret during bootstrap")
 	}
+}
+
+func TestLoadPrefersExplicitConfigFile(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	configFile := filepath.Join(t.TempDir(), "custom.yaml")
+	err := os.WriteFile(configFile, []byte(`
+server:
+  host: 127.0.0.7
+  port: 18081
+jwt:
+  secret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+`), 0o600)
+	require.NoError(t, err)
+	t.Setenv("CONFIG_FILE", configFile)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "127.0.0.7", cfg.Server.Host)
+	require.Equal(t, 18081, cfg.Server.Port)
+}
+
+func TestGetServerAddressPrefersExplicitConfigFile(t *testing.T) {
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	configFile := filepath.Join(t.TempDir(), "server.yaml")
+	err := os.WriteFile(configFile, []byte(`
+server:
+  host: 127.0.0.8
+  port: 18082
+`), 0o600)
+	require.NoError(t, err)
+	t.Setenv("CONFIG_FILE", configFile)
+
+	require.Equal(t, "127.0.0.8:18082", GetServerAddress())
 }
 
 func TestNormalizeRunMode(t *testing.T) {

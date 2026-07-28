@@ -31,9 +31,10 @@ func SetClaudeCodeClientContext(c *gin.Context, body []byte, parsedReq *service.
 	}
 
 	ua := c.GetHeader("User-Agent")
-	// Fast path：非 Claude CLI UA 直接判定 false，避免热路径二次 JSON 反序列化。
+	// Fast path：先走 Claude CLI UA；代理改写 UA 时再用收窄的 body fingerprint 兜底。
 	if !claudeCodeValidator.ValidateUserAgent(ua) {
-		ctx := service.SetClaudeCodeClient(c.Request.Context(), false)
+		isClaudeCode := detectClaudeCodeClientFromProxiedBody(c, body, parsedReq)
+		ctx := service.SetClaudeCodeClient(c.Request.Context(), isClaudeCode)
 		c.Request = c.Request.WithContext(ctx)
 		return
 	}
@@ -65,6 +66,36 @@ func SetClaudeCodeClientContext(c *gin.Context, body []byte, parsedReq *service.
 	}
 
 	c.Request = c.Request.WithContext(ctx)
+}
+
+func detectClaudeCodeClientFromProxiedBody(c *gin.Context, body []byte, parsedReq *service.ParsedRequest) bool {
+	if c == nil || c.Request == nil || !strings.Contains(c.Request.URL.Path, "messages") {
+		return false
+	}
+	if strings.TrimSpace(c.GetHeader("anthropic-version")) == "" ||
+		strings.TrimSpace(c.GetHeader("anthropic-beta")) == "" ||
+		strings.TrimSpace(c.GetHeader("X-App")) == "" {
+		return false
+	}
+	bodyMap := claudeCodeBodyMapFromParsedRequest(parsedReq)
+	if bodyMap == nil {
+		bodyMap = claudeCodeBodyMapFromContextCache(c)
+	}
+	if bodyMap == nil && len(body) > 0 {
+		_ = json.Unmarshal(body, &bodyMap)
+	}
+	if !claudeCodeValidator.IncludesClaudeCodeSystemPrompt(bodyMap) {
+		return false
+	}
+	metadata, ok := bodyMap["metadata"].(map[string]any)
+	if !ok {
+		return false
+	}
+	userID, ok := metadata["user_id"].(string)
+	if !ok {
+		return false
+	}
+	return service.ParseMetadataUserID(userID) != nil
 }
 
 func claudeCodeBodyMapFromParsedRequest(parsedReq *service.ParsedRequest) map[string]any {

@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
+	basemiddleware "github.com/Wei-Shaw/sub2api/internal/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/server/routes"
@@ -110,10 +111,13 @@ func registerRoutes(
 	v1 := r.Group("/api/v1")
 	routes.RegisterMetaRoutes(v1, h)
 
+	panelRateLimiter := middleware2.NewPanelRateLimiter(settingService, basemiddleware.NewRateLimiter(redisClient))
+	settingService.SetOnUpdateCallback(panelRateLimiter.InvalidateCache)
+
 	// 注册各模块路由
-	routes.RegisterAuthRoutes(v1, h, jwtAuth, redisClient, settingService)
-	routes.RegisterUserRoutes(v1, h, jwtAuth, settingService)
-	routes.RegisterAdminRoutes(v1, h, adminAuth, settingService, promptAuditAdmin, adminSecurity)
+	routes.RegisterAuthRoutes(v1, h, jwtAuth, redisClient, settingService, panelRateLimiter)
+	routes.RegisterUserRoutes(v1, h, jwtAuth, settingService, panelRateLimiter)
+	routes.RegisterAdminRoutes(v1, h, adminAuth, settingService, promptAuditAdmin, adminSecurity, panelRateLimiter)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, promptAudit)
 	routes.RegisterDocumentAIRoutes(r, h, apiKeyAuth, settingService, cfg)
 }

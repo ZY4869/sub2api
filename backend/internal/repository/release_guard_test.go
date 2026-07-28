@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.411"
+const expectedReleaseVersion = "0.1.412"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -512,6 +512,88 @@ func TestUpstream163To165CleanroomMatrixAndLicenseGuards(t *testing.T) {
 	license := readRepoFile(t, root, "LICENSE")
 	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
 	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+	assertNoAPIDocsRoutes(t, root)
+	assertNoCopyleftLicenseTextInRuntimeCode(t, root)
+}
+
+func TestUpstream165To166CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.165-v0.1.166-cleanroom-sync-matrix.md")
+	for _, expected := range []string{
+		"v0.1.166",
+		"dc893dd",
+		"v0.1.165...v0.1.166",
+		"本地基线：`0.1.411`",
+		"clean-room",
+		"不执行 `git pull`、`git fetch`、merge、rebase、cherry-pick",
+		"MIT-only",
+		"panel_rate_limit_settings",
+		"CONFIG_FILE",
+		"claude-cli/2.1.220",
+		"text/event-stream",
+		"Grok 402",
+		"geminiPoolRetryableOnSameAccount",
+		"prompt_guard_unavailable",
+		"aff_code",
+		"previousSettings",
+		"RequestModel",
+		"previous_response_id",
+		"UpstreamModel",
+		"cost_by_currency",
+		"web_search",
+		"gemini-3.6-flash",
+		"已重写引入 | 官方 Gemini 文档确认 `gemini-3.6-flash`",
+		"composite prefix passthrough",
+		"nanosecond `next_probe_at`",
+		"foreign reasoning failover",
+		"Claude Code body detection",
+		"Responses/Anthropic compatibility",
+		"Antigravity OpenAI-compatible native gateway",
+		"EndpointGeminiOpenAICompat",
+		"GEMINI_OPENAI_COMPAT_USAGE_ONLY_RESPONSE",
+		"function_call_output",
+		"additional_tools",
+		"tool_search",
+		"input_schema",
+		"fix/issue-4863-turnstile-invite-overlap",
+		"fix(ci): make Caddy check portable across awk implementations",
+		"fix(deps): update image and telemetry packages",
+		"fix(frontend): 修复渠道监控时间线在窄卡片下溢出",
+		"chore: update sponsors",
+		"排除：上游 LGPL/GPL/CLA 协议文本、赞助/partner 资产、CI 发布脚本、README 许可段、版本号、/api-docs/*、/admin/api-docs/*",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+	require.NotContains(t, matrix, "需要持续跟踪")
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	for _, forbidden := range []string{
+		"GNU LESSER GENERAL PUBLIC LICENSE",
+		"GNU GENERAL PUBLIC LICENSE",
+		"LGPL-3.0",
+		"Contributor License Agreement",
+	} {
+		require.NotContains(t, license, forbidden)
+	}
+
+	version := strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION"))
+	require.Equal(t, expectedReleaseVersion, version)
+	require.NotEqual(t, "0.1.166", version)
+
+	pricingCatalog := readRepoFile(t, root, "backend", "resources", "model-pricing", "model_prices_and_context_window.json")
+	require.Contains(t, pricingCatalog, `"gemini-3.6-flash"`)
+	modelRegistrySeed := readRepoFile(t, root, "backend", "internal", "modelregistry", "registry_seed.json")
+	require.Contains(t, modelRegistrySeed, `"id": "gemini-3.6-flash"`)
+	modelCatalogSeed := readRepoFile(t, root, "backend", "internal", "service", "model_catalog_seed.json")
+	require.Contains(t, modelCatalogSeed, `"model":"gemini-3.6-flash"`)
+	frontendWhitelist := readRepoFile(t, root, "frontend", "src", "composables", "useModelWhitelist.ts")
+	require.Contains(t, frontendWhitelist, `"gemini-3.6-flash"`)
+	generatedRegistry := readRepoFile(t, root, "frontend", "src", "generated", "modelRegistry.ts")
+	require.Contains(t, generatedRegistry, `"id": "gemini-3.6-flash"`)
+
+	require.Contains(t, matrix, "未引入上游赞助/partner 资产变更")
 	assertNoAPIDocsRoutes(t, root)
 	assertNoCopyleftLicenseTextInRuntimeCode(t, root)
 }

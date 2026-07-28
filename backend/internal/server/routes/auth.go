@@ -27,6 +27,7 @@ func RegisterAuthRoutes(
 	jwtAuth servermiddleware.JWTAuthMiddleware,
 	redisClient *redis.Client,
 	settingService *service.SettingService,
+	panelRateLimiter *servermiddleware.PanelRateLimiter,
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
@@ -92,11 +93,17 @@ func RegisterAuthRoutes(
 
 	// 公开设置（无需认证）
 	settings := v1.Group("/settings")
+	if panelRateLimiter != nil {
+		settings.Use(panelRateLimiter.PublicIP())
+	}
 	{
 		settings.GET("/public", h.Setting.GetPublicSettings)
 	}
 
 	pages := v1.Group("/pages")
+	if panelRateLimiter != nil {
+		pages.Use(panelRateLimiter.PublicIP())
+	}
 	if h.User != nil {
 		pages.Use(servermiddleware.NewOptionalJWTAuthMiddleware(h.Auth.GetAuthService(), h.User.GetUserService()))
 	}

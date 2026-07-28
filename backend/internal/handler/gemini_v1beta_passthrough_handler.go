@@ -44,6 +44,13 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	if strings.TrimSpace(input.RequestedModel) == "" {
 		input.RequestedModel = detectGeminiPassthroughRequestedModel(c.Request.URL.Path, body)
 	}
+	forcePlatform, hasForcePlatform := middleware.GetForcePlatformFromContext(c)
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		input.ForcedPlatform = strings.TrimSpace(strings.ToLower(forcePlatform))
+	}
+	if input.ForcedPlatform == service.PlatformAntigravity {
+		input.RequiresAPIKeyAccount = true
+	}
 	publicRequestedModel := input.RequestedModel
 	var publicCatalogEntry *service.PublishedPublicCatalogEntry
 	if entry, status, resolveErr := h.gatewayService.ResolveAPIKeyPublishedPublicCatalogRuntimeStatus(c.Request.Context(), apiKey, service.PlatformGemini, publicRequestedModel); resolveErr != nil {
@@ -72,7 +79,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		apiKey,
 		subscription,
 		publicRequestedModel,
-		[]string{service.PlatformGemini},
+		geminiPassthroughAllowedPlatforms(input.ForcedPlatform),
 		nil,
 	)
 	if err != nil {
@@ -143,9 +150,11 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 			OpenBody:       openBody,
 			ContentLength:  contentLength,
 		},
-		RequestedModel: input.RequestedModel,
-		ResourceKind:   input.ResourceKind,
-		UpstreamPath:   input.UpstreamPath,
+		RequestedModel:        input.RequestedModel,
+		ResourceKind:          input.ResourceKind,
+		UpstreamPath:          input.UpstreamPath,
+		ForcedPlatform:        input.ForcedPlatform,
+		RequiresAPIKeyAccount: input.RequiresAPIKeyAccount,
 	})
 	if err != nil {
 		reqLog.Warn("gemini.passthrough_failed", zap.Error(err))
@@ -309,4 +318,13 @@ func firstNonEmptyHandlerString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func geminiPassthroughAllowedPlatforms(forcedPlatform string) []string {
+	switch strings.TrimSpace(strings.ToLower(forcedPlatform)) {
+	case service.PlatformAntigravity:
+		return []string{service.PlatformAntigravity}
+	default:
+		return []string{service.PlatformGemini}
+	}
 }

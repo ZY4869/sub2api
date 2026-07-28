@@ -140,11 +140,13 @@
           </div>
         </div>
         <ClientIPSettingsCard />
+        <PanelRateLimitSettingsCard />
         </div><!-- /Tab: Security — Admin API Key -->
 </template>
 
 <script setup lang="ts">
 import ClientIPSettingsCard from '@/components/settings/ClientIPSettingsCard.vue'
+import PanelRateLimitSettingsCard from '@/components/settings/PanelRateLimitSettingsCard.vue'
 import Icon from '@/components/icons/Icon.vue'
 const props = defineProps<{ ctx: any }>()
 const {

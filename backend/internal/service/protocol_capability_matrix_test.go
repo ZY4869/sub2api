@@ -51,6 +51,8 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "gemini live websocket supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiLive, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini auth tokens supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1alpha/authTokens", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini openai compat supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiOpenAICompat, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "antigravity openai compat supported", runtimePlatform: PlatformAntigravity, inboundEndpoint: "/antigravity/v1beta/openai/chat/completions", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "antigravity openai compat responses supported", runtimePlatform: PlatformAntigravity, inboundEndpoint: "/antigravity/v1beta/openai/responses", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "vertex simplified generate content supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/vertex/models/gemini-2.5-pro:generateContent", action: ProtocolCapabilityActionGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "vertex strict count tokens supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/projects/demo/locations/us-central1/publishers/google/models/gemini-2.5-pro:countTokens", action: ProtocolCapabilityActionGeminiCountTokens, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini corpora supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/corpora/default-corpus", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
@@ -155,6 +157,9 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files/file_123"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/batches/batch_123"))
+	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/antigravity/v1beta/openai/models"))
+	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/antigravity/v1beta/openai/chat/completions"))
+	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/antigravity/v1beta/openai/responses/resp_123"))
 	require.Equal(t, EndpointGeminiInteractions, NormalizeInboundEndpoint("/v1beta/interactions/sample"))
 	require.Equal(t, EndpointVertexSyncModels, NormalizeInboundEndpoint("/v1/vertex/models/gemini-2.5-pro:generateContent"))
 	require.Equal(t, EndpointVertexBatchJobs, NormalizeInboundEndpoint("/v1/vertex/batchPredictionJobs/job-1"))

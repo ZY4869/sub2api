@@ -83,43 +83,54 @@ func (r *RateLimiter) Limit(key string, limit int, window time.Duration) gin.Han
 
 // LimitWithOptions 返回速率限制中间件（带可选配置）
 func (r *RateLimiter) LimitWithOptions(key string, limit int, window time.Duration, opts RateLimitOptions) gin.HandlerFunc {
-	failureMode := opts.FailureMode
-	if failureMode != RateLimitFailClose {
-		failureMode = RateLimitFailOpen
-	}
-
 	return func(c *gin.Context) {
 		clientIP := ip.GetTrustedClientIP(c)
-		redisKey := r.prefix + key + ":" + clientIP
-
-		ctx := c.Request.Context()
-
-		windowMillis := windowTTLMillis(window)
-
-		// 使用 Lua 脚本原子操作增加计数并设置过期
-		count, repaired, err := rateLimitRun(ctx, r.redis, redisKey, windowMillis)
-		if err != nil {
-			log.Printf("[RateLimit] redis error: key=%s mode=%s err=%v", redisKey, failureModeLabel(failureMode), err)
-			if failureMode == RateLimitFailClose {
-				abortRateLimit(c)
-				return
-			}
-			// Redis 错误时放行，避免影响正常服务
-			c.Next()
-			return
-		}
-		if repaired {
-			log.Printf("[RateLimit] ttl repaired: key=%s window_ms=%d", redisKey, windowMillis)
-		}
-
-		// 超过限制
-		if count > int64(limit) {
+		allowed, _ := r.Allow(c.Request.Context(), key+":"+clientIP, limit, window, opts)
+		if !allowed {
 			abortRateLimit(c)
 			return
 		}
 
 		c.Next()
 	}
+}
+
+// Allow checks a rate-limit bucket without binding the decision to Gin middleware.
+// The key is scoped by the caller and is automatically prefixed before Redis use.
+func (r *RateLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration, opts RateLimitOptions) (bool, error) {
+	failureMode := opts.FailureMode
+	if failureMode != RateLimitFailClose {
+		failureMode = RateLimitFailOpen
+	}
+	if limit <= 0 {
+		return true, nil
+	}
+	redisKey := ""
+	if r != nil {
+		redisKey = r.prefix + key
+	}
+	if r == nil || r.redis == nil {
+		err := fmt.Errorf("rate limiter redis client is nil")
+		log.Printf("[RateLimit] redis error: key=%s mode=%s err=%v", redisKey, failureModeLabel(failureMode), err)
+		if failureMode == RateLimitFailClose {
+			return false, err
+		}
+		return true, err
+	}
+
+	windowMillis := windowTTLMillis(window)
+	count, repaired, err := rateLimitRun(ctx, r.redis, redisKey, windowMillis)
+	if err != nil {
+		log.Printf("[RateLimit] redis error: key=%s mode=%s err=%v", redisKey, failureModeLabel(failureMode), err)
+		if failureMode == RateLimitFailClose {
+			return false, err
+		}
+		return true, err
+	}
+	if repaired {
+		log.Printf("[RateLimit] ttl repaired: key=%s window_ms=%d", redisKey, windowMillis)
+	}
+	return count <= int64(limit), nil
 }
 
 func windowTTLMillis(window time.Duration) int64 {

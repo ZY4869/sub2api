@@ -114,6 +114,11 @@ func TestResolveToPricingIDUsesIntendedSharedOrExactTargets(t *testing.T) {
 			expected: "gemini-3.1-flash-image",
 		},
 		{
+			name:     "gemini 3.6 flash keeps official pricing id",
+			input:    "gemini-3.6-flash",
+			expected: "gemini-3.6-flash",
+		},
+		{
 			name:     "gpt 5.4 pro dated snapshot shares base pricing id",
 			input:    "gpt-5.4-pro-2026-03-05",
 			expected: "gpt-5.4-pro",

@@ -200,6 +200,14 @@
     "order": 24
   },
   {
+    "platform": "gemini",
+    "label": "3.6 Flash",
+    "from": "gemini-3.6-flash",
+    "to": "gemini-3.6-flash",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 25
+  },
+  {
     "platform": "grok",
     "label": "Grok Auto",
     "from": "grok-auto",
@@ -369,11 +377,19 @@
   },
   {
     "platform": "antigravity",
+    "label": "3.6-Flash passthrough",
+    "from": "gemini-3.6-flash",
+    "to": "gemini-3.6-flash",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 46
+  },
+  {
+    "platform": "antigravity",
     "label": "3-Pro-Image->3.1",
     "from": "gemini-3-pro-image",
     "to": "gemini-3.1-flash-image",
     "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-    "order": 46
+    "order": 47
   },
   {
     "platform": "antigravity",
@@ -381,7 +397,7 @@
     "from": "gemini-3*",
     "to": "gemini-3-flash",
     "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
-    "order": 47
+    "order": 48
   },
   {
     "platform": "antigravity",

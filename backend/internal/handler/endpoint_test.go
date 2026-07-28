@@ -66,6 +66,8 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1beta/openai/files", EndpointGeminiOpenAICompat},
 		{"/v1beta/openai/files/file_123", EndpointGeminiOpenAICompat},
 		{"/v1beta/openai/batches/batch_123", EndpointGeminiOpenAICompat},
+		{"/antigravity/v1beta/openai/chat/completions", EndpointGeminiOpenAICompat},
+		{"/antigravity/v1beta/openai/responses", EndpointGeminiOpenAICompat},
 		{"/v1beta/interactions/sample", EndpointGeminiInteractions},
 		{"/v1beta/live/sample", EndpointGeminiLive},
 		{"/v1beta/embeddings", EndpointGeminiEmbeddings},
@@ -158,6 +160,8 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		// Antigravity — uses inbound to pick Claude vs Gemini upstream.
 		{"antigravity claude", EndpointMessages, "/antigravity/v1/messages", service.PlatformAntigravity, EndpointMessages},
 		{"antigravity gemini", EndpointGeminiModels, "/antigravity/v1beta/models", service.PlatformAntigravity, EndpointGeminiModels},
+		{"antigravity openai compat chat", EndpointGeminiOpenAICompat, "/antigravity/v1beta/openai/chat/completions", service.PlatformAntigravity, EndpointGeminiOpenAICompat},
+		{"antigravity openai compat responses", EndpointGeminiOpenAICompat, "/antigravity/v1beta/openai/responses", service.PlatformAntigravity, EndpointGeminiOpenAICompat},
 
 		// Unknown platform — passthrough.
 		{"unknown platform", "/v1/embeddings", "/v1/embeddings", "unknown", "/v1/embeddings"},

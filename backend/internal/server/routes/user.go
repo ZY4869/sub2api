@@ -14,6 +14,7 @@ func RegisterUserRoutes(
 	h *handler.Handlers,
 	jwtAuth middleware.JWTAuthMiddleware,
 	settingService *service.SettingService,
+	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	if h.Payment != nil {
 		v1.POST("/payment/webhooks/airwallex", h.Payment.AirwallexWebhook)
@@ -23,6 +24,9 @@ func RegisterUserRoutes(
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.MaintenanceModeUserGuard(settingService))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
+	if panelRateLimiter != nil {
+		authenticated.Use(panelRateLimiter.User())
+	}
 	{
 		user := authenticated.Group("/user")
 		{

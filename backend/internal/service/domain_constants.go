@@ -260,6 +260,7 @@ const (
 
 	SettingKeyGoogleBatchGCSProfiles        = "google_batch_gcs_profiles"
 	SettingKeyClientIPSettings              = "client_ip_settings"
+	SettingKeyPanelRateLimitSettings        = "panel_rate_limit_settings"
 	SettingKeyImageBatchEnabled             = "image_batch_enabled"
 	SettingKeyImageBatchStorageSettings     = "image_batch_storage_settings"
 	SettingKeyUpstreamBillingProbeSettings  = "upstream_billing_probe_settings"

@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-07-26T09:30:48Z"
+export const generatedModelRegistryBuiltAt = "2026-07-28T07:21:51Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"e6b6030761116144d73d4bc4b56a82df0bf689732f799b1cf2bf04adab1f8909\"",
-  "updated_at": "2026-07-26T09:30:48Z",
+  "etag": "W/\"2d4707e7b3838d8d9501d4ee25bf9e3d4cdd1b157754e6860e46d11d1626754f\"",
+  "updated_at": "2026-07-28T07:21:51Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -2919,6 +2919,38 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3.6-flash",
+      "display_name": "Gemini 3.6 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity",
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.6-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.6-flash"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text",
+        "image",
+        "audio",
+        "video"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
       "ui_priority": 6,
       "exposed_in": [
         "runtime",
@@ -7163,6 +7195,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "order": 24
     },
     {
+      "platform": "gemini",
+      "label": "3.6 Flash",
+      "from": "gemini-3.6-flash",
+      "to": "gemini-3.6-flash",
+      "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+      "order": 25
+    },
+    {
       "platform": "antigravity",
       "label": "Claude-\u003eSonnet",
       "from": "claude-*",
@@ -7292,18 +7332,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-Image-\u003e3.1",
-      "from": "gemini-3-pro-image",
-      "to": "gemini-3.1-flash-image",
-      "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+      "label": "3.6-Flash passthrough",
+      "from": "gemini-3.6-flash",
+      "to": "gemini-3.6-flash",
+      "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
       "order": 46
     },
     {
       "platform": "antigravity",
-      "label": "Gemini 3-\u003eFlash",
-      "from": "gemini-3*",
-      "to": "gemini-3-flash",
-      "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
+      "label": "3-Pro-Image-\u003e3.1",
+      "from": "gemini-3-pro-image",
+      "to": "gemini-3.1-flash-image",
+      "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
       "order": 47
     },
     {
@@ -7312,6 +7352,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "from": "gemini-2.5*",
       "to": "gemini-2.5-flash",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+      "order": 48
+    },
+    {
+      "platform": "antigravity",
+      "label": "Gemini 3-\u003eFlash",
+      "from": "gemini-3*",
+      "to": "gemini-3-flash",
+      "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
       "order": 48
     },
     {

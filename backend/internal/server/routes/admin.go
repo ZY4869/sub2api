@@ -19,15 +19,19 @@ func RegisterAdminRoutes(
 	settingService *service.SettingService,
 	promptAudit *securityaudit.AdminHandler,
 	adminSecurity *admin.AdminSecurityHelper,
+	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	admin := v1.Group("/admin")
 	admin.Use(gin.HandlerFunc(adminAuth))
 	admin.Use(middleware.AdminComplianceGuard(settingService))
+	if panelRateLimiter != nil {
+		admin.Use(panelRateLimiter.User())
+	}
 	{
 		registerAdminComplianceRoutes(admin, h)
 
 		// 仪表盘
-		registerDashboardRoutes(admin, h)
+		registerDashboardRoutes(admin, h, panelRateLimiter)
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
@@ -38,11 +42,11 @@ func RegisterAdminRoutes(
 
 		// 分组管理
 		registerGroupRoutes(admin, h)
-		registerChannelRoutes(admin, h)
+		registerChannelRoutes(admin, h, panelRateLimiter)
 		registerChannelMonitorRoutes(admin, h)
 
 		// 账号管理
-		registerAccountRoutes(admin, h)
+		registerAccountRoutes(admin, h, panelRateLimiter)
 		registerEmailTemplateRoutes(admin, h)
 
 		// 公告管理
@@ -87,7 +91,7 @@ func RegisterAdminRoutes(
 		registerGrokRoutes(admin, h)
 
 		// 使用记录管理
-		registerUsageRoutes(admin, h)
+		registerUsageRoutes(admin, h, panelRateLimiter)
 
 		// 用户属性管理
 		registerUserAttributeRoutes(admin, h)
@@ -369,8 +373,11 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
 	dashboard := admin.Group("/dashboard")
+	if panelRateLimiter != nil {
+		dashboard.Use(panelRateLimiter.Heavy())
+	}
 	{
 		dashboard.GET("/snapshot-v2", h.Admin.Dashboard.GetSnapshotV2)
 		dashboard.GET("/stats", h.Admin.Dashboard.GetStats)
@@ -461,8 +468,11 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
 	channels := admin.Group("/channels")
+	if panelRateLimiter != nil {
+		channels.Use(panelRateLimiter.Heavy())
+	}
 	{
 		channels.GET("", h.Admin.Channel.List)
 		channels.GET("/:id", h.Admin.Channel.GetByID)
@@ -497,8 +507,11 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
 	accounts := admin.Group("/accounts")
+	if panelRateLimiter != nil {
+		accounts.Use(panelRateLimiter.Heavy())
+	}
 	{
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/summary", h.Admin.Account.GetStatusSummary)
@@ -755,6 +768,8 @@ func registerSettingsRoutes(adminGroup *gin.RouterGroup, h *handler.Handlers, se
 		adminSettings.POST("/image-batches/storage/test", h.Admin.Setting.TestImageBatchStorageSettings)
 		adminSettings.GET("/client-ip", h.Admin.Setting.GetClientIPSettings)
 		adminSettings.PUT("/client-ip", auditAdminSettingUpdate(security, "admin.settings.client_ip.update", "client_ip_settings", h.Admin.Setting.UpdateClientIPSettings))
+		adminSettings.GET("/panel-rate-limit", h.Admin.Setting.GetPanelRateLimitSettings)
+		adminSettings.PUT("/panel-rate-limit", auditAdminSettingUpdate(security, "admin.settings.panel_rate_limit.update", "panel_rate_limit_settings", h.Admin.Setting.UpdatePanelRateLimitSettings))
 		adminSettings.GET("/upstream-billing-probe", h.Admin.Setting.GetUpstreamBillingProbeSettings)
 		adminSettings.PUT("/upstream-billing-probe", h.Admin.Setting.UpdateUpstreamBillingProbeSettings)
 		adminSettings.GET("/google-batch-gcs/profiles", h.Admin.Setting.ListGoogleBatchGCSProfiles)
@@ -859,8 +874,11 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	admin.GET("/users/:id/subscriptions", h.Admin.Subscription.ListByUser)
 }
 
-func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers, panelRateLimiter *middleware.PanelRateLimiter) {
 	usage := admin.Group("/usage")
+	if panelRateLimiter != nil {
+		usage.Use(panelRateLimiter.Heavy())
+	}
 	{
 		usage.GET("", h.Admin.Usage.List)
 		usage.POST("/ip-geo/lookup", h.Admin.Usage.LookupIPGeo)

@@ -18,6 +18,8 @@ func TestGeminiOpenAICompatAuditProtocol(t *testing.T) {
 		want string
 	}{
 		{path: "/v1beta/openai/chat/completions", want: securityaudit.ProtocolOpenAIChat},
+		{path: "/antigravity/v1beta/openai/chat/completions", want: securityaudit.ProtocolOpenAIChat},
+		{path: "/antigravity/v1beta/openai/responses", want: securityaudit.ProtocolOpenAIResponses},
 		{path: "/v1beta/openai/embeddings", want: securityaudit.ProtocolOpenAIEmbeddings},
 		{path: "/v1beta/openai/images/generations", want: securityaudit.ProtocolOpenAIImages},
 		{path: "/v1beta/openai/videos", want: securityaudit.ProtocolOpenAIImages},

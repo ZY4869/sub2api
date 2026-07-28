@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -132,6 +133,64 @@ func TestAccountTestServiceGrokRealResponses404Fails(t *testing.T) {
 	require.Equal(t, "https://cli-chat-proxy.grok.com/v1/responses", upstream.requests[1].URL.String())
 	require.Contains(t, rec.Body.String(), `"type":"error"`)
 	require.Contains(t, rec.Body.String(), "upstream status 404")
+}
+
+func TestAccountTestServiceGrokRealResponses402PausesAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	upstream := &grokAccountTestHTTPUpstream{responses: []*http.Response{
+		{
+			StatusCode: http.StatusNotFound,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"model listing not found"}}`)),
+		},
+		{
+			StatusCode: http.StatusPaymentRequired,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"insufficient balance"}}`)),
+		},
+	}}
+	importSvc := NewAccountModelImportService(NewModelCatalogService(newAccountModelImportSettingRepoStub(), nil, nil, nil, nil), nil, upstream, nil)
+	grokSvc := &GrokGatewayService{httpUpstream: upstream, cfg: &config.Config{}}
+	repo := &grokAccountTestRateLimitRepo{}
+	testSvc := &AccountTestService{
+		accountModelImportService: importSvc,
+		grokGatewayService:        grokSvc,
+		rateLimitService:          NewRateLimitService(repo, nil, &config.Config{}, nil, nil),
+		cfg:                       &config.Config{},
+	}
+	account := &Account{
+		ID:       2418,
+		Name:     "grok-oauth",
+		Platform: PlatformGrok,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+			"base_url":     "https://api.x.ai/v1",
+		},
+	}
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/admin/grok/accounts/2418/test", nil)
+
+	err := testSvc.testGrokOfficialConnection(c, account, GrokModelBuild45)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "upstream status 402")
+	require.Equal(t, 1, repo.setErrorCalls)
+	require.Contains(t, repo.lastErrorMessage, "Payment required (402)")
+	require.Contains(t, repo.lastErrorMessage, "insufficient balance")
+}
+
+type grokAccountTestRateLimitRepo struct {
+	AccountRepository
+	setErrorCalls    int
+	lastErrorMessage string
+}
+
+func (r *grokAccountTestRateLimitRepo) SetError(_ context.Context, _ int64, errorMsg string) error {
+	r.setErrorCalls++
+	r.lastErrorMessage = errorMsg
+	return nil
 }
 
 func TestAccountTestServiceGrokAPIKeyAcceptsV1BaseURL(t *testing.T) {

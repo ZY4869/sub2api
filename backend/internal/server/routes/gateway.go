@@ -411,6 +411,19 @@ func RegisterGatewayRoutes(
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
 		antigravityV1Beta.POST("/models/*modelAction", audit(securityaudit.ProtocolGemini), dispatchers.GeminiModels)
+		antigravityV1Beta.Any("/openai/models", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/models/*subpath", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/files", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/files/*subpath", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/batches", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/batches/*subpath", dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/responses", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIResponses, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/responses/*subpath", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIResponses, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/chat/completions", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIChat, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/embeddings", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIEmbeddings, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/images/generations", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/videos", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
+		antigravityV1Beta.Any("/openai/videos/*subpath", openAIGeminiCompatAudit(securityaudit.ProtocolOpenAIImages, promptAudit), dispatchers.GeminiOpenAICompat)
 	}
 }
 

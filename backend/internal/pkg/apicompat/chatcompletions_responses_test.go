@@ -812,6 +812,27 @@ func TestResponsesToChatCompletionsRequest_StructuredInputAndTools(t *testing.T)
 	require.True(t, *chat.Tools[0].Function.Strict)
 }
 
+func TestResponsesCompat_FunctionCallOutputArrayInputPreserved(t *testing.T) {
+	req := &ResponsesRequest{
+		Model: "gpt-4o",
+		Input: json.RawMessage(`[
+			{"type":"function_call_output","call_id":"call_1","output":"first"},
+			{"type":"function_call_output","call_id":"call_2","output":"second"}
+		]`),
+	}
+
+	chat, err := ResponsesToChatCompletionsRequest(req)
+
+	require.NoError(t, err)
+	require.Len(t, chat.Messages, 2)
+	require.Equal(t, "tool", chat.Messages[0].Role)
+	require.Equal(t, "call_1", chat.Messages[0].ToolCallID)
+	require.JSONEq(t, `"first"`, string(chat.Messages[0].Content))
+	require.Equal(t, "tool", chat.Messages[1].Role)
+	require.Equal(t, "call_2", chat.Messages[1].ToolCallID)
+	require.JSONEq(t, `"second"`, string(chat.Messages[1].Content))
+}
+
 func TestResponsesToChatCompletionsRequest_PreservesParallelToolCallsFalseAndTextFormat(t *testing.T) {
 	parallel := false
 	req := &ResponsesRequest{

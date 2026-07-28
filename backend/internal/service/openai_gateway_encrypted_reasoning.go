@@ -19,7 +19,7 @@ func trimOpenAIEncryptedReasoningItems(reqBody map[string]any) bool {
 
 	switch input := inputValue.(type) {
 	case []any:
-		filtered := input[:0]
+		filtered := make([]any, 0, len(input))
 		changed := false
 		for _, item := range input {
 			nextItem, itemChanged, keep := sanitizeEncryptedReasoningInputItem(item)
@@ -41,7 +41,7 @@ func trimOpenAIEncryptedReasoningItems(reqBody map[string]any) bool {
 		reqBody["input"] = filtered
 		return true
 	case []map[string]any:
-		filtered := input[:0]
+		filtered := make([]map[string]any, 0, len(input))
 		changed := false
 		for _, item := range input {
 			nextItem, itemChanged, keep := sanitizeEncryptedReasoningInputItem(item)
@@ -103,9 +103,15 @@ func sanitizeEncryptedReasoningInputItem(item any) (next any, changed bool, keep
 		return item, false, true
 	}
 
-	delete(inputItem, "encrypted_content")
-	if len(inputItem) == 1 {
+	nextItem := make(map[string]any, len(inputItem)-1)
+	for key, value := range inputItem {
+		if key == "encrypted_content" {
+			continue
+		}
+		nextItem[key] = value
+	}
+	if len(nextItem) == 1 {
 		return nil, true, false
 	}
-	return inputItem, true, true
+	return nextItem, true, true
 }

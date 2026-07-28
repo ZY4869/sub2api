@@ -89,8 +89,14 @@ func (s *GeminiMessagesCompatService) SetBillingService(billingService *BillingS
 	s.billingService = billingService
 }
 
-func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx context.Context, groupID *int64) (*Account, error) {
-	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformGemini, true)
+func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx context.Context, groupID *int64, platformOverride ...string) (*Account, error) {
+	platform := PlatformGemini
+	if len(platformOverride) > 0 {
+		if trimmed := strings.TrimSpace(strings.ToLower(platformOverride[0])); trimmed != "" {
+			platform = trimmed
+		}
+	}
+	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, platform, true)
 	if err != nil {
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}

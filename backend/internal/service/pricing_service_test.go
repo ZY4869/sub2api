@@ -411,3 +411,24 @@ func TestPricingService_Initialize_UsesCurrentDeepSeekOfficialPricing(t *testing
 	require.InDelta(t, 4.35e-7, pro.InputCostPerToken, 1e-12)
 	require.InDelta(t, 8.7e-7, pro.OutputCostPerToken, 1e-12)
 }
+
+func TestPricingService_Initialize_UsesGemini36FlashOfficialPricing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+
+	pricing := svc.GetModelPricing("gemini-3.6-flash")
+	require.NotNil(t, pricing)
+	require.Equal(t, "USD", pricing.Currency)
+	require.InDelta(t, 1.5e-6, pricing.InputCostPerToken, 1e-12)
+	require.InDelta(t, 7.5e-6, pricing.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 1.5e-7, pricing.CacheReadInputTokenCost, 1e-12)
+	require.InDelta(t, 2.7e-6, pricing.InputCostPerTokenPriority, 1e-12)
+	require.InDelta(t, 1.35e-5, pricing.OutputCostPerTokenPriority, 1e-12)
+	require.True(t, pricing.SupportsServiceTier)
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,85 @@ func TestExtractOpenAICompatObjectIDs(t *testing.T) {
 
 	listPayload := []byte(`{"object":"list","data":[{"id":"file_123"},{"id":"file_456"},{"id":"file_123"}]}`)
 	require.ElementsMatch(t, []string{"file_123", "file_456"}, extractOpenAICompatObjectIDs(listPayload))
+}
+
+func TestGeminiPassthroughAntigravityForceRequiresAPIKeyBaseURL(t *testing.T) {
+	input := GeminiPublicPassthroughInput{
+		ForcedPlatform:        PlatformAntigravity,
+		RequiresAPIKeyAccount: true,
+	}
+
+	require.False(t, geminiPassthroughEligibleAccount(&Account{
+		Platform: PlatformAntigravity,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "oauth-token",
+			"base_url":     "https://antigravity.example.test/antigravity",
+		},
+	}, input), "OpenAI-compatible native passthrough must not select Antigravity OAuth accounts")
+
+	require.False(t, geminiPassthroughEligibleAccount(&Account{
+		Platform: PlatformAntigravity,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "antigravity-key",
+		},
+	}, input), "Antigravity OpenAI-compatible passthrough needs an explicit Antigravity base_url")
+
+	require.True(t, geminiPassthroughEligibleAccount(&Account{
+		Platform: PlatformAntigravity,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":  "antigravity-key",
+			"base_url": "https://antigravity.example.test/antigravity",
+		},
+	}, input))
+}
+
+func TestBuildGeminiPassthroughRequestAntigravityStripsLocalPrefix(t *testing.T) {
+	svc := &GeminiMessagesCompatService{}
+	account := &Account{
+		Type:     AccountTypeAPIKey,
+		Platform: PlatformAntigravity,
+		Credentials: map[string]any{
+			"api_key":  "antigravity-test-key",
+			"base_url": "https://antigravity.example.test/antigravity",
+		},
+	}
+	input := GeminiPublicPassthroughInput{
+		GoogleBatchForwardInput: GoogleBatchForwardInput{
+			Method:        http.MethodPost,
+			Path:          "/antigravity/v1beta/openai/chat/completions",
+			Headers:       http.Header{"X-Test": []string{"1"}},
+			Body:          []byte(`{"model":"gemini-3.6-flash","messages":[]}`),
+			ContentLength: int64(len(`{"model":"gemini-3.6-flash","messages":[]}`)),
+		},
+		ForcedPlatform:        PlatformAntigravity,
+		RequiresAPIKeyAccount: true,
+	}
+
+	req, _, fullURL, err := svc.buildGeminiPassthroughRequest(context.Background(), input, account)
+
+	require.NoError(t, err)
+	require.Equal(t, "https://antigravity.example.test/antigravity/v1beta/openai/chat/completions", fullURL)
+	require.Equal(t, fullURL, req.URL.String())
+	require.Equal(t, "antigravity-test-key", req.Header.Get("x-goog-api-key"))
+	require.Equal(t, 1, strings.Count(req.URL.Path, "/antigravity"))
+}
+
+func TestOpenAICompatUsageOnlyNonStreamResponseGuard(t *testing.T) {
+	input := GeminiPublicPassthroughInput{
+		GoogleBatchForwardInput: GoogleBatchForwardInput{
+			Path: "/antigravity/v1beta/openai/chat/completions",
+			Body: []byte(`{"model":"gemini-3.6-flash","stream":false}`),
+		},
+	}
+
+	require.True(t, isOpenAICompatUsageOnlyNonStreamResponse(input, []byte(`{"usage":{"prompt_tokens":1,"completion_tokens":0}}`)))
+	require.False(t, isOpenAICompatUsageOnlyNonStreamResponse(input, []byte(`{"choices":[{"message":{"content":"ok"}}],"usage":{"prompt_tokens":1}}`)))
+
+	input.Body = []byte(`{"model":"gemini-3.6-flash","stream":true}`)
+	require.False(t, isOpenAICompatUsageOnlyNonStreamResponse(input, []byte(`{"usage":{"prompt_tokens":1}}`)))
 }
 
 func TestBuildGeminiPassthroughRequestUsesUpstreamPathOverride(t *testing.T) {

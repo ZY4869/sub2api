@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
@@ -15,9 +17,11 @@ import (
 
 type GeminiPublicPassthroughInput struct {
 	GoogleBatchForwardInput
-	RequestedModel string
-	ResourceKind   string
-	UpstreamPath   string
+	RequestedModel        string
+	ResourceKind          string
+	UpstreamPath          string
+	ForcedPlatform        string
+	RequiresAPIKeyAccount bool
 }
 
 type GeminiPublicPassthroughOutput struct {
@@ -88,6 +92,13 @@ func (s *GeminiMessagesCompatService) forwardGeminiPassthrough(ctx context.Conte
 	if err := s.persistGeminiPassthroughBinding(ctx, input, account, binding, resp.StatusCode, body); err != nil {
 		return nil, err
 	}
+	if isOpenAICompatUsageOnlyNonStreamResponse(input, body) {
+		return &GeminiPublicPassthroughOutput{
+			Response:      &UpstreamHTTPResult{StatusCode: resp.StatusCode, Headers: filteredHeaders, Body: body},
+			Account:       account,
+			ForwardResult: buildGeminiPassthroughForwardResult(input, requestedModel, filteredHeaders, body, time.Since(startedAt), false),
+		}, infraerrors.ServiceUnavailable("GEMINI_OPENAI_COMPAT_USAGE_ONLY_RESPONSE", "upstream returned usage metadata without a completion payload")
+	}
 
 	return &GeminiPublicPassthroughOutput{
 		Response:      &UpstreamHTTPResult{StatusCode: resp.StatusCode, Headers: filteredHeaders, Body: body},
@@ -99,7 +110,7 @@ func (s *GeminiMessagesCompatService) forwardGeminiPassthrough(ctx context.Conte
 func (s *GeminiMessagesCompatService) resolveGeminiPassthroughAccount(ctx context.Context, input GeminiPublicPassthroughInput, requestedModel string) (*Account, *UpstreamResourceBinding, error) {
 	if input.AccountID != nil && *input.AccountID > 0 {
 		account, err := s.getSchedulableAccount(ctx, *input.AccountID)
-		if err == nil && geminiPassthroughEligibleAccount(account) {
+		if err == nil && geminiPassthroughEligibleAccount(account, input) {
 			return account, nil, nil
 		}
 	}
@@ -111,31 +122,92 @@ func (s *GeminiMessagesCompatService) resolveGeminiPassthroughAccount(ctx contex
 	}
 	if binding != nil {
 		account, err := s.getSchedulableAccount(ctx, binding.AccountID)
-		if err == nil && geminiPassthroughEligibleAccount(account) {
+		if err == nil && geminiPassthroughEligibleAccount(account, input) {
 			return account, binding, nil
 		}
 	}
 
 	selectionCtx := WithGeminiPublicProtocol(ctx, UpstreamProviderAIStudio)
+	if forced := strings.TrimSpace(input.ForcedPlatform); forced != "" {
+		selectionCtx = context.WithValue(selectionCtx, ctxkey.ForcePlatform, strings.ToLower(forced))
+	}
+	if strings.TrimSpace(input.ForcedPlatform) != "" {
+		account, err := s.selectGeminiPassthroughAccount(selectionCtx, input, requestedModel)
+		if err != nil {
+			return nil, nil, err
+		}
+		if account != nil {
+			return account, binding, nil
+		}
+		return nil, nil, infraerrors.ServiceUnavailable("GEMINI_PASSTHROUGH_NO_ACCOUNT", "no available Gemini accounts")
+	}
 	if requestedModel != "" {
 		account, err := s.SelectAccountForModelWithExclusions(selectionCtx, input.GroupID, "", requestedModel, nil)
-		if err == nil && geminiPassthroughEligibleAccount(account) {
+		if err == nil && geminiPassthroughEligibleAccount(account, input) {
 			return account, binding, nil
 		}
 	}
 
-	account, err := s.SelectAccountForAIStudioEndpoints(selectionCtx, input.GroupID)
+	platform := strings.TrimSpace(input.ForcedPlatform)
+	if platform == "" {
+		platform = PlatformGemini
+	}
+	account, err := s.SelectAccountForAIStudioEndpoints(selectionCtx, input.GroupID, platform)
 	if err != nil {
 		return nil, nil, infraerrors.ServiceUnavailable("GEMINI_PASSTHROUGH_NO_ACCOUNT", "no available Gemini accounts")
 	}
-	if !geminiPassthroughEligibleAccount(account) {
+	if !geminiPassthroughEligibleAccount(account, input) {
 		return nil, nil, infraerrors.ServiceUnavailable("GEMINI_PASSTHROUGH_NO_ACCOUNT", "no available Gemini accounts")
 	}
 	return account, binding, nil
 }
 
-func geminiPassthroughEligibleAccount(account *Account) bool {
-	return account != nil && EffectiveProtocol(account) == PlatformGemini && !account.IsGeminiVertexSource()
+func (s *GeminiMessagesCompatService) selectGeminiPassthroughAccount(ctx context.Context, input GeminiPublicPassthroughInput, requestedModel string) (*Account, error) {
+	platform := strings.TrimSpace(strings.ToLower(input.ForcedPlatform))
+	if platform == "" {
+		platform = PlatformGemini
+	}
+	accounts, err := s.listSchedulableAccountsOnce(ctx, input.GroupID, platform, true)
+	if err != nil {
+		return nil, fmt.Errorf("query accounts failed: %w", err)
+	}
+	if len(accounts) == 0 && input.GroupID != nil {
+		accounts, err = s.listSchedulableAccountsOnce(ctx, nil, platform, true)
+		if err != nil {
+			return nil, fmt.Errorf("query accounts failed: %w", err)
+		}
+	}
+	filtered := make([]Account, 0, len(accounts))
+	for _, account := range accounts {
+		if geminiPassthroughEligibleAccount(&account, input) {
+			filtered = append(filtered, account)
+		}
+	}
+	return s.selectBestGeminiAccount(ctx, filtered, requestedModel, nil, platform, false), nil
+}
+
+func geminiPassthroughEligibleAccount(account *Account, input GeminiPublicPassthroughInput) bool {
+	if account == nil {
+		return false
+	}
+	if input.RequiresAPIKeyAccount && account.Type != AccountTypeAPIKey {
+		return false
+	}
+	if account.Type == AccountTypeAPIKey && strings.TrimSpace(account.GetCredential("api_key")) == "" {
+		return false
+	}
+	forced := strings.TrimSpace(strings.ToLower(input.ForcedPlatform))
+	switch forced {
+	case "":
+		return EffectiveProtocol(account) == PlatformGemini && !account.IsGeminiVertexSource()
+	case PlatformAntigravity:
+		if strings.TrimSpace(account.GetCredential("base_url")) == "" {
+			return false
+		}
+		return EffectiveProtocol(account) == PlatformAntigravity
+	default:
+		return EffectiveProtocol(account) == forced
+	}
 }
 
 func (s *GeminiMessagesCompatService) buildGeminiPassthroughRequest(ctx context.Context, input GeminiPublicPassthroughInput, account *Account) (*http.Request, string, string, error) {
@@ -146,6 +218,12 @@ func (s *GeminiMessagesCompatService) buildGeminiPassthroughRequest(ctx context.
 	upstreamPath := strings.TrimSpace(input.UpstreamPath)
 	if upstreamPath == "" {
 		upstreamPath = strings.TrimSpace(input.Path)
+	}
+	if strings.EqualFold(strings.TrimSpace(input.ForcedPlatform), PlatformAntigravity) {
+		upstreamPath = strings.TrimPrefix(upstreamPath, "/antigravity")
+		if upstreamPath == "" {
+			upstreamPath = "/"
+		}
 	}
 	fullURL := strings.TrimRight(baseURL, "/") + upstreamPath
 	if strings.TrimSpace(input.RawQuery) != "" {
@@ -190,4 +268,32 @@ func shouldStreamGeminiPassthrough(resp *http.Response, input GeminiPublicPassth
 		return true
 	}
 	return gjson.GetBytes(input.Body, "stream").Bool()
+}
+
+func isOpenAICompatUsageOnlyNonStreamResponse(input GeminiPublicPassthroughInput, body []byte) bool {
+	if len(body) == 0 || gjson.GetBytes(input.Body, "stream").Bool() {
+		return false
+	}
+	path := strings.ToLower(strings.TrimSpace(firstNonEmptyString(input.UpstreamPath, input.Path)))
+	if !strings.Contains(path, "/openai/") {
+		return false
+	}
+	if !gjson.GetBytes(body, "usage").Exists() {
+		return false
+	}
+	for _, payloadPath := range []string{
+		"choices",
+		"output",
+		"data",
+		"candidates",
+		"response.candidates",
+		"response.output",
+		"response.choices",
+		"response.data",
+	} {
+		if value := gjson.GetBytes(body, payloadPath); value.Exists() && value.Raw != "[]" && value.Raw != "{}" && value.Raw != "null" {
+			return false
+		}
+	}
+	return true
 }

@@ -83,6 +83,40 @@ func TestOpenAIGatewayServiceResolveCompositeRouteRuntime_SelectsTargetGroupAndM
 	require.Equal(t, 1, repo.getCalls)
 }
 
+func TestOpenAIGatewayServiceResolveCompositeRouteRuntime_EmptyTargetModelPassesRequestedModel(t *testing.T) {
+	parentGroupID := int64(10)
+	targetGroupID := int64(20)
+	repo := &openAICompositeRuntimeGroupRepoStub{
+		route: &CompositeModelRoute{
+			ID:             1,
+			ParentGroupID:  parentGroupID,
+			DisplayModelID: "prefix-*",
+			TargetGroupID:  targetGroupID,
+			TargetModelID:  "",
+			Enabled:        true,
+		},
+		groups: map[int64]*Group{
+			targetGroupID: {ID: targetGroupID, Name: "openai-target", Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}
+	svc := &OpenAIGatewayService{groupRepo: repo}
+	apiKey := &APIKey{
+		ID:      101,
+		GroupID: &parentGroupID,
+		Group:   &Group{ID: parentGroupID, Name: "parent", Platform: PlatformComposite, Status: StatusActive, Hydrated: true},
+	}
+
+	got, err := svc.ResolveCompositeRouteRuntime(context.Background(), apiKey, nil, "prefix-gpt")
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.True(t, got.Matched)
+	require.Equal(t, "prefix-gpt", got.DisplayModelID)
+	require.Equal(t, "prefix-gpt", got.RuntimeModelID)
+	require.False(t, got.TargetModelIDSet)
+	require.Equal(t, targetGroupID, got.TargetGroupID)
+}
+
 func TestOpenAIGatewayServiceResolveCompositeRouteRuntime_RejectsCompositeTargetGroup(t *testing.T) {
 	parentGroupID := int64(10)
 	targetGroupID := int64(20)

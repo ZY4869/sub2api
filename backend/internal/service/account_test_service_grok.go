@@ -93,6 +93,9 @@ func (s *AccountTestService) testGrokRealResponsesCall(c *gin.Context, account *
 		if msg == "" {
 			msg = http.StatusText(resp.StatusCode)
 		}
+		if s.rateLimitService != nil {
+			s.rateLimitService.HandleUpstreamError(c.Request.Context(), account, resp.StatusCode, resp.Header, bodyBytes)
+		}
 		setOpsUpstreamError(c, resp.StatusCode, msg, "")
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			Platform:           PlatformGrok,

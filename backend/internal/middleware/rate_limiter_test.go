@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +17,46 @@ func TestWindowTTLMillis(t *testing.T) {
 	require.Equal(t, int64(1), windowTTLMillis(500*time.Microsecond))
 	require.Equal(t, int64(1), windowTTLMillis(1500*time.Microsecond))
 	require.Equal(t, int64(2), windowTTLMillis(2500*time.Microsecond))
+}
+
+func TestRateLimiterAllowSuccessLimitAndFailureModes(t *testing.T) {
+	originalRun := rateLimitRun
+	counts := []int64{1, 2}
+	callIndex := 0
+	rateLimitRun = func(ctx context.Context, client *redis.Client, key string, windowMillis int64) (int64, bool, error) {
+		require.Equal(t, "rate_limit:panel:user:42", key)
+		require.Equal(t, int64(60000), windowMillis)
+		if callIndex >= len(counts) {
+			return counts[len(counts)-1], false, nil
+		}
+		value := counts[callIndex]
+		callIndex++
+		return value, false, nil
+	}
+	t.Cleanup(func() {
+		rateLimitRun = originalRun
+	})
+
+	limiter := NewRateLimiter(redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"}))
+
+	allowed, err := limiter.Allow(context.Background(), "panel:user:42", 1, time.Minute, RateLimitOptions{})
+	require.NoError(t, err)
+	require.True(t, allowed)
+
+	allowed, err = limiter.Allow(context.Background(), "panel:user:42", 1, time.Minute, RateLimitOptions{})
+	require.NoError(t, err)
+	require.False(t, allowed)
+
+	rateLimitRun = func(ctx context.Context, client *redis.Client, key string, windowMillis int64) (int64, bool, error) {
+		return 0, false, errors.New("redis down")
+	}
+	allowed, err = limiter.Allow(context.Background(), "panel:user:42", 1, time.Minute, RateLimitOptions{FailureMode: RateLimitFailOpen})
+	require.Error(t, err)
+	require.True(t, allowed)
+
+	allowed, err = limiter.Allow(context.Background(), "panel:user:42", 1, time.Minute, RateLimitOptions{FailureMode: RateLimitFailClose})
+	require.Error(t, err)
+	require.False(t, allowed)
 }
 
 func TestRateLimiterFailureModes(t *testing.T) {

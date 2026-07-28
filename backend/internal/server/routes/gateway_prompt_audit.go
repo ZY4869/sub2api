@@ -29,6 +29,8 @@ func geminiOpenAICompatAuditProtocol(c *gin.Context) string {
 	switch {
 	case strings.Contains(path, "/openai/chat/completions"):
 		return securityaudit.ProtocolOpenAIChat
+	case strings.Contains(path, "/openai/responses"):
+		return securityaudit.ProtocolOpenAIResponses
 	case strings.Contains(path, "/openai/embeddings"):
 		return securityaudit.ProtocolOpenAIEmbeddings
 	case strings.Contains(path, "/openai/images/"), strings.Contains(path, "/openai/videos"):

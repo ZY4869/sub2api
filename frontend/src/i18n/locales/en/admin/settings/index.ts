@@ -14,6 +14,7 @@ import adminApiKey from './adminApiKey'
 import billingProbe from './billingProbe'
 import googleBatch from './googleBatch'
 import imageBatch from './imageBatch'
+import panelRateLimit from './panelRateLimit'
 
 export default {
   ...common,
@@ -32,4 +33,5 @@ export default {
   ...billingProbe,
   ...googleBatch,
   ...imageBatch,
+  ...panelRateLimit,
 }

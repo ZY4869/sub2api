@@ -47,6 +47,23 @@ func TestShouldFailoverGeminiUpstreamError(t *testing.T) {
 	}
 }
 
+func TestGeminiPoolModeRetryableFailoverFlagUsesAccountConfigUnit(t *testing.T) {
+	account := &Account{
+		ID:       110,
+		Type:     AccountTypeAPIKey,
+		Platform: PlatformGemini,
+		Credentials: map[string]any{
+			"pool_mode":                    true,
+			"pool_mode_retry_status_codes": []any{float64(500), float64(502)},
+		},
+	}
+
+	require.True(t, geminiPoolRetryableOnSameAccount(account, http.StatusInternalServerError))
+	require.True(t, geminiPoolRetryableOnSameAccount(account, http.StatusBadGateway))
+	require.False(t, geminiPoolRetryableOnSameAccount(account, http.StatusUnauthorized))
+	require.False(t, geminiPoolRetryableOnSameAccount(nil, http.StatusInternalServerError))
+}
+
 // ---------------------------------------------------------------------------
 // TestCheckErrorPolicy_GeminiAccounts — verifies CheckErrorPolicy works
 // correctly for Gemini platform accounts (API Key type).

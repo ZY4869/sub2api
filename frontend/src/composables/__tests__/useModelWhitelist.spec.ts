@@ -93,6 +93,7 @@ describe("useModelWhitelist", () => {
     const models = getModelsByPlatform("antigravity");
 
     expect(models).toContain("gemini-3.1-pro");
+    expect(models).toContain("gemini-3.6-flash");
     expect(models).toContain("gemini-2.5-flash-image");
     expect(models).toContain("gemini-3.1-flash-image");
     expect(models).toContain("gemini-3-pro-image");
@@ -153,6 +154,13 @@ describe("useModelWhitelist", () => {
         (preset) =>
           preset.from === "gemini-3.1-flash-image" &&
           preset.to === "gemini-3.1-flash-image",
+      ),
+    ).toBe(true);
+    expect(
+      presets.some(
+        (preset) =>
+          preset.from === "gemini-3.6-flash" &&
+          preset.to === "gemini-3.6-flash",
       ),
     ).toBe(true);
     expect(

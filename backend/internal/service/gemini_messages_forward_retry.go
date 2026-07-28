@@ -47,6 +47,10 @@ func (s *GeminiMessagesCompatService) shouldRetryGeminiUpstreamError(account *Ac
 	}
 }
 
+func geminiPoolRetryableOnSameAccount(account *Account, statusCode int) bool {
+	return account != nil && account.IsPoolMode() && account.IsPoolModeRetryableStatus(statusCode)
+}
+
 func (s *GeminiMessagesCompatService) shouldFailoverGeminiUpstreamError(statusCode int) bool {
 	switch statusCode {
 	case 401, 403, 429, 529:

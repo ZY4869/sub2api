@@ -760,6 +760,14 @@ export interface ClientIPSettings {
   xff_hop_index: number
 }
 
+export interface PanelRateLimitSettings {
+  enabled: boolean
+  user_rpm: number
+  heavy_rpm: number
+  public_ip_rpm: number
+  exempt_admin: boolean
+}
+
 export type ImageBatchStorageBackend = 'local' | 's3' | 'r2'
 
 export interface ImageBatchStorageSettings {
@@ -876,6 +884,21 @@ export async function updateClientIPSettings(
   return data
 }
 
+export async function getPanelRateLimitSettings(): Promise<PanelRateLimitSettings> {
+  const { data } = await apiClient.get<PanelRateLimitSettings>('/admin/settings/panel-rate-limit')
+  return data
+}
+
+export async function updatePanelRateLimitSettings(
+  request: PanelRateLimitSettings,
+): Promise<PanelRateLimitSettings> {
+  const { data } = await apiClient.put<PanelRateLimitSettings>(
+    '/admin/settings/panel-rate-limit',
+    request,
+  )
+  return data
+}
+
 export async function getImageBatchStorageSettings(): Promise<ImageBatchStorageSettings> {
   const { data } = await apiClient.get<ImageBatchStorageSettings>(
     '/admin/settings/image-batches/storage',
@@ -977,6 +1000,8 @@ export const settingsAPI = {
   updateImageBatchSettings,
   getClientIPSettings,
   updateClientIPSettings,
+  getPanelRateLimitSettings,
+  updatePanelRateLimitSettings,
   getImageBatchStorageSettings,
   updateImageBatchStorageSettings,
   testImageBatchStorageSettings,

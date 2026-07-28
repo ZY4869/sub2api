@@ -15,15 +15,20 @@ func LoadForBootstrap() (*Config, error) {
 	return load(true)
 }
 func load(allowMissingJWTSecret bool) (*Config, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
-		viper.AddConfigPath(dataDir)
+	if configFile := strings.TrimSpace(os.Getenv("CONFIG_FILE")); configFile != "" {
+		viper.SetConfigFile(configFile)
+	} else {
+		viper.SetConfigFile("")
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		if dataDir := os.Getenv("DATA_DIR"); dataDir != "" {
+			viper.AddConfigPath(dataDir)
+		}
+		viper.AddConfigPath("/app/data")
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./config")
+		viper.AddConfigPath("/etc/sub2api")
 	}
-	viper.AddConfigPath("/app/data")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./config")
-	viper.AddConfigPath("/etc/sub2api")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	_ = viper.BindEnv("update.github_token", "UPDATE_GITHUB_TOKEN")

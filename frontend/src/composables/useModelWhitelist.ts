@@ -169,6 +169,12 @@ const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
     modalities: { input: ["text", "image", "pdf"], output: ["text"] },
     options: { thinking: { budgetTokens: 24576, type: "enabled" } },
   },
+  "gemini-3.6-flash": {
+    name: "Gemini 3.6 Flash",
+    limit: { context: 1048576, output: 65536 },
+    modalities: { input: ["text", "image", "pdf", "audio", "video"], output: ["text"] },
+    options: { thinking: { budgetTokens: 24576, type: "enabled" } },
+  },
   "gemini-3-pro-preview": {
     name: "Gemini 3 Pro Preview",
     limit: { context: 1048576, output: 65536 },

@@ -35,6 +35,23 @@ func (s *geminiCompatHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyURL str
 	return s.Do(req, proxyURL, accountID, accountConcurrency)
 }
 
+func TestGeminiPoolModeRetryableFailoverFlagUsesAccountConfig(t *testing.T) {
+	account := &Account{
+		ID:       110,
+		Type:     AccountTypeAPIKey,
+		Platform: PlatformGemini,
+		Credentials: map[string]any{
+			"pool_mode":                    true,
+			"pool_mode_retry_status_codes": []any{float64(500), float64(502)},
+		},
+	}
+
+	require.True(t, geminiPoolRetryableOnSameAccount(account, http.StatusInternalServerError))
+	require.True(t, geminiPoolRetryableOnSameAccount(account, http.StatusBadGateway))
+	require.False(t, geminiPoolRetryableOnSameAccount(account, http.StatusUnauthorized))
+	require.False(t, geminiPoolRetryableOnSameAccount(nil, http.StatusInternalServerError))
+}
+
 // TestConvertClaudeToolsToGeminiTools_CustomType 测试custom类型工具转换
 func TestConvertClaudeToolsToGeminiTools_CustomType(t *testing.T) {
 	tests := []struct {
