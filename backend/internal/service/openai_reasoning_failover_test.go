@@ -21,10 +21,13 @@ func TestOpenAIReasoningFailover_TrimsForeignEncryptedReasoningFromCanonicalCopy
 		},
 	}
 
+	canonicalInput, ok := canonical["input"].([]any)
+	require.True(t, ok)
+
 	retry := map[string]any{
 		"model":                canonical["model"],
 		"previous_response_id": canonical["previous_response_id"],
-		"input":                append([]any(nil), canonical["input"].([]any)...),
+		"input":                append([]any(nil), canonicalInput...),
 	}
 	changed := trimOpenAIEncryptedReasoningItems(retry)
 	if !HasFunctionCallOutput(retry) {
@@ -33,9 +36,11 @@ func TestOpenAIReasoningFailover_TrimsForeignEncryptedReasoningFromCanonicalCopy
 
 	require.True(t, changed)
 	require.NotContains(t, retry, "previous_response_id")
-	retryInput := retry["input"].([]any)
+	retryInput, ok := retry["input"].([]any)
+	require.True(t, ok)
 	require.Len(t, retryInput, 2)
-	retryReasoning := retryInput[0].(map[string]any)
+	retryReasoning, ok := retryInput[0].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, "reasoning", retryReasoning["type"])
 	require.NotContains(t, retryReasoning, "encrypted_content")
 	require.Contains(t, retryReasoning, "summary")

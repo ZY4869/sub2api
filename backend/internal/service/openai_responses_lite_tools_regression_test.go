@@ -28,7 +28,16 @@ func TestResponsesAnthropicCompat_AdditionalToolsLiftRestoreDeduplicatesNamespac
 	require.NoError(t, err)
 	require.True(t, changed)
 	require.NotContains(t, reqBody, "tools")
-	additional := reqBody["input"].([]any)[1].(map[string]any)["tools"].([]any)
+
+	input, ok := reqBody["input"].([]any)
+	require.True(t, ok)
+	require.Len(t, input, 2)
+	additionalToolsMessage, ok := input[1].(map[string]any)
+	require.True(t, ok)
+	additional, ok := additionalToolsMessage["tools"].([]any)
+	require.True(t, ok)
 	require.Len(t, additional, 1)
-	require.Equal(t, "collaboration", additional[0].(map[string]any)["name"])
+	namespace, ok := additional[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "collaboration", namespace["name"])
 }

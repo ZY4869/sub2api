@@ -141,7 +141,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyVisualPresetDefault:                                VisualPresetClassic,
 		SettingKeyAccountAiryWhiteSurfaceEnabled:                     "false",
 		SettingKeyClientIPSettings:                                   string(clientIPDefaults),
-		SettingKeyPanelRateLimitSettings:                            string(panelRateLimitDefaults),
+		SettingKeyPanelRateLimitSettings:                             string(panelRateLimitDefaults),
 		SettingKeyImageBatchStorageSettings:                          string(imageBatchStorageDefaults),
 	}
 	return s.settingRepo.SetMultiple(ctx, defaults)

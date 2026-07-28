@@ -561,7 +561,7 @@ func TestUpstream165To166CleanroomMatrixGuards(t *testing.T) {
 		"fix(deps): update image and telemetry packages",
 		"fix(frontend): 修复渠道监控时间线在窄卡片下溢出",
 		"chore: update sponsors",
-		"排除：上游 LGPL/GPL/CLA 协议文本、赞助/partner 资产、CI 发布脚本、README 许可段、版本号、/api-docs/*、/admin/api-docs/*",
+		"排除：上游 LGPL/GPL/CLA 协议文本、赞助/partner 资产、CI 发布脚本、README 许可段、依赖例行升级、版本号、/api-docs/*、/admin/api-docs/*",
 	} {
 		require.Contains(t, matrix, expected)
 	}
