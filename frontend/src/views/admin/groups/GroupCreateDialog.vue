@@ -137,7 +137,11 @@
           />
           <p class="input-hint">{{ t('admin.groups.rateMultiplierHint') }}</p>
         </div>
-        <GroupProfitControlFields :form="createForm" :t="t" />
+        <GroupProfitControlFields
+          :form="createForm"
+          :t="t"
+          @update:form="Object.assign(createForm, $event)"
+        />
         <GroupPeakRateFields
           :t="t"
           :form="createForm"

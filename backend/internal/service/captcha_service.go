@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -23,10 +22,10 @@ var (
 )
 
 type CaptchaProof struct {
-	TurnstileToken            string `json:"turnstile_token"`
-	TencentCaptchaTicket      string `json:"tencent_captcha_ticket"`
-	TencentCaptchaRandstr     string `json:"tencent_captcha_randstr"`
-	AliyunCaptchaVerifyParam  string `json:"aliyun_captcha_verify_param"`
+	TurnstileToken           string `json:"turnstile_token"`
+	TencentCaptchaTicket     string `json:"tencent_captcha_ticket"`
+	TencentCaptchaRandstr    string `json:"tencent_captcha_randstr"`
+	AliyunCaptchaVerifyParam string `json:"aliyun_captcha_verify_param"`
 }
 
 type CaptchaRuntimeSettings struct {
@@ -79,7 +78,7 @@ type AliyunCaptchaVerifyConfig struct {
 }
 
 type CaptchaService struct {
-	settings *SettingService
+	settings  *SettingService
 	turnstile *TurnstileService
 	tencent   TencentCaptchaVerifier
 	aliyun    AliyunCaptchaVerifier
@@ -180,16 +179,4 @@ func ValidateCaptchaProviderMutualExclusion(turnstileEnabled, tencentEnabled, al
 		return ErrCaptchaProviderConflict
 	}
 	return nil
-}
-
-func parseTencentCaptchaAppID(raw string) (uint64, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, ErrCaptchaNotConfigured
-	}
-	id, err := strconv.ParseUint(raw, 10, 64)
-	if err != nil || id == 0 {
-		return 0, ErrCaptchaNotConfigured
-	}
-	return id, nil
 }

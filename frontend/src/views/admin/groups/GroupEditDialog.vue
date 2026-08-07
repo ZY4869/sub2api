@@ -135,7 +135,11 @@
             data-tour="group-form-multiplier"
           />
         </div>
-        <GroupProfitControlFields :form="editForm" :t="t" />
+        <GroupProfitControlFields
+          :form="editForm"
+          :t="t"
+          @update:form="Object.assign(editForm, $event)"
+        />
         <GroupPeakRateFields
           :t="t"
           :form="editForm"

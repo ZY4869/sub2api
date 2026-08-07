@@ -4,11 +4,11 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	captchaclient "github.com/alibabacloud-go/captcha-20230305/client"
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	"github.com/alibabacloud-go/tea/dara"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type aliyunCaptchaVerifier struct{}

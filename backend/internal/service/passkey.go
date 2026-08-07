@@ -32,14 +32,14 @@ const (
 )
 
 type PasskeyCredential struct {
-	ID             int64
-	UserID         int64
-	CredentialID   []byte
-	Name           string
-	Credential     webauthn.Credential
-	LastUsedAt     *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              int64
+	UserID          int64
+	CredentialID    []byte
+	Name            string
+	Credential      webauthn.Credential
+	LastUsedAt      *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 	CredentialIDB64 string
 }
 
@@ -76,9 +76,9 @@ type PasskeyLoginResult struct {
 }
 
 type PasskeyService struct {
-	cfg         *config.Config
-	auth       *AuthService
-	repo        PasskeyRepository
+	cfg          *config.Config
+	auth         *AuthService
+	repo         PasskeyRepository
 	sessionStore PasskeySessionStore
 }
 

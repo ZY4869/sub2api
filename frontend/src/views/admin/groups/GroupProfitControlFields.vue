@@ -13,7 +13,7 @@
         type="button"
         class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
         :class="form.profit_control_enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'"
-        @click="form.profit_control_enabled = !form.profit_control_enabled"
+        @click="toggleProfitControlEnabled"
       >
         <span
           class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
@@ -26,26 +26,28 @@
       <div>
         <label class="input-label">{{ t('admin.groups.profitControl.minMargin') }}</label>
         <input
-          v-model.number="form.profit_min_margin"
+          :value="form.profit_min_margin"
           type="number"
           min="0"
           max="100"
           step="0.01"
           class="input"
           placeholder="0"
+          @input="updateNumberField('profit_min_margin', $event)"
         />
         <p class="input-hint">{{ t('admin.groups.profitControl.minMarginHint') }}</p>
       </div>
       <div>
         <label class="input-label">{{ t('admin.groups.profitControl.safetyBuffer') }}</label>
         <input
-          v-model.number="form.profit_safety_buffer"
+          :value="form.profit_safety_buffer"
           type="number"
           min="0"
           max="100"
           step="0.01"
           class="input"
           placeholder="0"
+          @input="updateNumberField('profit_safety_buffer', $event)"
         />
         <p class="input-hint">{{ t('admin.groups.profitControl.safetyBufferHint') }}</p>
       </div>
@@ -59,15 +61,40 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+type ProfitControlForm = {
+  rate_multiplier: number | string
+  profit_control_enabled: boolean
+  profit_min_margin: number | string
+  profit_safety_buffer: number | string
+}
+
 const props = defineProps<{
-  form: {
-    rate_multiplier: number | string
-    profit_control_enabled: boolean
-    profit_min_margin: number | string
-    profit_safety_buffer: number | string
-  }
+  form: ProfitControlForm
   t: (key: string, params?: Record<string, unknown>) => string
 }>()
+
+const emit = defineEmits<{
+  'update:form': [form: ProfitControlForm]
+}>()
+
+const updateForm = (patch: Partial<ProfitControlForm>) => {
+  emit('update:form', { ...props.form, ...patch })
+}
+
+const toggleProfitControlEnabled = () => {
+  updateForm({ profit_control_enabled: !props.form.profit_control_enabled })
+}
+
+const inputValue = (event: Event) => (event.target as HTMLInputElement).value
+
+const updateNumberField = (
+  field: 'profit_min_margin' | 'profit_safety_buffer',
+  event: Event,
+) => {
+  const value = inputValue(event)
+  const parsed = Number.parseFloat(value)
+  updateForm({ [field]: Number.isNaN(parsed) ? value : parsed })
+}
 
 const previewMultiplier = computed(() => {
   const rate = Number(props.form.rate_multiplier)
