@@ -12,6 +12,42 @@ interface OpenBulkEditFilteredModalOptions {
   excludeGrouped?: boolean
 }
 
+const accountsBulkDeleteConcurrency = 4
+const filteredAccountSelectionPageSize = 1000
+
+export async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  task: (item: T, index: number) => Promise<void>,
+) {
+  if (items.length === 0) return
+
+  const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), items.length)
+  let cursor = 0
+  let firstError: unknown
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (cursor < items.length) {
+      const index = cursor
+      cursor += 1
+
+      try {
+        await task(items[index], index)
+      } catch (error) {
+        if (typeof firstError === 'undefined') {
+          firstError = error
+        }
+      }
+    }
+  })
+
+  await Promise.all(workers)
+
+  if (typeof firstError !== 'undefined') {
+    throw firstError
+  }
+}
+
 export function useAccountsBulkActions(ctx: any) {
   const {
     accounts,
@@ -39,8 +75,13 @@ export function useAccountsBulkActions(ctx: any) {
 
 const handleBulkDelete = async () => {
   if (!confirm(t("common.confirm"))) return;
+  const accountIds = [...selIds.value];
   try {
-    await Promise.all(selIds.value.map((id: number) => adminAPI.accounts.delete(id)));
+    await runWithConcurrency(
+      accountIds,
+      accountsBulkDeleteConcurrency,
+      (id: number) => adminAPI.accounts.delete(id).then(() => undefined),
+    );
     clearSelection();
     reload();
   } catch (error) {
@@ -88,6 +129,47 @@ const resolveFilteredBulkEditTotal = async (filters: BulkUpdateAccountsFilters) 
   const response = await adminAPI.accounts.list(1, 1, filters)
   return Number(response.total || 0)
 }
+
+const resolveFilteredAccountIDs = async (filters: BulkUpdateAccountsFilters) => {
+  const firstPage = await adminAPI.accounts.list(
+    1,
+    filteredAccountSelectionPageSize,
+    filters,
+  );
+  const accountIDs = firstPage.items.map((account: Account) => account.id);
+  const totalPages = Math.max(Number(firstPage.pages || 1), 1);
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const response = await adminAPI.accounts.list(
+      page,
+      filteredAccountSelectionPageSize,
+      filters,
+    );
+    accountIDs.push(...response.items.map((account: Account) => account.id));
+  }
+
+  return Array.from(new Set(accountIDs));
+};
+
+const handleSelectFilteredAccounts = async () => {
+  const filters = buildBulkEditFiltersFromParams();
+  try {
+    const accountIDs = await resolveFilteredAccountIDs(filters);
+    if (accountIDs.length === 0) {
+      appStore.showWarning(t("admin.accounts.bulkActions.selectFilteredNoTargets"));
+      return;
+    }
+    setSelectedIds(accountIDs);
+    appStore.showSuccess(
+      t("admin.accounts.bulkActions.selectFilteredSuccess", {
+        count: accountIDs.length,
+      }),
+    );
+  } catch (error) {
+    console.error("Failed to select filtered accounts:", error);
+    appStore.showError(t("admin.accounts.bulkActions.selectFilteredFailed"));
+  }
+};
 
 const openBulkEditFilteredModal = async (
   options: OpenBulkEditFilteredModalOptions = {},
@@ -465,6 +547,7 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
     openArchiveSelectedModal,
     toOptionalString,
     buildBulkEditFiltersFromParams,
+    handleSelectFilteredAccounts,
     openBulkEditSelectedModal,
     openBulkEditFilteredModal,
     closeBulkEditModal,

@@ -21,6 +21,12 @@
         :show-git-hub="githubOAuthEnabled"
         :show-google="googleOAuthEnabled"
         :show-ding-talk="dingtalkOAuthEnabled"
+        :captcha-provider="captchaProvider"
+        :turnstile-site-key="turnstileSiteKey"
+        :tencent-captcha-app-id="tencentCaptchaAppID"
+        :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+        :aliyun-captcha-prefix="aliyunCaptchaPrefix"
+        :aliyun-captcha-region="aliyunCaptchaRegion"
       />
 
       <!-- Login Form -->
@@ -96,19 +102,36 @@
           </div>
         </div>
 
-        <!-- Turnstile Widget -->
-        <div v-if="turnstileEnabled && turnstileSiteKey">
-          <TurnstileWidget
-            ref="turnstileRef"
-            :site-key="turnstileSiteKey"
-            @verify="onTurnstileVerify"
-            @expire="onTurnstileExpire"
-            @error="onTurnstileError"
+        <!-- Captcha Widget -->
+        <div v-if="captchaRequired">
+          <CaptchaChallenge
+            ref="captchaRef"
+            :provider="captchaProvider"
+            :turnstile-site-key="turnstileSiteKey"
+            :tencent-captcha-app-id="tencentCaptchaAppID"
+            :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+            :aliyun-prefix="aliyunCaptchaPrefix"
+            :aliyun-region="aliyunCaptchaRegion"
+            :disabled="isLoading"
+            @verify="onCaptchaVerify"
+            @expire="onCaptchaExpire"
+            @error="onCaptchaError"
           />
           <p v-if="errors.turnstile" class="input-error-text mt-2 text-center">
             {{ errors.turnstile }}
           </p>
         </div>
+
+        <button
+          v-if="passkeyEnabled"
+          type="button"
+          class="btn btn-secondary w-full"
+          :disabled="isLoading || passkeyLoading || (captchaRequired && !captchaVerified)"
+          @click="handlePasskeyLogin"
+        >
+          <Icon name="key" size="md" class="mr-2" />
+          {{ passkeyLoading ? '正在验证 Passkey' : '使用 Passkey 登录' }}
+        </button>
 
         <LoginAgreementPrompt
           v-model:accepted="loginAgreementAccepted"
@@ -139,7 +162,7 @@
           type="submit"
           :disabled="
             isLoading ||
-            (turnstileEnabled && !turnstileToken) ||
+            (captchaRequired && !captchaVerified) ||
             (loginAgreementEnabled && !loginAgreementAccepted)
           "
           class="btn btn-primary w-full"
@@ -196,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
@@ -204,11 +227,12 @@ import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
 import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
+import CaptchaChallenge from '@/components/auth/CaptchaChallenge.vue'
 import Icon from '@/components/icons/Icon.vue'
-import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'
 import { getPublicSettings, isTotp2FARequired } from '@/api/auth'
-import type { LoginAgreementDocument, TotpLoginResponse } from '@/types'
+import { passkeyAPI } from '@/api/passkeys'
+import type { CaptchaProof, CaptchaProvider, LoginAgreementDocument, TotpLoginResponse } from '@/types'
 
 const { t } = useI18n()
 
@@ -221,12 +245,17 @@ const appStore = useAppStore()
 // ==================== State ====================
 
 const isLoading = ref<boolean>(false)
+const passkeyLoading = ref<boolean>(false)
 const errorMessage = ref<string>('')
 const showPassword = ref<boolean>(false)
 
 // Public settings
-const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
+const captchaProvider = ref<CaptchaProvider>('none')
+const tencentCaptchaAppID = ref<string>('')
+const aliyunCaptchaSceneID = ref<string>('')
+const aliyunCaptchaPrefix = ref<string>('')
+const aliyunCaptchaRegion = ref<string>('')
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const githubOAuthEnabled = ref<boolean>(false)
 const googleOAuthEnabled = ref<boolean>(false)
@@ -234,14 +263,17 @@ const dingtalkOAuthEnabled = ref<boolean>(false)
 const backendModeEnabled = ref<boolean>(false)
 const maintenanceModeEnabled = ref<boolean>(false)
 const passwordResetEnabled = ref<boolean>(false)
+const passkeyEnabled = ref<boolean>(false)
 const socialOAuthVisible = ref<boolean>(false)
 const loginAgreementEnabled = ref<boolean>(false)
 const loginAgreementAccepted = ref<boolean>(false)
 const loginAgreementDocuments = ref<LoginAgreementDocument[]>([])
 
-// Turnstile
-const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
-const turnstileToken = ref<string>('')
+// Captcha
+const captchaRef = ref<InstanceType<typeof CaptchaChallenge> | null>(null)
+const captchaProof = ref<CaptchaProof>({})
+const captchaVerified = ref<boolean>(false)
+const captchaRequired = computed(() => captchaProvider.value !== 'none')
 
 // 2FA state
 const show2FAModal = ref<boolean>(false)
@@ -274,8 +306,19 @@ onMounted(async () => {
 
   try {
     const settings = await getPublicSettings()
-    turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
+    captchaProvider.value = settings.captcha_provider ||
+      (settings.tencent_captcha_enabled
+        ? 'tencent'
+        : settings.aliyun_captcha_enabled
+          ? 'aliyun'
+          : settings.turnstile_enabled
+            ? 'turnstile'
+            : 'none')
+    tencentCaptchaAppID.value = settings.tencent_captcha_app_id || ''
+    aliyunCaptchaSceneID.value = settings.aliyun_captcha_scene_id || ''
+    aliyunCaptchaPrefix.value = settings.aliyun_captcha_prefix || ''
+    aliyunCaptchaRegion.value = settings.aliyun_captcha_region || ''
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     githubOAuthEnabled.value = settings.github_oauth_enabled
     googleOAuthEnabled.value = settings.google_oauth_enabled
@@ -283,6 +326,7 @@ onMounted(async () => {
     backendModeEnabled.value = settings.backend_mode_enabled
     maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     passwordResetEnabled.value = settings.password_reset_enabled
+    passkeyEnabled.value = !!settings.passkey_enabled && !!window.PublicKeyCredential
     loginAgreementEnabled.value =
       settings.login_agreement_enabled === true &&
       Array.isArray(settings.login_agreement_documents) &&
@@ -300,20 +344,23 @@ onMounted(async () => {
   }
 })
 
-// ==================== Turnstile Handlers ====================
+// ==================== Captcha Handlers ====================
 
-function onTurnstileVerify(token: string): void {
-  turnstileToken.value = token
+function onCaptchaVerify(proof: CaptchaProof): void {
+  captchaProof.value = proof
+  captchaVerified.value = true
   errors.turnstile = ''
 }
 
-function onTurnstileExpire(): void {
-  turnstileToken.value = ''
+function onCaptchaExpire(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
   errors.turnstile = t('auth.turnstileExpired')
 }
 
-function onTurnstileError(): void {
-  turnstileToken.value = ''
+function onCaptchaError(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
   errors.turnstile = t('auth.turnstileFailed')
 }
 
@@ -347,7 +394,7 @@ function validateForm(): boolean {
   }
 
   // Turnstile validation
-  if (turnstileEnabled.value && !turnstileToken.value) {
+  if (captchaRequired.value && !captchaVerified.value) {
     errors.turnstile = t('auth.completeVerification')
     isValid = false
   }
@@ -378,7 +425,7 @@ async function handleLogin(): Promise<void> {
     const response = await authStore.login({
       email: formData.email,
       password: formData.password,
-      turnstile_token: turnstileEnabled.value ? turnstileToken.value : undefined
+      ...captchaProof.value
     })
 
     // Check if 2FA is required
@@ -399,10 +446,9 @@ async function handleLogin(): Promise<void> {
     await router.push(redirectTo)
   } catch (error: unknown) {
     // Reset Turnstile on error
-    if (turnstileRef.value) {
-      turnstileRef.value.reset()
-      turnstileToken.value = ''
-    }
+    captchaRef.value?.reset()
+    captchaProof.value = {}
+    captchaVerified.value = false
 
     // Handle login error
     const err = error as { message?: string; response?: { data?: { detail?: string } } }
@@ -419,6 +465,32 @@ async function handleLogin(): Promise<void> {
     appStore.showError(errorMessage.value)
   } finally {
     isLoading.value = false
+  }
+}
+
+async function handlePasskeyLogin(): Promise<void> {
+  errorMessage.value = ''
+  errors.turnstile = ''
+  if (captchaRequired.value && !captchaVerified.value) {
+    errors.turnstile = t('auth.completeVerification')
+    return
+  }
+  passkeyLoading.value = true
+  try {
+    const response = await passkeyAPI.loginWithPasskey(captchaProof.value)
+    authStore.acceptAuthResponse(response)
+    appStore.showSuccess(t('auth.loginSuccess'))
+    const redirectTo = (router.currentRoute.value.query.redirect as string) || '/dashboard'
+    await router.push(redirectTo)
+  } catch (error: unknown) {
+    captchaRef.value?.reset()
+    captchaProof.value = {}
+    captchaVerified.value = false
+    const err = error as { message?: string }
+    errorMessage.value = err.message || 'Passkey 登录失败'
+    appStore.showError(errorMessage.value)
+  } finally {
+    passkeyLoading.value = false
   }
 }
 

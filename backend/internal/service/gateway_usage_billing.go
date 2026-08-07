@@ -339,6 +339,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		baseMultiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, group, time.Now())
+	flatMultiplier := effectiveFlatRateMultiplier(baseMultiplier, group)
 	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
@@ -375,7 +376,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		RequestedServiceTier:           geminiForwardResultRequestedServiceTier(result),
 		ResolvedServiceTier:            geminiForwardResultResolvedServiceTier(result),
 		RateMultiplier:                 multiplier,
-		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
+		FlatRateMultiplier:             cloneRateMultiplier(flatMultiplier),
 		ImagePriceConfig:               groupConfig,
 	})
 	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
@@ -385,7 +386,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, flatMultiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && group != nil && group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
@@ -450,6 +451,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		APIKeyService:         input.APIKeyService,
 		CurrencyConversion:    billingCurrencyConversionFromSettings(ctx, s.settingService),
 	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
+		markUsageLogBillingFailure(usageLog, billingErr)
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
@@ -506,6 +509,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		baseMultiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
 	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, group, time.Now())
+	flatMultiplier := effectiveFlatRateMultiplier(baseMultiplier, group)
 	tokens := normalizedUsage.BillingTokens
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
@@ -542,7 +546,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		RequestedServiceTier:           geminiForwardResultRequestedServiceTier(result),
 		ResolvedServiceTier:            geminiForwardResultResolvedServiceTier(result),
 		RateMultiplier:                 multiplier,
-		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
+		FlatRateMultiplier:             cloneRateMultiplier(flatMultiplier),
 		ImagePriceConfig:               groupConfig,
 		LongContextThreshold:           input.LongContextThreshold,
 		LongContextMultiplier:          input.LongContextMultiplier,
@@ -554,7 +558,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, flatMultiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && group != nil && group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
@@ -619,6 +623,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		APIKeyService:         input.APIKeyService,
 		CurrencyConversion:    billingCurrencyConversionFromSettings(ctx, s.settingService),
 	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
+		markUsageLogBillingFailure(usageLog, billingErr)
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")

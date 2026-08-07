@@ -41,6 +41,13 @@ func RegisterUserRoutes(
 			user.GET("/external-model-catalog", h.APIKey.GetExternalModelCatalog)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliate)
+			if h.Passkey != nil {
+				user.GET("/passkeys", h.Passkey.List)
+				user.POST("/passkeys/register/begin", h.Passkey.BeginRegistration)
+				user.POST("/passkeys/register/finish", h.Passkey.FinishRegistration)
+				user.PATCH("/passkeys/:id", h.Passkey.Rename)
+				user.DELETE("/passkeys/:id", h.Passkey.Delete)
+			}
 
 			totp := user.Group("/totp")
 			{

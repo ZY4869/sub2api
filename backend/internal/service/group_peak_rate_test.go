@@ -56,3 +56,24 @@ func TestGroupEffectiveTokenRateMultiplierAt(t *testing.T) {
 	require.False(t, group.IsPeakRateActiveAt(time.Date(2026, 7, 3, 10, 0, 0, 0, timezone.Location())))
 	require.Equal(t, 1.2, group.EffectiveTokenRateMultiplierAt(1.2, time.Date(2026, 7, 3, 10, 0, 0, 0, timezone.Location())))
 }
+
+func TestGroupProfitControlMultiplier(t *testing.T) {
+	now := time.Date(2026, 7, 3, 10, 0, 0, 0, timezone.Location())
+	group := &Group{
+		SubscriptionType:     SubscriptionTypeSubscription,
+		ProfitControlEnabled: true,
+		ProfitMinMargin:      20,
+		ProfitSafetyBuffer:   5,
+		PeakRateEnabled:      true,
+		PeakStart:            "09:00",
+		PeakEnd:              "18:00",
+		PeakRateMultiplier:   2,
+	}
+
+	require.InDelta(t, 1.5, group.EffectiveFlatRateMultiplier(1.2), 1e-12)
+	require.InDelta(t, 3.0, group.EffectiveTokenRateMultiplierAt(1.2, now), 1e-12)
+
+	group.ProfitControlEnabled = false
+	require.InDelta(t, 1.2, group.EffectiveFlatRateMultiplier(1.2), 1e-12)
+	require.InDelta(t, 2.4, group.EffectiveTokenRateMultiplierAt(1.2, now), 1e-12)
+}

@@ -1,13 +1,10 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SocialOAuthSection from './SocialOAuthSection.vue'
 
 const mockState = vi.hoisted(() => ({
-  buildSocialOAuthStartURL: vi.fn((provider: string, options?: Record<string, string>) => {
-    const params = new URLSearchParams(options as Record<string, string>)
-    return `/api/v1/auth/oauth/${provider}/start?${params.toString()}`
-  }),
+  startSocialOAuth: vi.fn(),
   route: {
     query: {},
   },
@@ -28,14 +25,15 @@ vi.mock('vue-i18n', async () => {
 })
 
 vi.mock('@/api/auth', () => ({
-  buildSocialOAuthStartURL: mockState.buildSocialOAuthStartURL,
+  startSocialOAuth: mockState.startSocialOAuth,
 }))
 
 describe('SocialOAuthSection', () => {
   const originalLocation = window.location
 
   beforeEach(() => {
-    mockState.buildSocialOAuthStartURL.mockClear()
+    mockState.startSocialOAuth.mockReset()
+    mockState.startSocialOAuth.mockResolvedValue({ authorize_url: 'https://oauth.example/start' })
     mockState.route.query = {}
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -51,30 +49,45 @@ describe('SocialOAuthSection', () => {
   })
 
   it('starts GitHub social login with redirect and mode', async () => {
+    mockState.route.query = { aff_code: 'AFF-123' }
+    mockState.startSocialOAuth.mockResolvedValue({ authorize_url: 'https://oauth.example/github' })
     const wrapper = mount(SocialOAuthSection, {
       props: {
         showGitHub: true,
         mode: 'bind',
         redirect: '/profile',
+        captchaProvider: 'turnstile',
+        turnstileSiteKey: 'site-key',
       },
       global: {
         stubs: {
+          CaptchaChallenge: {
+            template: '<div data-test="captcha" @click="$emit(\'verify\', { turnstile_token: \'proof-token\' })" />',
+          },
           LobeStaticIcon: { template: '<span data-test="icon" />' },
         },
       },
     })
 
-    ;(wrapper.get('button').element as HTMLButtonElement).click()
+    const oauthButton = wrapper.findAll('button')[0]
+    expect((oauthButton.element as HTMLButtonElement).disabled).toBe(true)
 
-    expect(mockState.buildSocialOAuthStartURL).toHaveBeenCalledWith('github', {
+    await wrapper.get('[data-test="captcha"]').trigger('click')
+    await oauthButton.trigger('click')
+    await flushPromises()
+
+    expect(mockState.startSocialOAuth).toHaveBeenCalledWith('github', {
+      turnstile_token: 'proof-token',
       mode: 'bind',
       redirect: '/profile',
+      aff_code: 'AFF-123',
     })
-    expect(window.location.href).toContain('/api/v1/auth/oauth/github/start')
+    expect(window.location.href).toBe('https://oauth.example/github')
   })
 
   it('uses route redirect fallback for Google login', async () => {
     mockState.route.query = { redirect: '/workspace' }
+    mockState.startSocialOAuth.mockResolvedValue({ authorize_url: 'https://oauth.example/google' })
 
     const wrapper = mount(SocialOAuthSection, {
       props: {
@@ -87,12 +100,14 @@ describe('SocialOAuthSection', () => {
       },
     })
 
-    ;(wrapper.get('button').element as HTMLButtonElement).click()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
 
-    expect(mockState.buildSocialOAuthStartURL).toHaveBeenCalledWith('google', {
+    expect(mockState.startSocialOAuth).toHaveBeenCalledWith('google', {
       mode: 'login',
       redirect: '/workspace',
+      aff_code: undefined,
     })
-    expect(window.location.href).toContain('/api/v1/auth/oauth/google/start')
+    expect(window.location.href).toBe('https://oauth.example/google')
   })
 })

@@ -221,6 +221,33 @@ func (s *subscriptionUserSubRepoStub) GetByIDIncludingDeleted(ctx context.Contex
 	return s.GetByID(ctx, id)
 }
 
+func (s *subscriptionUserSubRepoStub) ExtendExpiry(_ context.Context, id int64, newExpiresAt time.Time) error {
+	sub := s.byID[id]
+	if sub == nil {
+		return ErrSubscriptionNotFound
+	}
+	sub.ExpiresAt = newExpiresAt
+	return nil
+}
+
+func (s *subscriptionUserSubRepoStub) UpdateStatus(_ context.Context, id int64, status string) error {
+	sub := s.byID[id]
+	if sub == nil {
+		return ErrSubscriptionNotFound
+	}
+	sub.Status = status
+	return nil
+}
+
+func (s *subscriptionUserSubRepoStub) UpdateNotes(_ context.Context, id int64, notes string) error {
+	sub := s.byID[id]
+	if sub == nil {
+		return ErrSubscriptionNotFound
+	}
+	sub.Notes = notes
+	return nil
+}
+
 func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 	start := time.Date(2026, 2, 20, 10, 0, 0, 0, time.UTC)
 	groupRepo := &subscriptionGroupRepoStub{
@@ -246,6 +273,39 @@ func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(10), sub.ID)
 	require.Equal(t, 0, subRepo.createCalls, "reuse should not create new subscription")
+}
+
+func TestAssignOrExtendSubscriptionExistingFallbackExtendsFromCurrentExpiry(t *testing.T) {
+	now := time.Now()
+	existingExpiry := now.Add(48 * time.Hour).Truncate(time.Second)
+	groupRepo := &subscriptionGroupRepoStub{
+		group: &Group{ID: 1, SubscriptionType: SubscriptionTypeSubscription},
+	}
+	subRepo := newSubscriptionUserSubRepoStub()
+	subRepo.seed(&UserSubscription{
+		ID:        30,
+		UserID:    3001,
+		GroupID:   1,
+		StartsAt:  now.Add(-24 * time.Hour),
+		ExpiresAt: existingExpiry,
+		Status:    SubscriptionStatusSuspended,
+		Notes:     "first",
+	})
+
+	svc := NewSubscriptionService(groupRepo, subRepo, nil, nil, nil)
+	sub, extended, err := svc.AssignOrExtendSubscription(context.Background(), &AssignSubscriptionInput{
+		UserID:       3001,
+		GroupID:      1,
+		ValidityDays: 7,
+		Notes:        "renewed",
+	})
+
+	require.NoError(t, err)
+	require.True(t, extended)
+	require.Equal(t, int64(30), sub.ID)
+	require.Equal(t, SubscriptionStatusActive, sub.Status)
+	require.Equal(t, "first\nrenewed", sub.Notes)
+	require.WithinDuration(t, existingExpiry.AddDate(0, 0, 7), sub.ExpiresAt, time.Second)
 }
 
 func TestAssignSubscriptionConflictWhenSemanticsMismatch(t *testing.T) {

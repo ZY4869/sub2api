@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const expectedReleaseVersion = "0.1.412"
+const expectedReleaseVersion = "0.1.413"
 
 func TestSelectiveUpstreamAbsorptionReleaseGuards(t *testing.T) {
 	root := repositoryTestRepoRoot(t)
@@ -594,6 +594,195 @@ func TestUpstream165To166CleanroomMatrixGuards(t *testing.T) {
 	require.Contains(t, generatedRegistry, `"id": "gemini-3.6-flash"`)
 
 	require.Contains(t, matrix, "未引入上游赞助/partner 资产变更")
+	assertNoAPIDocsRoutes(t, root)
+	assertNoCopyleftLicenseTextInRuntimeCode(t, root)
+}
+
+func TestUpstream168To171CleanroomMatrixGuards(t *testing.T) {
+	root := repositoryTestRepoRoot(t)
+
+	matrix := readRepoFile(t, root, "docs", "upstream-sync", "upstream-v0.1.168-v0.1.171-cleanroom-sync-matrix.md")
+	for _, unresolved := range []string{
+		"待回归确认",
+		"部分融合",
+		"待确认",
+	} {
+		require.NotContains(t, matrix, unresolved)
+	}
+	for _, expected := range []string{
+		"`v0.1.168=99c8e4b`",
+		"`v0.1.169=26d894e`",
+		"`v0.1.170=c043c24`",
+		"`v0.1.171=f0e7a9c`",
+		"本地基线：`0.1.412`",
+		"不执行 `git pull`、`git fetch`、merge、rebase、cherry-pick",
+		"MIT License",
+		"LGPL/GPL/CLA",
+		"`/api-docs/*`",
+		"`/admin/api-docs/*`",
+		"`display_model_id`",
+		"`target_model_id` 仅内部诊断/管理用途",
+		"`170_add_passkey_credentials.sql`",
+		"`171_add_group_profit_control.sql`",
+		"Passkey 注册、登录、重命名、删除、最近使用时间 | 已重写融合",
+		"模型广场 `/model-plaza` | 已重写融合",
+		"容器 no-new-privileges | 已重写融合",
+		"腾讯天御验证码 | 已重写融合",
+		"阿里云验证码 2.0 | 已重写融合",
+		"分组利润控制 | 已重写融合，默认关闭",
+		"profit-preview | 已重写融合",
+		"退款 `require_force` | 已重写融合",
+		"Usage log retained on billing failure | 已重写融合",
+		"Subscription renewal lock / quota window 修复 | 已重写融合/已覆盖",
+		"Anthropic interrupted stream partial usage billing | 已覆盖",
+		"`count_tokens` 参数清理 | 已重写融合",
+		"OpenAI WS close frame / SSE 429 / pool capacity retry | 已覆盖/已补测",
+		"Messages temporary account failover | 已覆盖",
+		"Codex namespace tools / instructions / web search manifest | 已覆盖",
+		"Codex originator normalization 与版本同步 | 本地等价覆盖",
+		"`min_claude_code_version`",
+		"`max_claude_code_version`",
+		"OpenAI reset credit cache refresh/recovery | 已覆盖",
+		"模型复制按钮、筛选结果全选账号、批量删除限并发、compact home preset | 已重写融合/已覆盖",
+		"Kimi K3、GPT-5.6 Luna/Terra、GLM-5.2、Sonnet 5 状态别名",
+		"`billing_failed`",
+		"`GetByUserIDAndGroupIDForUpdate`",
+		"`stripCountTokensGenerationFields`",
+		"`max_tokens`",
+		"`disable_codex_originator_normalization`",
+		"`runWithConcurrency`",
+		"`select-filtered`",
+	} {
+		require.Contains(t, matrix, expected)
+	}
+
+	license := readRepoFile(t, root, "LICENSE")
+	require.True(t, strings.HasPrefix(license, "MIT License"), "root LICENSE must remain MIT")
+	for _, forbidden := range []string{
+		"GNU LESSER GENERAL PUBLIC LICENSE",
+		"GNU GENERAL PUBLIC LICENSE",
+		"LGPL-3.0",
+		"Contributor License Agreement",
+	} {
+		require.NotContains(t, license, forbidden)
+	}
+	require.Equal(t, expectedReleaseVersion, strings.TrimSpace(readRepoFile(t, root, "backend", "cmd", "server", "VERSION")))
+
+	for _, compose := range []string{
+		"docker-compose.yml",
+		"docker-compose.local.yml",
+		"docker-compose.standalone.yml",
+		"docker-compose.dev.yml",
+	} {
+		body := readRepoFile(t, root, "deploy", compose)
+		require.Contains(t, body, "security_opt:", "%s must set container security_opt", compose)
+		require.Contains(t, body, "no-new-privileges:true", "%s must prevent privilege escalation", compose)
+	}
+
+	_, err := os.Stat(filepath.Join(root, "backend", "migrations", "170_add_passkey_credentials.sql"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(root, "backend", "migrations", "171_add_group_profit_control.sql"))
+	require.NoError(t, err)
+
+	groupRoutes := readRepoFile(t, root, "backend", "internal", "server", "routes", "admin.go")
+	require.Contains(t, groupRoutes, `groups.POST("/profit-preview"`)
+
+	modelPlazaView := readRepoFile(t, root, "backend", "internal", "handler", "model_plaza_view.go")
+	require.Contains(t, modelPlazaView, "DisplayModelID")
+	require.Contains(t, modelPlazaView, `json:"display_model_id"`)
+	require.NotContains(t, modelPlazaView, "target_model_id")
+
+	settingsView := readRepoFile(t, root, "frontend", "src", "views", "admin", "settings", "SettingsSecurityAuthTab.vue")
+	require.Contains(t, settingsView, "captchaProviderOptions")
+	require.Contains(t, settingsView, "tencent_captcha_enabled")
+	require.Contains(t, settingsView, "aliyun_captcha_enabled")
+	require.Contains(t, settingsView, "passkey_enabled")
+	settingsDTO := readRepoFile(t, root, "backend", "internal", "handler", "dto", "settings.go")
+	require.Contains(t, settingsDTO, `PasskeyEnabled`)
+	require.Contains(t, settingsDTO, `json:"passkey_enabled"`)
+	settingsConstants := readRepoFile(t, root, "backend", "internal", "service", "domain_constants.go")
+	require.Contains(t, settingsConstants, `SettingKeyPasskeyEnabled`)
+	require.Contains(t, settingsConstants, `"passkey_enabled"`)
+	settingsUpdate := readRepoFile(t, root, "backend", "internal", "service", "setting_service_update.go")
+	require.Contains(t, settingsUpdate, `updates[SettingKeyPasskeyEnabled]`)
+	settingsPublic := readRepoFile(t, root, "backend", "internal", "service", "setting_service_public.go")
+	require.Contains(t, settingsPublic, `SettingKeyPasskeyEnabled`)
+	require.Contains(t, settingsPublic, `&& settings[SettingKeyPasskeyEnabled] == "true"`)
+	settingsRuntime := readRepoFile(t, root, "backend", "internal", "service", "setting_service_runtime_flags.go")
+	require.Contains(t, settingsRuntime, `func (s *SettingService) IsPasskeyEnabled`)
+	require.Contains(t, settingsRuntime, `!s.cfg.WebAuthn.Enabled`)
+	adminSettingsUpdate := readRepoFile(t, root, "backend", "internal", "handler", "admin", "setting_handler_general.go")
+	require.Contains(t, adminSettingsUpdate, `json:"passkey_enabled"`)
+	require.Contains(t, adminSettingsUpdate, `PasskeyEnabled: req.PasskeyEnabled`)
+	passkeyHandler := readRepoFile(t, root, "backend", "internal", "handler", "passkey_handler.go")
+	require.Contains(t, passkeyHandler, "passkeysEnabled")
+	require.Contains(t, passkeyHandler, "ErrPasskeysDisabled")
+	passkeyRepoTests := readRepoFile(t, root, "backend", "internal", "repository", "passkey_repo_test.go")
+	require.Contains(t, passkeyRepoTests, "TestPasskeyRepositoryUserHandleIsIdempotent")
+	require.Contains(t, passkeyRepoTests, "TestPasskeyRepositoryListRenameAndDeleteEnforceOwnership")
+	require.Contains(t, passkeyRepoTests, "TestPasskeyRepositoryUpdateCredentialStoresLastUsedAt")
+
+	groupProfitFields := readRepoFile(t, root, "frontend", "src", "views", "admin", "groups", "GroupProfitControlFields.vue")
+	require.Contains(t, groupProfitFields, "profit_control_enabled")
+	require.Contains(t, groupProfitFields, "profit_min_margin")
+	require.Contains(t, groupProfitFields, "profit_safety_buffer")
+
+	usageBillingApply := readRepoFile(t, root, "backend", "internal", "service", "usage_billing_apply.go")
+	require.Contains(t, usageBillingApply, `usageBillingFailureErrorCode = "billing_failed"`)
+	require.Contains(t, usageBillingApply, "markUsageLogBillingFailure")
+	openAIUsage := readRepoFile(t, root, "backend", "internal", "service", "openai_gateway_usage.go")
+	require.Contains(t, openAIUsage, "markUsageLogBillingFailure")
+	openAIWebSearchUsage := readRepoFile(t, root, "backend", "internal", "service", "openai_gateway_search_usage.go")
+	require.Contains(t, openAIWebSearchUsage, "markUsageLogBillingFailure")
+	gatewayUsageBilling := readRepoFile(t, root, "backend", "internal", "service", "gateway_usage_billing.go")
+	require.Contains(t, gatewayUsageBilling, "markUsageLogBillingFailure")
+
+	subscriptionAssign := readRepoFile(t, root, "backend", "internal", "service", "subscription_assign.go")
+	require.Contains(t, subscriptionAssign, "assignOrExtendSubscriptionWithRowLock")
+	require.Contains(t, subscriptionAssign, "GetByUserIDAndGroupIDForUpdate")
+	subscriptionRepo := readRepoFile(t, root, "backend", "internal", "repository", "user_subscription_repo.go")
+	require.Contains(t, subscriptionRepo, "GetByUserIDAndGroupIDForUpdate")
+	require.Contains(t, subscriptionRepo, "ForUpdate()")
+
+	countTokens := readRepoFile(t, root, "backend", "internal", "service", "gateway_count_tokens.go")
+	require.Contains(t, countTokens, "stripCountTokensGenerationFields")
+	require.Contains(t, countTokens, `"max_tokens"`)
+
+	gatewayConfig := readRepoFile(t, root, "backend", "internal", "config", "config_types_gateway.go")
+	require.Contains(t, gatewayConfig, "DisableCodexOriginatorNormalization")
+	configDefaults := readRepoFile(t, root, "backend", "internal", "config", "config_defaults.go")
+	require.Contains(t, configDefaults, `gateway.disable_codex_originator_normalization", false`)
+	codexIdentity := readRepoFile(t, root, "backend", "internal", "service", "openai_codex_identity.go")
+	require.Contains(t, codexIdentity, "enforceCodexIdentityHeadersWithConfig")
+	require.Contains(t, codexIdentity, "DisableCodexOriginatorNormalization")
+
+	accountBulkActions := readRepoFile(t, root, "frontend", "src", "views", "admin", "accounts", "useAccountsBulkActions.ts")
+	require.Contains(t, accountBulkActions, "runWithConcurrency")
+	require.Contains(t, accountBulkActions, "accountsBulkDeleteConcurrency = 4")
+	require.Contains(t, accountBulkActions, "handleSelectFilteredAccounts")
+	require.Contains(t, accountBulkActions, "filteredAccountSelectionPageSize = 1000")
+	accountBulkBar := readRepoFile(t, root, "frontend", "src", "components", "admin", "account", "AccountBulkActionsBar.vue")
+	require.Contains(t, accountBulkBar, "select-filtered")
+	require.Contains(t, accountBulkBar, "selectFilteredResultsWithCount")
+	modelPlazaContent := readRepoFile(t, root, "frontend", "src", "components", "models", "ModelPlazaContent.vue")
+	require.Contains(t, modelPlazaContent, "copyModel(model.display_model_id)")
+	require.NotContains(t, modelPlazaContent, "target_model_id")
+	settingsGeneral := readRepoFile(t, root, "frontend", "src", "views", "admin", "settings", "SettingsGeneralTab.vue")
+	require.Contains(t, settingsGeneral, "visual_preset_default")
+	require.Contains(t, settingsGeneral, "account_airy_white_surface_enabled")
+	require.Contains(t, settingsGeneral, "home_content")
+
+	modelRegistrySeed := readRepoFile(t, root, "backend", "internal", "modelregistry", "registry_seed.json")
+	modelCatalogSeed := readRepoFile(t, root, "backend", "internal", "service", "model_catalog_seed.json")
+	pricingCatalog := readRepoFile(t, root, "backend", "resources", "model-pricing", "model_prices_and_context_window.json")
+	generatedRegistry := readRepoFile(t, root, "frontend", "src", "generated", "modelRegistry.ts")
+	for _, model := range []string{"claude-sonnet-5", "kimi-k3", "glm-5.2"} {
+		require.Contains(t, modelRegistrySeed, model)
+		require.Contains(t, modelCatalogSeed, model)
+		require.Contains(t, pricingCatalog, model)
+		require.Contains(t, generatedRegistry, model)
+	}
+
 	assertNoAPIDocsRoutes(t, root)
 	assertNoCopyleftLicenseTextInRuntimeCode(t, root)
 }

@@ -19,8 +19,16 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PasswordResetEnabled             bool                      `json:"password_reset_enabled"`
 		InvitationCodeEnabled            bool                      `json:"invitation_code_enabled"`
 		TotpEnabled                      bool                      `json:"totp_enabled"`
+		PasskeyEnabled                   bool                      `json:"passkey_enabled"`
 		TurnstileEnabled                 bool                      `json:"turnstile_enabled"`
 		TurnstileSiteKey                 string                    `json:"turnstile_site_key,omitempty"`
+		CaptchaProvider                  string                    `json:"captcha_provider"`
+		TencentCaptchaEnabled            bool                      `json:"tencent_captcha_enabled"`
+		TencentCaptchaAppID              string                    `json:"tencent_captcha_app_id,omitempty"`
+		AliyunCaptchaEnabled             bool                      `json:"aliyun_captcha_enabled"`
+		AliyunCaptchaSceneID             string                    `json:"aliyun_captcha_scene_id,omitempty"`
+		AliyunCaptchaPrefix              string                    `json:"aliyun_captcha_prefix,omitempty"`
+		AliyunCaptchaRegion              string                    `json:"aliyun_captcha_region,omitempty"`
 		SiteName                         string                    `json:"site_name"`
 		SiteLogo                         string                    `json:"site_logo,omitempty"`
 		SiteSubtitle                     string                    `json:"site_subtitle,omitempty"`
@@ -65,8 +73,16 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PasswordResetEnabled:             settings.PasswordResetEnabled,
 		InvitationCodeEnabled:            settings.InvitationCodeEnabled,
 		TotpEnabled:                      settings.TotpEnabled,
+		PasskeyEnabled:                   settings.PasskeyEnabled,
 		TurnstileEnabled:                 settings.TurnstileEnabled,
 		TurnstileSiteKey:                 settings.TurnstileSiteKey,
+		CaptchaProvider:                  settings.CaptchaProvider,
+		TencentCaptchaEnabled:            settings.TencentCaptchaEnabled,
+		TencentCaptchaAppID:              settings.TencentCaptchaAppID,
+		AliyunCaptchaEnabled:             settings.AliyunCaptchaEnabled,
+		AliyunCaptchaSceneID:             settings.AliyunCaptchaSceneID,
+		AliyunCaptchaPrefix:              settings.AliyunCaptchaPrefix,
+		AliyunCaptchaRegion:              settings.AliyunCaptchaRegion,
 		SiteName:                         settings.SiteName,
 		SiteLogo:                         settings.SiteLogo,
 		SiteSubtitle:                     settings.SiteSubtitle,

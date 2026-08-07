@@ -57,8 +57,9 @@ func (s *OpenAIGatewayService) RecordWebSearchUsage(ctx context.Context, input *
 		baseMultiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, group.RateMultiplier)
 	}
 	price := ResolveWebSearchPricePerCallUSD(group)
+	multiplier := effectiveFlatRateMultiplier(baseMultiplier, group)
 	totalCost := price
-	actualCostBeforeExemption := price * baseMultiplier
+	actualCostBeforeExemption := price * multiplier
 	cost := &CostBreakdown{
 		Currency:                ModelPricingCurrencyUSD,
 		TotalCost:               totalCost,
@@ -100,7 +101,7 @@ func (s *OpenAIGatewayService) RecordWebSearchUsage(ctx context.Context, input *
 		CostByCurrency:          cloneBillingStringMapFloat64(cost.CostByCurrency),
 		ActualCostByCurrency:    cloneBillingStringMapFloat64(cost.ActualCostByCurrency),
 		BillingExemptReason:     billingExemptReason,
-		RateMultiplier:          baseMultiplier,
+		RateMultiplier:          multiplier,
 		AccountRateMultiplier:   &accountRateMultiplier,
 		BillingType:             billingType,
 		RequestType:             RequestTypeSync,
@@ -140,6 +141,8 @@ func (s *OpenAIGatewayService) RecordWebSearchUsage(ctx context.Context, input *
 		APIKeyService:         input.APIKeyService,
 		CurrencyConversion:    billingCurrencyConversionFromSettings(ctx, s.settingService),
 	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
+		markUsageLogBillingFailure(usageLog, billingErr)
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")

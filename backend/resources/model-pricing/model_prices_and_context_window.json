@@ -821,6 +821,16 @@
     "litellm_provider": "anthropic",
     "mode": "chat"
   },
+  "claude-sonnet-5": {
+    "currency": "USD",
+    "input_cost_per_token": 3e-06,
+    "output_cost_per_token": 1.5e-05,
+    "source_type": "local_fallback",
+    "checked_at": "2026-08-07T00:00:00Z",
+    "litellm_provider": "anthropic",
+    "mode": "chat",
+    "source_note": "Clean-room local fallback for Sonnet 5 alias until verified pricing is available."
+  },
   "codellama-34b-instruct": {
     "input_cost_per_token": 3.5e-07,
     "output_cost_per_token": 1.4e-06,
@@ -3983,6 +3993,16 @@
     "checked_at": "2026-04-27T00:00:00Z",
     "source_note": "OpenRouter exact id: z-ai/glm-4.6"
   },
+  "glm-5.2": {
+    "currency": "USD",
+    "litellm_provider": "zhipu",
+    "mode": "chat",
+    "input_cost_per_token": 5e-07,
+    "output_cost_per_token": 5e-07,
+    "source_type": "local_fallback",
+    "checked_at": "2026-08-07T00:00:00Z",
+    "source_note": "Clean-room exact fallback to avoid matching GLM-5.2 through broader GLM substring pricing."
+  },
   "gpt-3.5-turbo": {
     "input_cost_per_token": 5e-07,
     "litellm_provider": "openai",
@@ -6039,6 +6059,16 @@
     "source_url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
     "checked_at": "2026-04-27T00:00:00Z",
     "source_note": "LiteLLM exact key: moonshot/kimi-latest"
+  },
+  "kimi-k3": {
+    "input_cost_per_token": 2e-06,
+    "output_cost_per_token": 1e-05,
+    "litellm_provider": "moonshot",
+    "mode": "chat",
+    "currency": "USD",
+    "source_type": "local_fallback",
+    "checked_at": "2026-08-07T00:00:00Z",
+    "source_note": "Clean-room local Kimi fallback until verified Kimi K3 pricing is available."
   },
   "llama-3-70b-instruct": {
     "currency": "USD",

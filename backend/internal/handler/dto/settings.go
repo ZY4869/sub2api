@@ -68,6 +68,7 @@ type SystemSettings struct {
 	InvitationCodeEnabled            bool     `json:"invitation_code_enabled"`
 	TotpEnabled                      bool     `json:"totp_enabled"`                   // TOTP 双因素认证
 	TotpEncryptionKeyConfigured      bool     `json:"totp_encryption_key_configured"` // TOTP 加密密钥是否已配置
+	PasskeyEnabled                   bool     `json:"passkey_enabled"`
 
 	SMTPHost                   string `json:"smtp_host"`
 	SMTPPort                   int    `json:"smtp_port"`
@@ -80,9 +81,20 @@ type SystemSettings struct {
 	TelegramBotTokenConfigured bool   `json:"telegram_bot_token_configured"`
 	TelegramBotTokenMasked     string `json:"telegram_bot_token_masked"`
 
-	TurnstileEnabled             bool   `json:"turnstile_enabled"`
-	TurnstileSiteKey             string `json:"turnstile_site_key"`
-	TurnstileSecretKeyConfigured bool   `json:"turnstile_secret_key_configured"`
+	TurnstileEnabled                       bool   `json:"turnstile_enabled"`
+	TurnstileSiteKey                       string `json:"turnstile_site_key"`
+	TurnstileSecretKeyConfigured           bool   `json:"turnstile_secret_key_configured"`
+	TencentCaptchaEnabled                  bool   `json:"tencent_captcha_enabled"`
+	TencentCaptchaAppID                    string `json:"tencent_captcha_app_id"`
+	TencentCaptchaAppSecretKeyConfigured   bool   `json:"tencent_captcha_app_secret_key_configured"`
+	TencentCaptchaCloudSecretID            string `json:"tencent_captcha_cloud_secret_id"`
+	TencentCaptchaCloudSecretKeyConfigured bool   `json:"tencent_captcha_cloud_secret_key_configured"`
+	AliyunCaptchaEnabled                   bool   `json:"aliyun_captcha_enabled"`
+	AliyunCaptchaSceneID                   string `json:"aliyun_captcha_scene_id"`
+	AliyunCaptchaPrefix                    string `json:"aliyun_captcha_prefix"`
+	AliyunCaptchaRegion                    string `json:"aliyun_captcha_region"`
+	AliyunCaptchaAccessKeyID               string `json:"aliyun_captcha_access_key_id"`
+	AliyunCaptchaAccessKeySecretConfigured bool   `json:"aliyun_captcha_access_key_secret_configured"`
 
 	LinuxDoConnectEnabled                bool                                     `json:"linuxdo_connect_enabled"`
 	LinuxDoConnectClientID               string                                   `json:"linuxdo_connect_client_id"`
@@ -255,8 +267,16 @@ type PublicSettings struct {
 	PasswordResetEnabled             bool                      `json:"password_reset_enabled"`
 	InvitationCodeEnabled            bool                      `json:"invitation_code_enabled"`
 	TotpEnabled                      bool                      `json:"totp_enabled"` // TOTP 双因素认证
+	PasskeyEnabled                   bool                      `json:"passkey_enabled"`
 	TurnstileEnabled                 bool                      `json:"turnstile_enabled"`
 	TurnstileSiteKey                 string                    `json:"turnstile_site_key"`
+	CaptchaProvider                  string                    `json:"captcha_provider"`
+	TencentCaptchaEnabled            bool                      `json:"tencent_captcha_enabled"`
+	TencentCaptchaAppID              string                    `json:"tencent_captcha_app_id"`
+	AliyunCaptchaEnabled             bool                      `json:"aliyun_captcha_enabled"`
+	AliyunCaptchaSceneID             string                    `json:"aliyun_captcha_scene_id"`
+	AliyunCaptchaPrefix              string                    `json:"aliyun_captcha_prefix"`
+	AliyunCaptchaRegion              string                    `json:"aliyun_captcha_region"`
 	SiteName                         string                    `json:"site_name"`
 	SiteLogo                         string                    `json:"site_logo"`
 	SiteSubtitle                     string                    `json:"site_subtitle"`

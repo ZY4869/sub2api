@@ -187,7 +187,7 @@
           </div>
         </div>
 
-        <!-- Cloudflare Turnstile Settings -->
+        <!-- Captcha Settings -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -198,20 +198,34 @@
             </p>
           </div>
           <div class="space-y-5 p-6">
-            <!-- Enable Turnstile -->
-            <div class="flex items-center justify-between">
-              <div>
-                <label class="font-medium text-gray-900 dark:text-white">{{
-                  t('admin.settings.turnstile.enableTurnstile')
-                }}</label>
-                <p class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ t('admin.settings.turnstile.enableTurnstileHint') }}
-                </p>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.settings.turnstile.provider') }}
+              </label>
+              <div
+                class="grid grid-cols-2 gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-800 sm:grid-cols-4"
+              >
+                <button
+                  v-for="provider in captchaProviderOptions"
+                  :key="provider.value"
+                  type="button"
+                  class="rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                  :class="
+                    activeCaptchaProvider === provider.value
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-700 dark:text-primary-300'
+                      : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-700/70 dark:hover:text-white'
+                  "
+                  :aria-pressed="activeCaptchaProvider === provider.value"
+                  @click="setCaptchaProvider(provider.value)"
+                >
+                  {{ provider.label }}
+                </button>
               </div>
-              <Toggle v-model="form.turnstile_enabled" />
+              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.turnstile.providerHint') }}
+              </p>
             </div>
 
-            <!-- Turnstile Keys - Only show when enabled -->
             <div
               v-if="form.turnstile_enabled"
               class="border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -256,6 +270,172 @@
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div
+              v-else-if="form.tencent_captcha_enabled"
+              class="border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.tencentAppId') }}
+                  </label>
+                  <input
+                    v-model="form.tencent_captcha_app_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="20..."
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.tencentAppIdHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.tencentAppSecretKey') }}
+                  </label>
+                  <input
+                    v-model="form.tencent_captcha_app_secret_key"
+                    type="password"
+                    class="input font-mono text-sm"
+                    placeholder="app-secret-key"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.tencent_captcha_app_secret_key_configured
+                        ? t('admin.settings.turnstile.secretKeyConfiguredHint')
+                        : t('admin.settings.turnstile.tencentAppSecretKeyHint')
+                    }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.tencentCloudSecretId') }}
+                  </label>
+                  <input
+                    v-model="form.tencent_captcha_cloud_secret_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="AKID..."
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.tencentCloudSecretIdHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.tencentCloudSecretKey') }}
+                  </label>
+                  <input
+                    v-model="form.tencent_captcha_cloud_secret_key"
+                    type="password"
+                    class="input font-mono text-sm"
+                    placeholder="cloud-secret-key"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.tencent_captcha_cloud_secret_key_configured
+                        ? t('admin.settings.turnstile.secretKeyConfiguredHint')
+                        : t('admin.settings.turnstile.tencentCloudSecretKeyHint')
+                    }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-else-if="form.aliyun_captcha_enabled"
+              class="border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.aliyunSceneId') }}
+                  </label>
+                  <input
+                    v-model="form.aliyun_captcha_scene_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="scene-..."
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.aliyunSceneIdHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.aliyunPrefix') }}
+                  </label>
+                  <input
+                    v-model="form.aliyun_captcha_prefix"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="captcha"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.aliyunPrefixHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.aliyunRegion') }}
+                  </label>
+                  <input
+                    v-model="form.aliyun_captcha_region"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="cn-shanghai"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.aliyunRegionHint') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.aliyunAccessKeyId') }}
+                  </label>
+                  <input
+                    v-model="form.aliyun_captcha_access_key_id"
+                    type="text"
+                    class="input font-mono text-sm"
+                    placeholder="LTAI..."
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.turnstile.aliyunAccessKeyIdHint') }}
+                  </p>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.turnstile.aliyunAccessKeySecret') }}
+                  </label>
+                  <input
+                    v-model="form.aliyun_captcha_access_key_secret"
+                    type="password"
+                    class="input font-mono text-sm"
+                    placeholder="access-key-secret"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.aliyun_captcha_access_key_secret_configured
+                        ? t('admin.settings.turnstile.secretKeyConfiguredHint')
+                        : t('admin.settings.turnstile.aliyunAccessKeySecretHint')
+                    }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">
+                  {{ t('admin.settings.turnstile.passkeyEnable') }}
+                </label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.turnstile.passkeyEnableHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.passkey_enabled" />
             </div>
           </div>
         </div>
@@ -808,6 +988,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -825,6 +1006,7 @@ const {
   commitRegistrationEmailSuffixWhitelistDraft,
   linuxdoRedirectUrlSuggestion,
   setAndCopyLinuxdoRedirectUrl,
+  setCaptchaProvider,
   contentModerationModelFilterOptions,
   contentModerationKeywordsText,
   contentModerationModelFilterModelsText,
@@ -832,5 +1014,21 @@ const {
   restoreDefaultContentModerationCyberCategories,
   deleteContentModerationKey,
 } = props.ctx
+
+type CaptchaProvider = 'none' | 'turnstile' | 'tencent' | 'aliyun'
+
+const captchaProviderOptions: Array<{ value: CaptchaProvider; label: string }> = [
+  { value: 'none', label: t('admin.settings.turnstile.providerNone') },
+  { value: 'turnstile', label: t('admin.settings.turnstile.providerTurnstile') },
+  { value: 'tencent', label: t('admin.settings.turnstile.providerTencent') },
+  { value: 'aliyun', label: t('admin.settings.turnstile.providerAliyun') }
+]
+
+const activeCaptchaProvider = computed<CaptchaProvider>(() => {
+  if (form.turnstile_enabled) return 'turnstile'
+  if (form.tencent_captcha_enabled) return 'tencent'
+  if (form.aliyun_captcha_enabled) return 'aliyun'
+  return 'none'
+})
 </script>
 

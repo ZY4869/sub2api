@@ -281,7 +281,7 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(ctx context
 		req.Header.Set("content-type", "application/json")
 	}
 	ApplyAccountRequestHeaderOverrides(req, account)
-	enforceCodexIdentityHeaders(ctx, req.Header, account)
+	enforceCodexIdentityHeadersWithConfig(ctx, req.Header, account, s.cfg)
 	return MarkOpenAIHTTPUpstreamRequest(req), nil
 }
 

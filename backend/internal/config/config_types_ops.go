@@ -44,6 +44,12 @@ type TotpConfig struct {
 	EncryptionKey           string `mapstructure:"encryption_key"`
 	EncryptionKeyConfigured bool   `mapstructure:"-"`
 }
+type WebAuthnConfig struct {
+	Enabled       bool     `mapstructure:"enabled"`
+	RPID          string   `mapstructure:"rp_id"`
+	RPDisplayName string   `mapstructure:"rp_display_name"`
+	RPOrigins     []string `mapstructure:"rp_origins"`
+}
 type TurnstileConfig struct {
 	Required bool `mapstructure:"required"`
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/passkeycredential"
+	"github.com/Wei-Shaw/sub2api/ent/passkeyuserhandle"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
@@ -484,6 +486,36 @@ func (_u *UserUpdate) AddAPIKeys(v ...*APIKey) *UserUpdate {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddPasskeyCredentialIDs adds the "passkey_credentials" edge to the PasskeyCredential entity by IDs.
+func (_u *UserUpdate) AddPasskeyCredentialIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddPasskeyCredentialIDs(ids...)
+	return _u
+}
+
+// AddPasskeyCredentials adds the "passkey_credentials" edges to the PasskeyCredential entity.
+func (_u *UserUpdate) AddPasskeyCredentials(v ...*PasskeyCredential) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPasskeyCredentialIDs(ids...)
+}
+
+// AddPasskeyUserHandleIDs adds the "passkey_user_handles" edge to the PasskeyUserHandle entity by IDs.
+func (_u *UserUpdate) AddPasskeyUserHandleIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddPasskeyUserHandleIDs(ids...)
+	return _u
+}
+
+// AddPasskeyUserHandles adds the "passkey_user_handles" edges to the PasskeyUserHandle entity.
+func (_u *UserUpdate) AddPasskeyUserHandles(v ...*PasskeyUserHandle) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPasskeyUserHandleIDs(ids...)
+}
+
 // AddRedeemCodeIDs adds the "redeem_codes" edge to the RedeemCode entity by IDs.
 func (_u *UserUpdate) AddRedeemCodeIDs(ids ...int64) *UserUpdate {
 	_u.mutation.AddRedeemCodeIDs(ids...)
@@ -628,6 +660,48 @@ func (_u *UserUpdate) RemoveAPIKeys(v ...*APIKey) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearPasskeyCredentials clears all "passkey_credentials" edges to the PasskeyCredential entity.
+func (_u *UserUpdate) ClearPasskeyCredentials() *UserUpdate {
+	_u.mutation.ClearPasskeyCredentials()
+	return _u
+}
+
+// RemovePasskeyCredentialIDs removes the "passkey_credentials" edge to PasskeyCredential entities by IDs.
+func (_u *UserUpdate) RemovePasskeyCredentialIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemovePasskeyCredentialIDs(ids...)
+	return _u
+}
+
+// RemovePasskeyCredentials removes "passkey_credentials" edges to PasskeyCredential entities.
+func (_u *UserUpdate) RemovePasskeyCredentials(v ...*PasskeyCredential) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePasskeyCredentialIDs(ids...)
+}
+
+// ClearPasskeyUserHandles clears all "passkey_user_handles" edges to the PasskeyUserHandle entity.
+func (_u *UserUpdate) ClearPasskeyUserHandles() *UserUpdate {
+	_u.mutation.ClearPasskeyUserHandles()
+	return _u
+}
+
+// RemovePasskeyUserHandleIDs removes the "passkey_user_handles" edge to PasskeyUserHandle entities by IDs.
+func (_u *UserUpdate) RemovePasskeyUserHandleIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemovePasskeyUserHandleIDs(ids...)
+	return _u
+}
+
+// RemovePasskeyUserHandles removes "passkey_user_handles" edges to PasskeyUserHandle entities.
+func (_u *UserUpdate) RemovePasskeyUserHandles(v ...*PasskeyUserHandle) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePasskeyUserHandleIDs(ids...)
 }
 
 // ClearRedeemCodes clears all "redeem_codes" edges to the RedeemCode entity.
@@ -1083,6 +1157,96 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PasskeyCredentialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPasskeyCredentialsIDs(); len(nodes) > 0 && !_u.mutation.PasskeyCredentialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PasskeyCredentialsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PasskeyUserHandlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPasskeyUserHandlesIDs(); len(nodes) > 0 && !_u.mutation.PasskeyUserHandlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PasskeyUserHandlesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1929,6 +2093,36 @@ func (_u *UserUpdateOne) AddAPIKeys(v ...*APIKey) *UserUpdateOne {
 	return _u.AddAPIKeyIDs(ids...)
 }
 
+// AddPasskeyCredentialIDs adds the "passkey_credentials" edge to the PasskeyCredential entity by IDs.
+func (_u *UserUpdateOne) AddPasskeyCredentialIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddPasskeyCredentialIDs(ids...)
+	return _u
+}
+
+// AddPasskeyCredentials adds the "passkey_credentials" edges to the PasskeyCredential entity.
+func (_u *UserUpdateOne) AddPasskeyCredentials(v ...*PasskeyCredential) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPasskeyCredentialIDs(ids...)
+}
+
+// AddPasskeyUserHandleIDs adds the "passkey_user_handles" edge to the PasskeyUserHandle entity by IDs.
+func (_u *UserUpdateOne) AddPasskeyUserHandleIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddPasskeyUserHandleIDs(ids...)
+	return _u
+}
+
+// AddPasskeyUserHandles adds the "passkey_user_handles" edges to the PasskeyUserHandle entity.
+func (_u *UserUpdateOne) AddPasskeyUserHandles(v ...*PasskeyUserHandle) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddPasskeyUserHandleIDs(ids...)
+}
+
 // AddRedeemCodeIDs adds the "redeem_codes" edge to the RedeemCode entity by IDs.
 func (_u *UserUpdateOne) AddRedeemCodeIDs(ids ...int64) *UserUpdateOne {
 	_u.mutation.AddRedeemCodeIDs(ids...)
@@ -2073,6 +2267,48 @@ func (_u *UserUpdateOne) RemoveAPIKeys(v ...*APIKey) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAPIKeyIDs(ids...)
+}
+
+// ClearPasskeyCredentials clears all "passkey_credentials" edges to the PasskeyCredential entity.
+func (_u *UserUpdateOne) ClearPasskeyCredentials() *UserUpdateOne {
+	_u.mutation.ClearPasskeyCredentials()
+	return _u
+}
+
+// RemovePasskeyCredentialIDs removes the "passkey_credentials" edge to PasskeyCredential entities by IDs.
+func (_u *UserUpdateOne) RemovePasskeyCredentialIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemovePasskeyCredentialIDs(ids...)
+	return _u
+}
+
+// RemovePasskeyCredentials removes "passkey_credentials" edges to PasskeyCredential entities.
+func (_u *UserUpdateOne) RemovePasskeyCredentials(v ...*PasskeyCredential) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePasskeyCredentialIDs(ids...)
+}
+
+// ClearPasskeyUserHandles clears all "passkey_user_handles" edges to the PasskeyUserHandle entity.
+func (_u *UserUpdateOne) ClearPasskeyUserHandles() *UserUpdateOne {
+	_u.mutation.ClearPasskeyUserHandles()
+	return _u
+}
+
+// RemovePasskeyUserHandleIDs removes the "passkey_user_handles" edge to PasskeyUserHandle entities by IDs.
+func (_u *UserUpdateOne) RemovePasskeyUserHandleIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemovePasskeyUserHandleIDs(ids...)
+	return _u
+}
+
+// RemovePasskeyUserHandles removes "passkey_user_handles" edges to PasskeyUserHandle entities.
+func (_u *UserUpdateOne) RemovePasskeyUserHandles(v ...*PasskeyUserHandle) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemovePasskeyUserHandleIDs(ids...)
 }
 
 // ClearRedeemCodes clears all "redeem_codes" edges to the RedeemCode entity.
@@ -2558,6 +2794,96 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PasskeyCredentialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPasskeyCredentialsIDs(); len(nodes) > 0 && !_u.mutation.PasskeyCredentialsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PasskeyCredentialsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyCredentialsTable,
+			Columns: []string{user.PasskeyCredentialsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeycredential.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.PasskeyUserHandlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedPasskeyUserHandlesIDs(); len(nodes) > 0 && !_u.mutation.PasskeyUserHandlesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.PasskeyUserHandlesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PasskeyUserHandlesTable,
+			Columns: []string{user.PasskeyUserHandlesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(passkeyuserhandle.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

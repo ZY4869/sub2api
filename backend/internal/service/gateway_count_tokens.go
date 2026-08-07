@@ -449,6 +449,7 @@ func stripCountTokensGenerationFields(body []byte) []byte {
 		"stream",
 		"stop_sequences",
 		"stop",
+		"max_tokens",
 	} {
 		if !gjson.GetBytes(out, path).Exists() {
 			continue

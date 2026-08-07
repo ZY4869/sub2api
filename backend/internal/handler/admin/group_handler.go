@@ -37,6 +37,22 @@ type optionalStringField struct {
 	value string
 }
 
+type ProfitPreviewRequest struct {
+	RateMultiplier       float64 `json:"rate_multiplier"`
+	ProfitControlEnabled bool    `json:"profit_control_enabled"`
+	ProfitMinMargin      float64 `json:"profit_min_margin"`
+	ProfitSafetyBuffer   float64 `json:"profit_safety_buffer"`
+}
+
+type ProfitPreviewResponse struct {
+	RateMultiplier         float64 `json:"rate_multiplier"`
+	ProfitControlEnabled   bool    `json:"profit_control_enabled"`
+	ProfitMinMargin        float64 `json:"profit_min_margin"`
+	ProfitSafetyBuffer     float64 `json:"profit_safety_buffer"`
+	EffectiveMarkupPercent float64 `json:"effective_markup_percent"`
+	PreviewRateMultiplier  float64 `json:"preview_rate_multiplier"`
+}
+
 func (f *optionalStringField) UnmarshalJSON(data []byte) error {
 	f.set = true
 
@@ -146,20 +162,23 @@ func NewGroupHandler(adminService service.AdminService, dashboardService *servic
 
 // CreateGroupRequest represents create group request
 type CreateGroupRequest struct {
-	Name               string             `json:"name" binding:"required"`
-	Description        string             `json:"description"`
-	Platform           string             `json:"platform" binding:"omitempty"`
-	Priority           int                `json:"priority"`
-	RateMultiplier     float64            `json:"rate_multiplier"`
-	PeakRateEnabled    bool               `json:"peak_rate_enabled"`
-	PeakStart          string             `json:"peak_start"`
-	PeakEnd            string             `json:"peak_end"`
-	PeakRateMultiplier *float64           `json:"peak_rate_multiplier"`
-	IsExclusive        bool               `json:"is_exclusive"`
-	SubscriptionType   string             `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
-	DailyLimitUSD      optionalLimitField `json:"daily_limit_usd"`
-	WeeklyLimitUSD     optionalLimitField `json:"weekly_limit_usd"`
-	MonthlyLimitUSD    optionalLimitField `json:"monthly_limit_usd"`
+	Name                 string             `json:"name" binding:"required"`
+	Description          string             `json:"description"`
+	Platform             string             `json:"platform" binding:"omitempty"`
+	Priority             int                `json:"priority"`
+	RateMultiplier       float64            `json:"rate_multiplier"`
+	ProfitControlEnabled bool               `json:"profit_control_enabled"`
+	ProfitMinMargin      float64            `json:"profit_min_margin"`
+	ProfitSafetyBuffer   float64            `json:"profit_safety_buffer"`
+	PeakRateEnabled      bool               `json:"peak_rate_enabled"`
+	PeakStart            string             `json:"peak_start"`
+	PeakEnd              string             `json:"peak_end"`
+	PeakRateMultiplier   *float64           `json:"peak_rate_multiplier"`
+	IsExclusive          bool               `json:"is_exclusive"`
+	SubscriptionType     string             `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
+	DailyLimitUSD        optionalLimitField `json:"daily_limit_usd"`
+	WeeklyLimitUSD       optionalLimitField `json:"weekly_limit_usd"`
+	MonthlyLimitUSD      optionalLimitField `json:"monthly_limit_usd"`
 	// 图片生成计费配置（antigravity、gemini 和 grok 平台使用，负数表示清除配置）
 	ImagePrice1K                    *float64 `json:"image_price_1k"`
 	ImagePrice2K                    *float64 `json:"image_price_2k"`
@@ -263,21 +282,24 @@ type PreviewCompositeRouteRequest struct {
 
 // UpdateGroupRequest represents update group request
 type UpdateGroupRequest struct {
-	Name               string              `json:"name"`
-	Description        optionalStringField `json:"description"`
-	Platform           string              `json:"platform" binding:"omitempty"`
-	Priority           *int                `json:"priority"`
-	RateMultiplier     *float64            `json:"rate_multiplier"`
-	PeakRateEnabled    *bool               `json:"peak_rate_enabled"`
-	PeakStart          *string             `json:"peak_start"`
-	PeakEnd            *string             `json:"peak_end"`
-	PeakRateMultiplier *float64            `json:"peak_rate_multiplier"`
-	IsExclusive        *bool               `json:"is_exclusive"`
-	Status             string              `json:"status" binding:"omitempty,oneof=active inactive"`
-	SubscriptionType   string              `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
-	DailyLimitUSD      optionalLimitField  `json:"daily_limit_usd"`
-	WeeklyLimitUSD     optionalLimitField  `json:"weekly_limit_usd"`
-	MonthlyLimitUSD    optionalLimitField  `json:"monthly_limit_usd"`
+	Name                 string              `json:"name"`
+	Description          optionalStringField `json:"description"`
+	Platform             string              `json:"platform" binding:"omitempty"`
+	Priority             *int                `json:"priority"`
+	RateMultiplier       *float64            `json:"rate_multiplier"`
+	ProfitControlEnabled *bool               `json:"profit_control_enabled"`
+	ProfitMinMargin      *float64            `json:"profit_min_margin"`
+	ProfitSafetyBuffer   *float64            `json:"profit_safety_buffer"`
+	PeakRateEnabled      *bool               `json:"peak_rate_enabled"`
+	PeakStart            *string             `json:"peak_start"`
+	PeakEnd              *string             `json:"peak_end"`
+	PeakRateMultiplier   *float64            `json:"peak_rate_multiplier"`
+	IsExclusive          *bool               `json:"is_exclusive"`
+	Status               string              `json:"status" binding:"omitempty,oneof=active inactive"`
+	SubscriptionType     string              `json:"subscription_type" binding:"omitempty,oneof=standard subscription"`
+	DailyLimitUSD        optionalLimitField  `json:"daily_limit_usd"`
+	WeeklyLimitUSD       optionalLimitField  `json:"weekly_limit_usd"`
+	MonthlyLimitUSD      optionalLimitField  `json:"monthly_limit_usd"`
 	// 图片生成计费配置（antigravity、gemini 和 grok 平台使用，负数表示清除配置）
 	ImagePrice1K                    *float64                   `json:"image_price_1k"`
 	ImagePrice2K                    *float64                   `json:"image_price_2k"`
@@ -406,6 +428,9 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		Platform:                        req.Platform,
 		Priority:                        req.Priority,
 		RateMultiplier:                  req.RateMultiplier,
+		ProfitControlEnabled:            req.ProfitControlEnabled,
+		ProfitMinMargin:                 req.ProfitMinMargin,
+		ProfitSafetyBuffer:              req.ProfitSafetyBuffer,
 		PeakRateEnabled:                 req.PeakRateEnabled,
 		PeakStart:                       req.PeakStart,
 		PeakEnd:                         req.PeakEnd,
@@ -506,6 +531,9 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		Platform:                        req.Platform,
 		Priority:                        req.Priority,
 		RateMultiplier:                  req.RateMultiplier,
+		ProfitControlEnabled:            req.ProfitControlEnabled,
+		ProfitMinMargin:                 req.ProfitMinMargin,
+		ProfitSafetyBuffer:              req.ProfitSafetyBuffer,
 		PeakRateEnabled:                 req.PeakRateEnabled,
 		PeakStart:                       req.PeakStart,
 		PeakEnd:                         req.PeakEnd,
@@ -569,6 +597,40 @@ func (h *GroupHandler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Group deleted successfully"})
+}
+
+// PreviewProfitControl returns the normalized group profit-control multiplier preview.
+// POST /api/v1/admin/groups/profit-preview
+func (h *GroupHandler) PreviewProfitControl(c *gin.Context) {
+	var req ProfitPreviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	rateMultiplier := req.RateMultiplier
+	if rateMultiplier < 0 {
+		rateMultiplier = 0
+	}
+	enabled, minMargin, safetyBuffer := service.NormalizeGroupProfitConfig(
+		req.ProfitControlEnabled,
+		req.ProfitMinMargin,
+		req.ProfitSafetyBuffer,
+	)
+	markupPercent := 0.0
+	if enabled {
+		markupPercent = minMargin + safetyBuffer
+	}
+	previewRate := rateMultiplier * (1 + markupPercent/100)
+
+	response.Success(c, ProfitPreviewResponse{
+		RateMultiplier:         rateMultiplier,
+		ProfitControlEnabled:   enabled,
+		ProfitMinMargin:        minMargin,
+		ProfitSafetyBuffer:     safetyBuffer,
+		EffectiveMarkupPercent: markupPercent,
+		PreviewRateMultiplier:  previewRate,
+	})
 }
 
 // GetCompositeRoutes handles listing composite routes for a group.

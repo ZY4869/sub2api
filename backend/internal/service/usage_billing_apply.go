@@ -10,6 +10,7 @@ import (
 )
 
 const postUsageBillingTimeout = 15 * time.Second
+const usageBillingFailureErrorCode = "billing_failed"
 
 type apiKeyAuthCacheInvalidator interface {
 	InvalidateAuthCacheByKey(ctx context.Context, key string)
@@ -100,6 +101,18 @@ func writeUsageLogBestEffort(ctx context.Context, repo UsageLogRepository, usage
 	if _, err := repo.Create(usageCtx, usageLog); err != nil {
 		logger.LegacyPrintf(logKey, "Create usage log failed: %v", err)
 	}
+}
+
+func markUsageLogBillingFailure(usageLog *UsageLog, err error) {
+	if usageLog == nil || err == nil {
+		return
+	}
+	usageLog.Status = UsageLogStatusFailed
+	usageLog.ActualCost = 0
+	usageLog.ActualCostUSDEquivalent = 0
+	usageLog.ActualCostByCurrency = normalizedBillingCostMap(normalizeBillingCurrency(usageLog.BillingCurrency), 0)
+	usageLog.ErrorCode = optionalTruncatedTrimmedStringPtr(usageBillingFailureErrorCode, failedUsageErrorCodeMaxLen)
+	usageLog.ErrorMessage = sanitizeUsageFailureErrorMessage(err.Error())
 }
 
 func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsageBillingParams) *UsageBillingCommand {

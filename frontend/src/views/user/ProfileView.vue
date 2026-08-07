@@ -13,6 +13,12 @@
         :github-enabled="githubOAuthEnabled"
         :google-enabled="googleOAuthEnabled"
         :dingtalk-enabled="dingtalkOAuthEnabled"
+        :captcha-provider="captchaProvider"
+        :turnstile-site-key="turnstileSiteKey"
+        :tencent-captcha-app-id="tencentCaptchaAppID"
+        :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+        :aliyun-captcha-prefix="aliyunCaptchaPrefix"
+        :aliyun-captcha-region="aliyunCaptchaRegion"
         @refresh="loadAuthIdentities"
       />
       <div v-if="contactInfo" class="card border-primary-200 bg-primary-50 dark:bg-primary-900/20 p-6">
@@ -24,6 +30,7 @@
       <ProfileEditForm :initial-username="user?.username || ''" />
       <ProfilePasswordForm />
       <ProfileTotpCard />
+      <ProfilePasskeyCard :enabled="passkeyEnabled" />
     </div>
   </AppLayout>
 </template>
@@ -38,9 +45,10 @@ import AuthIdentitiesCard from '@/components/user/profile/AuthIdentitiesCard.vue
 import ProfileEditForm from '@/components/user/profile/ProfileEditForm.vue'
 import ProfilePasswordForm from '@/components/user/profile/ProfilePasswordForm.vue'
 import ProfileTotpCard from '@/components/user/profile/ProfileTotpCard.vue'
+import ProfilePasskeyCard from '@/components/user/profile/ProfilePasskeyCard.vue'
 import { Icon } from '@/components/icons'
 import { userAPI } from '@/api'
-import type { AuthIdentity } from '@/types'
+import type { AuthIdentity, CaptchaProvider } from '@/types'
 
 const { t } = useI18n(); const authStore = useAuthStore(); const user = computed(() => authStore.user)
 const contactInfo = ref('')
@@ -49,6 +57,13 @@ const loadingIdentities = ref(false)
 const githubOAuthEnabled = ref(false)
 const googleOAuthEnabled = ref(false)
 const dingtalkOAuthEnabled = ref(false)
+const passkeyEnabled = ref(false)
+const captchaProvider = ref<CaptchaProvider>('none')
+const turnstileSiteKey = ref('')
+const tencentCaptchaAppID = ref('')
+const aliyunCaptchaSceneID = ref('')
+const aliyunCaptchaPrefix = ref('')
+const aliyunCaptchaRegion = ref('')
 
 const WalletIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12' })]) }
 const BoltIcon = { render: () => h('svg', { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' }, [h('path', { d: 'm3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z' })]) }
@@ -73,6 +88,20 @@ onMounted(async () => {
     githubOAuthEnabled.value = !!s.github_oauth_enabled
     googleOAuthEnabled.value = !!s.google_oauth_enabled
     dingtalkOAuthEnabled.value = !!s.dingtalk_oauth_enabled
+    passkeyEnabled.value = !!s.passkey_enabled && !!window.PublicKeyCredential
+    captchaProvider.value = s.captcha_provider ||
+      (s.tencent_captcha_enabled
+        ? 'tencent'
+        : s.aliyun_captcha_enabled
+          ? 'aliyun'
+          : s.turnstile_enabled
+            ? 'turnstile'
+            : 'none')
+    turnstileSiteKey.value = s.turnstile_site_key || ''
+    tencentCaptchaAppID.value = s.tencent_captcha_app_id || ''
+    aliyunCaptchaSceneID.value = s.aliyun_captcha_scene_id || ''
+    aliyunCaptchaPrefix.value = s.aliyun_captcha_prefix || ''
+    aliyunCaptchaRegion.value = s.aliyun_captcha_region || ''
   } catch (error) {
     console.error('Failed to load contact info:', error)
   }

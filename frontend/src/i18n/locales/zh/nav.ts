@@ -4,6 +4,7 @@ export default {
     modules: '模块管理',
     models: '模型管理',
     modelsCatalog: '模型库',
+    modelPlaza: '模型广场',
     billing: '计费中心',
     announcements: '公告',
     moderation: '内容审核',

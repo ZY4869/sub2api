@@ -27,6 +27,7 @@ type paymentRepoStub struct {
 	failWallet              bool
 	failStatus              bool
 	lastWalletAmount        float64
+	walletBalance           float64
 }
 
 func newPaymentRepoStub() *paymentRepoStub {
@@ -38,6 +39,7 @@ func newPaymentRepoStub() *paymentRepoStub {
 		refunds:              map[string]*PaymentRefund{},
 		refundsByIdempotency: map[string]*PaymentRefund{},
 		events:               map[string]*PaymentEvent{},
+		walletBalance:        999999,
 	}
 }
 
@@ -193,13 +195,17 @@ func (r *paymentRepoStub) GetRefundByOrderIdempotencyHash(_ context.Context, _ s
 }
 
 func (r *paymentRepoStub) UpdateRefundProvider(_ context.Context, refundNo, providerRefundID, status string) error {
-	for _, refund := range r.refundsByIdempotency {
+	for _, refund := range r.refunds {
 		if refund.RefundNo == refundNo {
 			refund.ProviderRefundID = providerRefundID
 			refund.Status = status
 		}
 	}
 	return nil
+}
+
+func (r *paymentRepoStub) GetWalletBalance(_ context.Context, _ int64, _ string) (float64, error) {
+	return r.walletBalance, nil
 }
 
 func (r *paymentRepoStub) AddWalletBalance(_ context.Context, _ int64, _ string, amount float64) error {
@@ -710,6 +716,49 @@ func TestPaymentServiceRefundOrderUsesIdempotencyAndProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, refund.RefundNo, again.RefundNo)
 	require.Equal(t, int64(2), SnapshotPaymentRuntimeMetrics().RefundSuccess)
+}
+
+func TestPaymentServiceRefundOrderRequiresForceWhenTopupBalanceInsufficient(t *testing.T) {
+	repo := newPaymentRepoStub()
+	repo.walletBalance = 2
+	order := &PaymentOrder{
+		OrderNo: "pay_force", UserID: 7, ProductType: PaymentProductBalanceTopup, Status: PaymentStatusPaid,
+		Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123", AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	air := &airwallexStub{refundStatus: "succeeded"}
+	svc := newPaymentServiceTestSubject(repo, air)
+
+	refund, err := svc.RefundOrder(context.Background(), RefundPaymentOrderInput{
+		OrderNo: order.OrderNo, AmountMinor: 500, Reason: "requested", RequestedBy: 1, IdempotencyKey: "force-check",
+	})
+
+	require.Nil(t, refund)
+	require.ErrorIs(t, err, ErrPaymentRefundRequiresForce)
+	require.Equal(t, 0, air.creates)
+	require.Empty(t, repo.refunds)
+}
+
+func TestPaymentServiceRefundOrderForceDeductsFullTopupBalance(t *testing.T) {
+	repo := newPaymentRepoStub()
+	repo.walletBalance = 2
+	order := &PaymentOrder{
+		OrderNo: "pay_force_confirm", UserID: 7, ProductType: PaymentProductBalanceTopup, Status: PaymentStatusPaid,
+		Provider: PaymentProviderAirwallex, ProviderIntentID: "int_123", AmountMinor: 1500, Currency: "USD",
+	}
+	repo.orders[order.OrderNo] = order
+	air := &airwallexStub{refundStatus: "succeeded"}
+	svc := newPaymentServiceTestSubject(repo, air)
+
+	refund, err := svc.RefundOrder(context.Background(), RefundPaymentOrderInput{
+		OrderNo: order.OrderNo, AmountMinor: 500, Reason: "requested", RequestedBy: 1, IdempotencyKey: "force-confirm", Force: true,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, PaymentRefundStatusSettled, refund.Status)
+	require.Equal(t, 1, repo.walletAdds)
+	require.Equal(t, -5.0, repo.lastWalletAmount)
+	require.Equal(t, PaymentStatusPartialRefunded, order.Status)
 }
 
 func TestPaymentServiceRefundOrderSanitizesProviderRefundNUL(t *testing.T) {

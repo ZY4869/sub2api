@@ -75,14 +75,18 @@ func (h *AuthHandler) SocialOAuthStart(c *gin.Context) {
 		response.ErrorFrom(c, service.ErrOAuthProviderUnsupported)
 		return
 	}
+	if !h.verifyOAuthStartCaptcha(c) {
+		return
+	}
+	startReq := getOAuthStartRequest(c)
 	cfg, err := h.getSocialOAuthConfig(c.Request.Context(), provider)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	mode := normalizeSocialOAuthMode(c.Query("mode"))
-	redirectTo := sanitizeFrontendRedirectPath(c.Query("redirect"))
+	mode := normalizeSocialOAuthMode(oauthStartValue(c, startReq.Mode, "mode"))
+	redirectTo := sanitizeFrontendRedirectPath(oauthStartValue(c, startReq.Redirect, "redirect"))
 	if redirectTo == "" {
 		if mode == socialOAuthBindMode {
 			redirectTo = socialOAuthDefaultBindTo
@@ -90,7 +94,7 @@ func (h *AuthHandler) SocialOAuthStart(c *gin.Context) {
 			redirectTo = socialOAuthDefaultRedirectTo
 		}
 	}
-	affCode := sanitizeAffiliateCode(c.Query("aff_code"))
+	affCode := sanitizeAffiliateCode(oauthStartValue(c, startReq.AffCode, "aff_code"))
 
 	bindUserID := int64(0)
 	if mode == socialOAuthBindMode {
@@ -146,7 +150,7 @@ func (h *AuthHandler) SocialOAuthStart(c *gin.Context) {
 		"redirect", redirectTo,
 		"bind_user_id", bindUserID,
 	)
-	c.Redirect(http.StatusFound, authURL)
+	respondOAuthStart(c, authURL)
 }
 
 // SocialOAuthCallback completes a GitHub/Google OAuth callback and redirects back to frontend.

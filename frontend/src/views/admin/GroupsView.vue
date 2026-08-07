@@ -175,6 +175,9 @@ const createForm = reactive({
   platform: 'anthropic' as GroupPlatform,
   priority: 1,
   rate_multiplier: 1.0,
+  profit_control_enabled: false,
+  profit_min_margin: 0,
+  profit_safety_buffer: 0,
   peak_rate_enabled: false,
   peak_start: '09:00',
   peak_end: '18:00',
@@ -494,6 +497,9 @@ const editForm = reactive({
   platform: 'anthropic' as GroupPlatform,
   priority: 1,
   rate_multiplier: 1.0,
+  profit_control_enabled: false,
+  profit_min_margin: 0,
+  profit_safety_buffer: 0,
   peak_rate_enabled: false,
   peak_start: '09:00',
   peak_end: '18:00',
@@ -986,6 +992,9 @@ const closeCreateModal = () => {
   createForm.platform = 'anthropic'
   createForm.priority = 1
   createForm.rate_multiplier = 1.0
+  createForm.profit_control_enabled = false
+  createForm.profit_min_margin = 0
+  createForm.profit_safety_buffer = 0
   resetPeakRateConfig(createForm)
   createForm.is_exclusive = false
   createForm.gemini_mixed_protocol_enabled = false
@@ -1080,6 +1089,9 @@ const buildGroupPayload = (
     platform,
     priority: normalizeGroupPriority(form.priority),
     rate_multiplier: Number(form.rate_multiplier),
+    profit_control_enabled: form.profit_control_enabled,
+    profit_min_margin: normalizeNullableNumber(form.profit_min_margin) ?? 0,
+    profit_safety_buffer: normalizeNullableNumber(form.profit_safety_buffer) ?? 0,
     peak_rate_enabled: form.peak_rate_enabled,
     peak_start: form.peak_start,
     peak_end: form.peak_end,
@@ -1201,6 +1213,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.platform = group.platform
   editForm.priority = group.priority ?? 1
   editForm.rate_multiplier = group.rate_multiplier
+  editForm.profit_control_enabled = group.profit_control_enabled === true
+  editForm.profit_min_margin = group.profit_min_margin ?? 0
+  editForm.profit_safety_buffer = group.profit_safety_buffer ?? 0
   editForm.peak_rate_enabled = group.peak_rate_enabled === true
   editForm.peak_start = group.peak_start || '09:00'
   editForm.peak_end = group.peak_end || '18:00'
@@ -1260,6 +1275,9 @@ const closeEditModal = () => {
   editForm.copy_accounts_from_group_ids = []
   editCopyAccountsSelection.value = null
   editForm.gemini_mixed_protocol_enabled = false
+  editForm.profit_control_enabled = false
+  editForm.profit_min_margin = 0
+  editForm.profit_safety_buffer = 0
   resetPeakRateConfig(editForm)
   editForm.image_protocol_mode = 'inherit'
   editForm.allow_live = false

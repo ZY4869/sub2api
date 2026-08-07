@@ -129,6 +129,30 @@ func (f IdempotencyRecordFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdempotencyRecordMutation", m)
 }
 
+// The PasskeyCredentialFunc type is an adapter to allow the use of ordinary
+// function as PasskeyCredential mutator.
+type PasskeyCredentialFunc func(context.Context, *ent.PasskeyCredentialMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PasskeyCredentialFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PasskeyCredentialMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PasskeyCredentialMutation", m)
+}
+
+// The PasskeyUserHandleFunc type is an adapter to allow the use of ordinary
+// function as PasskeyUserHandle mutator.
+type PasskeyUserHandleFunc func(context.Context, *ent.PasskeyUserHandleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PasskeyUserHandleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PasskeyUserHandleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PasskeyUserHandleMutation", m)
+}
+
 // The PromoCodeFunc type is an adapter to allow the use of ordinary
 // function as PromoCode mutator.
 type PromoCodeFunc func(context.Context, *ent.PromoCodeMutation) (ent.Value, error)

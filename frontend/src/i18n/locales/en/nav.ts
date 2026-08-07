@@ -4,6 +4,7 @@ export default {
     modules: 'Modules',
     models: 'Models',
     modelsCatalog: 'Models Catalog',
+    modelPlaza: 'Model Plaza',
     billing: 'Billing Center',
     announcements: 'Announcements',
     moderation: 'Moderation',

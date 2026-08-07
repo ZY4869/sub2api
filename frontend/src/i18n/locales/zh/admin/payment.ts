@@ -34,9 +34,12 @@ export default {
     reason: '退款原因',
     reasonPlaceholder: '客户请求退款',
     submit: '提交退款',
+    forceSubmit: '确认并强制退款',
     submitting: '提交中',
     success: '退款已提交',
-    failed: '退款提交失败'
+    failed: '退款提交失败',
+    forceRequiredTitle: '余额不足，需要二次确认',
+    forceRequiredDesc: '用户当前余额 {current}，本次需扣回 {amount}。确认后将继续全额退款并完整扣回充值余额。'
   },
   loadFailed: '支付订单加载失败，请刷新重试。',
   refresh: '刷新'

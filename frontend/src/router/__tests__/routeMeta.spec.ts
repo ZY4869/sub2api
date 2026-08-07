@@ -28,6 +28,7 @@ describe('router route meta titles', () => {
     expect(titleKeys.get('Setup')).toBe('setup.title')
     expect(titleKeys.get('Home')).toBe('ui.routeTitles.home')
     expect(titleKeys.get('PublicModels')).toBe('ui.routeTitles.models')
+    expect(titleKeys.get('ModelPlaza')).toBe('ui.routeTitles.modelPlaza')
     expect(titleKeys.get('EmailVerify')).toBe('auth.verifyYourEmail')
     expect(titleKeys.get('OAuthCallback')).toBe('ui.routeTitles.oauthCallback')
     expect(titleKeys.get('LinuxDoOAuthCallback')).toBe('ui.routeTitles.linuxDoOAuthCallback')

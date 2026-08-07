@@ -67,6 +67,7 @@ func (s *BillingService) initFallbackPricing() {
 
 	// Claude 5 Opus
 	s.fallbackPrices["claude-opus-5"] = s.fallbackPrices["claude-opus-4.5"]
+	s.fallbackPrices["claude-sonnet-5"] = s.fallbackPrices["claude-sonnet-4"]
 
 	// Gemini 3.1 Pro
 	s.fallbackPrices["gemini-3.1-pro"] = &ModelPricing{
@@ -175,6 +176,7 @@ func (s *BillingService) initFallbackPricing() {
 		OutputPricePerToken:    1e-5,
 		SupportsCacheBreakdown: false,
 	}
+	s.fallbackPrices["kimi-k3"] = s.fallbackPrices["kimi"]
 	s.fallbackPrices["minimax"] = &ModelPricing{
 		InputPricePerToken:     1e-6,
 		OutputPricePerToken:    8e-6,
@@ -185,6 +187,7 @@ func (s *BillingService) initFallbackPricing() {
 		OutputPricePerToken:    5e-7,
 		SupportsCacheBreakdown: false,
 	}
+	s.fallbackPrices["glm-5.2"] = s.fallbackPrices["glm"]
 }
 
 // getFallbackPricing returns fallback pricing by model family.

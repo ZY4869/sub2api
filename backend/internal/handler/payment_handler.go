@@ -284,6 +284,7 @@ func (h *AdminPaymentHandler) ListOrders(c *gin.Context) {
 type refundPaymentOrderRequest struct {
 	AmountMinor int64  `json:"amount_minor"`
 	Reason      string `json:"reason"`
+	Force       bool   `json:"force"`
 }
 
 func (h *AdminPaymentHandler) RefundOrder(c *gin.Context) {
@@ -309,6 +310,7 @@ func (h *AdminPaymentHandler) RefundOrder(c *gin.Context) {
 			Reason:         req.Reason,
 			RequestedBy:    subject.UserID,
 			IdempotencyKey: c.GetHeader("Idempotency-Key"),
+			Force:          req.Force,
 		})
 		if err != nil {
 			return nil, err

@@ -51,13 +51,25 @@ func (g *Group) IsPeakRateActiveAt(now time.Time) bool {
 }
 
 func (g *Group) EffectiveTokenRateMultiplierAt(base float64, now time.Time) float64 {
+	effective := g.EffectiveFlatRateMultiplier(base)
 	if g == nil || !g.IsPeakRateActiveAt(now) {
-		return base
+		return effective
 	}
 	if g.PeakRateMultiplier < 0 {
+		return effective
+	}
+	return effective * g.PeakRateMultiplier
+}
+
+func (g *Group) EffectiveFlatRateMultiplier(base float64) float64 {
+	if g == nil || !g.ProfitControlEnabled {
 		return base
 	}
-	return base * g.PeakRateMultiplier
+	enabled, minMargin, safetyBuffer := NormalizeGroupProfitConfig(true, g.ProfitMinMargin, g.ProfitSafetyBuffer)
+	if !enabled {
+		return base
+	}
+	return base * (1 + (minMargin+safetyBuffer)/100)
 }
 
 func ServerPeakRateTimezoneName() string {

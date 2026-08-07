@@ -135,6 +135,7 @@
             data-tour="group-form-multiplier"
           />
         </div>
+        <GroupProfitControlFields :form="editForm" :t="t" />
         <GroupPeakRateFields
           :t="t"
           :form="editForm"
@@ -807,6 +808,7 @@ import GroupImageBatchSettingsFields from './GroupImageBatchSettingsFields.vue'
 import GroupOpenAIRuntimePolicyFields from './GroupOpenAIRuntimePolicyFields.vue'
 import GroupCompositeRoutesFields from './GroupCompositeRoutesFields.vue'
 import GroupPeakRateFields from './GroupPeakRateFields.vue'
+import GroupProfitControlFields from './GroupProfitControlFields.vue'
 import { unref } from 'vue'
 
 const props = defineProps<{ ctx: any }>()

@@ -58,6 +58,7 @@ func ProvidePrivacyClientFactory() service.PrivacyClientFactory {
 // ProviderSet is the Wire provider set for all repositories
 var ProviderSet = wire.NewSet(
 	NewUserRepository,
+	NewPasskeyRepository,
 	NewAuthIdentityRepository,
 	NewAuditLogRepository,
 	NewContentModerationAuditRepository,
@@ -126,6 +127,7 @@ var ProviderSet = wire.NewSet(
 	NewProxyLatencyCache,
 	NewTotpCache,
 	NewRefreshTokenCache,
+	NewPasskeySessionStore,
 	NewErrorPassthroughCache,
 	NewTLSFingerprintProfileCache,
 
@@ -138,6 +140,8 @@ var ProviderSet = wire.NewSet(
 
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
+	NewTencentCaptchaVerifier,
+	NewAliyunCaptchaVerifier,
 	ProvidePricingRemoteClient,
 	ProvideGitHubReleaseClient,
 	NewProxyExitInfoProber,

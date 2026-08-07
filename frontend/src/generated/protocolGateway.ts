@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-07-07T05:17:13Z"
+export const generatedProtocolGatewayBuiltAt = "2026-08-07T05:37:52Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {
@@ -98,12 +98,17 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/v1/chat/completions",
       "/v1/completions",
       "/v1/embeddings",
+      "/v1/alpha/search",
       "/v1/responses/compact",
       "/v1/responses",
+      "/v1/live",
+      "/backend-api/codex/realtime/calls",
       "/v1/images/generations",
       "/v1/images/edits",
       "/v1/videos",
       "/v1/videos/generations",
+      "/v1/videos/edits",
+      "/v1/videos/extensions",
       "/v1/videos/:request_id",
       "/v1/models",
       "/v1/messages",
@@ -174,12 +179,17 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/v1/chat/completions",
       "/v1/completions",
       "/v1/embeddings",
+      "/v1/alpha/search",
       "/v1/responses/compact",
       "/v1/responses",
+      "/v1/live",
+      "/backend-api/codex/realtime/calls",
       "/v1/images/generations",
       "/v1/images/edits",
       "/v1/videos",
       "/v1/videos/generations",
+      "/v1/videos/edits",
+      "/v1/videos/extensions",
       "/v1/videos/:request_id",
       "/v1/models"
     ],

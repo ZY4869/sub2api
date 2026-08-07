@@ -116,20 +116,23 @@ type APIKeyGroupDTO struct {
 }
 
 type Group struct {
-	ID                 int64   `json:"id"`
-	Name               string  `json:"name"`
-	Description        string  `json:"description"`
-	Platform           string  `json:"platform"`
-	Priority           int     `json:"priority"`
-	RateMultiplier     float64 `json:"rate_multiplier"`
-	PeakRateEnabled    bool    `json:"peak_rate_enabled"`
-	PeakStart          string  `json:"peak_start"`
-	PeakEnd            string  `json:"peak_end"`
-	PeakRateMultiplier float64 `json:"peak_rate_multiplier"`
-	PeakTimezone       string  `json:"peak_timezone"`
-	PeakUTCOffset      string  `json:"peak_utc_offset"`
-	IsExclusive        bool    `json:"is_exclusive"`
-	Status             string  `json:"status"`
+	ID                   int64   `json:"id"`
+	Name                 string  `json:"name"`
+	Description          string  `json:"description"`
+	Platform             string  `json:"platform"`
+	Priority             int     `json:"priority"`
+	RateMultiplier       float64 `json:"rate_multiplier"`
+	ProfitControlEnabled bool    `json:"profit_control_enabled"`
+	ProfitMinMargin      float64 `json:"profit_min_margin"`
+	ProfitSafetyBuffer   float64 `json:"profit_safety_buffer"`
+	PeakRateEnabled      bool    `json:"peak_rate_enabled"`
+	PeakStart            string  `json:"peak_start"`
+	PeakEnd              string  `json:"peak_end"`
+	PeakRateMultiplier   float64 `json:"peak_rate_multiplier"`
+	PeakTimezone         string  `json:"peak_timezone"`
+	PeakUTCOffset        string  `json:"peak_utc_offset"`
+	IsExclusive          bool    `json:"is_exclusive"`
+	Status               string  `json:"status"`
 
 	SubscriptionType string   `json:"subscription_type"`
 	DailyLimitUSD    *float64 `json:"daily_limit_usd"`

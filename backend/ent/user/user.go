@@ -79,6 +79,10 @@ const (
 	FieldTotpEnabledAt = "totp_enabled_at"
 	// EdgeAPIKeys holds the string denoting the api_keys edge name in mutations.
 	EdgeAPIKeys = "api_keys"
+	// EdgePasskeyCredentials holds the string denoting the passkey_credentials edge name in mutations.
+	EdgePasskeyCredentials = "passkey_credentials"
+	// EdgePasskeyUserHandles holds the string denoting the passkey_user_handles edge name in mutations.
+	EdgePasskeyUserHandles = "passkey_user_handles"
 	// EdgeRedeemCodes holds the string denoting the redeem_codes edge name in mutations.
 	EdgeRedeemCodes = "redeem_codes"
 	// EdgeSubscriptions holds the string denoting the subscriptions edge name in mutations.
@@ -106,6 +110,20 @@ const (
 	APIKeysInverseTable = "api_keys"
 	// APIKeysColumn is the table column denoting the api_keys relation/edge.
 	APIKeysColumn = "user_id"
+	// PasskeyCredentialsTable is the table that holds the passkey_credentials relation/edge.
+	PasskeyCredentialsTable = "passkey_credentials"
+	// PasskeyCredentialsInverseTable is the table name for the PasskeyCredential entity.
+	// It exists in this package in order to avoid circular dependency with the "passkeycredential" package.
+	PasskeyCredentialsInverseTable = "passkey_credentials"
+	// PasskeyCredentialsColumn is the table column denoting the passkey_credentials relation/edge.
+	PasskeyCredentialsColumn = "user_id"
+	// PasskeyUserHandlesTable is the table that holds the passkey_user_handles relation/edge.
+	PasskeyUserHandlesTable = "passkey_user_handles"
+	// PasskeyUserHandlesInverseTable is the table name for the PasskeyUserHandle entity.
+	// It exists in this package in order to avoid circular dependency with the "passkeyuserhandle" package.
+	PasskeyUserHandlesInverseTable = "passkey_user_handles"
+	// PasskeyUserHandlesColumn is the table column denoting the passkey_user_handles relation/edge.
+	PasskeyUserHandlesColumn = "user_id"
 	// RedeemCodesTable is the table that holds the redeem_codes relation/edge.
 	RedeemCodesTable = "redeem_codes"
 	// RedeemCodesInverseTable is the table name for the RedeemCode entity.
@@ -475,6 +493,34 @@ func ByAPIKeys(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByPasskeyCredentialsCount orders the results by passkey_credentials count.
+func ByPasskeyCredentialsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPasskeyCredentialsStep(), opts...)
+	}
+}
+
+// ByPasskeyCredentials orders the results by passkey_credentials terms.
+func ByPasskeyCredentials(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPasskeyCredentialsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPasskeyUserHandlesCount orders the results by passkey_user_handles count.
+func ByPasskeyUserHandlesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPasskeyUserHandlesStep(), opts...)
+	}
+}
+
+// ByPasskeyUserHandles orders the results by passkey_user_handles terms.
+func ByPasskeyUserHandles(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPasskeyUserHandlesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByRedeemCodesCount orders the results by redeem_codes count.
 func ByRedeemCodesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -605,6 +651,20 @@ func newAPIKeysStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(APIKeysInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, APIKeysTable, APIKeysColumn),
+	)
+}
+func newPasskeyCredentialsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PasskeyCredentialsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PasskeyCredentialsTable, PasskeyCredentialsColumn),
+	)
+}
+func newPasskeyUserHandlesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PasskeyUserHandlesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PasskeyUserHandlesTable, PasskeyUserHandlesColumn),
 	)
 }
 func newRedeemCodesStep() *sqlgraph.Step {

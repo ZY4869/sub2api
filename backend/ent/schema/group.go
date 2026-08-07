@@ -42,6 +42,17 @@ func (Group) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		field.Bool("profit_control_enabled").
+			Default(false).
+			Comment("Whether group profit guard participates in pricing calculation"),
+		field.Float("profit_min_margin").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(0).
+			Comment("Minimum profit margin ratio; only used when profit control is enabled"),
+		field.Float("profit_safety_buffer").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(0).
+			Comment("Additional sale price safety buffer ratio; only used when profit control is enabled"),
 		field.Bool("peak_rate_enabled").
 			Default(false).
 			Comment("Whether subscription token billing uses peak rate multiplier"),

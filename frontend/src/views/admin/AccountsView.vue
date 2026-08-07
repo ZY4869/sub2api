@@ -97,6 +97,7 @@
         <AccountBulkActionsBar
           :selected-ids="selIds"
           :selected-platforms="selPlatforms"
+          :filtered-total="pagination.total"
           @archive="openArchiveSelectedModal"
           @batch-test="handleOpenBatchTestForSelection"
           @delete="handleBulkDelete"
@@ -105,6 +106,7 @@
           @edit="openBulkEditSelectedModal"
           @clear="clearSelection"
           @select-page="selectPage"
+          @select-filtered="handleSelectFilteredAccounts"
           @toggle-schedulable="handleBulkToggleSchedulable"
         />
 
@@ -982,7 +984,7 @@ const showStandalonePagination = computed(
 const {
   handleBulkDelete, openArchiveSelectedModal, openBulkEditSelectedModal, openBulkEditFilteredModal, closeBulkEditModal,
   openBatchTestModal, handleOpenBatchTestForSelection, handleRefreshActualUsage, handleBulkResetStatus,
-  handleBulkRefreshToken, updateSchedulableInList, handleBulkToggleSchedulable,
+  handleBulkRefreshToken, handleSelectFilteredAccounts, updateSchedulableInList, handleBulkToggleSchedulable,
 } = useAccountsBulkActions({
   t, appStore, adminAPI, accounts, params, pagination, selIds, selPlatforms,
   bulkEditFilters, bulkEditFiltersTotal, showBulkEdit, showArchiveSelected,

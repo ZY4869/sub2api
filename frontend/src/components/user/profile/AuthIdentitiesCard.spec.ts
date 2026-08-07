@@ -4,10 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AuthIdentitiesCard from './AuthIdentitiesCard.vue'
 
 const mocks = vi.hoisted(() => ({
-  buildSocialOAuthStartURL: vi.fn((provider: string, options?: Record<string, string>) => {
-    const params = new URLSearchParams(options as Record<string, string>)
-    return `/api/v1/auth/oauth/${provider}/start?${params.toString()}`
-  }),
+  startSocialOAuth: vi.fn(),
   deleteAuthIdentity: vi.fn(),
   appStore: {
     showSuccess: vi.fn(),
@@ -26,7 +23,7 @@ vi.mock('vue-i18n', async () => {
 })
 
 vi.mock('@/api/auth', () => ({
-  buildSocialOAuthStartURL: mocks.buildSocialOAuthStartURL,
+  startSocialOAuth: mocks.startSocialOAuth,
 }))
 
 vi.mock('@/api', () => ({
@@ -43,7 +40,8 @@ describe('AuthIdentitiesCard', () => {
   const originalLocation = window.location
 
   beforeEach(() => {
-    mocks.buildSocialOAuthStartURL.mockReset()
+    mocks.startSocialOAuth.mockReset()
+    mocks.startSocialOAuth.mockResolvedValue({ authorize_url: 'https://oauth.example/bind' })
     mocks.deleteAuthIdentity.mockReset()
     mocks.appStore.showSuccess.mockReset()
     mocks.appStore.showError.mockReset()
@@ -65,23 +63,32 @@ describe('AuthIdentitiesCard', () => {
       props: {
         identities: [],
         githubEnabled: true,
+        captchaProvider: 'turnstile',
+        turnstileSiteKey: 'site-key',
       },
       global: {
         stubs: {
+          CaptchaChallenge: {
+            template: '<div data-test="captcha" @click="$emit(\'verify\', { turnstile_token: \'profile-proof\' })" />',
+          },
           LobeStaticIcon: { template: '<span />' },
         },
       },
     })
 
-    ;(wrapper.get('button').element as HTMLButtonElement).click()
+    const bindButton = wrapper.findAll('button')[0]
+    expect((bindButton.element as HTMLButtonElement).disabled).toBe(true)
 
-    expect(mocks.buildSocialOAuthStartURL).toHaveBeenCalledWith('github', {
+    await wrapper.get('[data-test="captcha"]').trigger('click')
+    await bindButton.trigger('click')
+    await flushPromises()
+
+    expect(mocks.startSocialOAuth).toHaveBeenCalledWith('github', {
+      turnstile_token: 'profile-proof',
       mode: 'bind',
       redirect: '/profile',
     })
-    if (typeof window.location.href === 'string') {
-      expect(window.location.href).toContain('/api/v1/auth/oauth/github/start')
-    }
+    expect(window.location.href).toBe('https://oauth.example/bind')
   })
 
   it('unbinds identity and emits refresh on success', async () => {

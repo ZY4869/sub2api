@@ -201,3 +201,35 @@ func TestGatewayHandleStreamingAwareError_NonResponsesKeepsGenericSSEError(t *te
 	assert.Contains(t, body, `"type":"error"`)
 	assert.Contains(t, body, `"type":"upstream_error"`)
 }
+
+func TestGatewayHandleFailoverExhaustedMaps429ForJSONAndSSE(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := &GatewayHandler{}
+	failoverErr := &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests}
+
+	t.Run("json response before stream starts", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+		h.handleFailoverExhausted(c, failoverErr, service.PlatformAnthropic, false)
+
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+		assert.Contains(t, w.Body.String(), `"type":"rate_limit_error"`)
+		assert.Contains(t, w.Body.String(), "Upstream rate limit exceeded")
+	})
+
+	t.Run("sse error after stream starts", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+		c.Header("Content-Type", "text/event-stream")
+
+		h.handleFailoverExhausted(c, failoverErr, service.PlatformAnthropic, true)
+
+		body := w.Body.String()
+		assert.Contains(t, body, `"type":"error"`)
+		assert.Contains(t, body, `"type":"rate_limit_error"`)
+		assert.Contains(t, body, "Upstream rate limit exceeded")
+	})
+}

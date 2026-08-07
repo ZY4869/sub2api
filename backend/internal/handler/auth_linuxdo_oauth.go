@@ -77,6 +77,10 @@ func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if !h.verifyOAuthStartCaptcha(c) {
+		return
+	}
+	startReq := getOAuthStartRequest(c)
 
 	state, err := oauth.GenerateState()
 	if err != nil {
@@ -84,12 +88,12 @@ func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 		return
 	}
 
-	redirectTo := sanitizeFrontendRedirectPath(c.Query("redirect"))
+	redirectTo := sanitizeFrontendRedirectPath(oauthStartValue(c, startReq.Redirect, "redirect"))
 	if redirectTo == "" {
 		redirectTo = linuxDoOAuthDefaultRedirectTo
 	}
 
-	affCode := sanitizeAffiliateCode(c.Query("aff_code"))
+	affCode := sanitizeAffiliateCode(oauthStartValue(c, startReq.AffCode, "aff_code"))
 
 	secureCookie := isRequestHTTPS(c)
 	setCookie(c, linuxDoOAuthStateCookieName, encodeCookieValue(state), linuxDoOAuthCookieMaxAgeSec, secureCookie)
@@ -121,7 +125,7 @@ func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusFound, authURL)
+	respondOAuthStart(c, authURL)
 }
 
 // LinuxDoOAuthCallback 处理 OAuth 回调：创建/登录用户，然后重定向到前端。

@@ -69,14 +69,20 @@
           </div>
         </div>
 
-        <!-- Turnstile Widget for Resend -->
-        <div v-if="turnstileEnabled && turnstileSiteKey && showResendTurnstile">
-          <TurnstileWidget
-            ref="turnstileRef"
-            :site-key="turnstileSiteKey"
-            @verify="onTurnstileVerify"
-            @expire="onTurnstileExpire"
-            @error="onTurnstileError"
+        <!-- Captcha Widget for Resend -->
+        <div v-if="captchaRequired && showResendCaptcha">
+          <CaptchaChallenge
+            ref="captchaRef"
+            :provider="captchaProvider"
+            :turnstile-site-key="turnstileSiteKey"
+            :tencent-captcha-app-id="tencentCaptchaAppID"
+            :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+            :aliyun-prefix="aliyunCaptchaPrefix"
+            :aliyun-region="aliyunCaptchaRegion"
+            :disabled="isSendingCode"
+            @verify="onCaptchaVerify"
+            @expire="onCaptchaExpire"
+            @error="onCaptchaError"
           />
           <p v-if="errors.turnstile" class="input-error-text mt-2 text-center">
             {{ errors.turnstile }}
@@ -141,12 +147,12 @@
             type="button"
             @click="handleResendCode"
             :disabled="
-              isSendingCode || (turnstileEnabled && showResendTurnstile && !resendTurnstileToken)
+              isSendingCode || (captchaRequired && showResendCaptcha && !resendCaptchaVerified)
             "
             class="text-sm text-primary-600 transition-colors hover:text-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-400 dark:hover:text-primary-300"
           >
             <span v-if="isSendingCode">{{ t('auth.sendingCode') }}</span>
-            <span v-else-if="turnstileEnabled && !showResendTurnstile">
+            <span v-else-if="captchaRequired && !showResendCaptcha">
               {{ t('auth.clickToResend') }}
             </span>
             <span v-else>{{ t('auth.resendCode') }}</span>
@@ -169,12 +175,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
+import CaptchaChallenge from '@/components/auth/CaptchaChallenge.vue'
 import Icon from '@/components/icons/Icon.vue'
-import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'
 import { getPublicSettings, sendVerifyCode } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
@@ -182,6 +188,7 @@ import {
   isRegistrationEmailSuffixAllowed,
   normalizeRegistrationEmailSuffixWhitelist
 } from '@/utils/registrationEmailPolicy'
+import type { CaptchaProof, CaptchaProvider } from '@/types'
 
 const { t, locale } = useI18n()
 
@@ -204,22 +211,28 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 // Registration data from sessionStorage
 const email = ref<string>('')
 const password = ref<string>('')
-const initialTurnstileToken = ref<string>('')
+const initialCaptchaProof = ref<CaptchaProof>({})
 const promoCode = ref<string>('')
 const invitationCode = ref<string>('')
 const affCode = ref<string>('')
 const hasRegisterData = ref<boolean>(false)
 
 // Public settings
-const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
+const captchaProvider = ref<CaptchaProvider>('none')
+const tencentCaptchaAppID = ref<string>('')
+const aliyunCaptchaSceneID = ref<string>('')
+const aliyunCaptchaPrefix = ref<string>('')
+const aliyunCaptchaRegion = ref<string>('')
 const siteName = ref<string>('Sub2API')
 const registrationEmailSuffixWhitelist = ref<string[]>([])
 
-// Turnstile for resend
-const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
-const resendTurnstileToken = ref<string>('')
-const showResendTurnstile = ref<boolean>(false)
+// Captcha for resend
+const captchaRef = ref<InstanceType<typeof CaptchaChallenge> | null>(null)
+const resendCaptchaProof = ref<CaptchaProof>({})
+const resendCaptchaVerified = ref<boolean>(false)
+const showResendCaptcha = ref<boolean>(false)
+const captchaRequired = computed(() => captchaProvider.value !== 'none')
 
 const errors = ref({
   code: '',
@@ -236,7 +249,12 @@ onMounted(async () => {
       const registerData = JSON.parse(registerDataStr)
       email.value = registerData.email || ''
       password.value = registerData.password || ''
-      initialTurnstileToken.value = registerData.turnstile_token || ''
+      initialCaptchaProof.value = {
+        turnstile_token: registerData.turnstile_token || undefined,
+        tencent_captcha_ticket: registerData.tencent_captcha_ticket || undefined,
+        tencent_captcha_randstr: registerData.tencent_captcha_randstr || undefined,
+        aliyun_captcha_verify_param: registerData.aliyun_captcha_verify_param || undefined
+      }
       promoCode.value = registerData.promo_code || ''
       invitationCode.value = registerData.invitation_code || ''
       affCode.value = registerData.aff_code || ''
@@ -249,8 +267,19 @@ onMounted(async () => {
   // Load public settings
   try {
     const settings = await getPublicSettings()
-    turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
+    captchaProvider.value = settings.captcha_provider ||
+      (settings.tencent_captcha_enabled
+        ? 'tencent'
+        : settings.aliyun_captcha_enabled
+          ? 'aliyun'
+          : settings.turnstile_enabled
+            ? 'turnstile'
+            : 'none')
+    tencentCaptchaAppID.value = settings.tencent_captcha_app_id || ''
+    aliyunCaptchaSceneID.value = settings.aliyun_captcha_scene_id || ''
+    aliyunCaptchaPrefix.value = settings.aliyun_captcha_prefix || ''
+    aliyunCaptchaRegion.value = settings.aliyun_captcha_region || ''
     siteName.value = settings.site_name || 'Sub2API'
     registrationEmailSuffixWhitelist.value = normalizeRegistrationEmailSuffixWhitelist(
       settings.registration_email_suffix_whitelist || []
@@ -293,20 +322,23 @@ function startCountdown(seconds: number): void {
   }, 1000)
 }
 
-// ==================== Turnstile Handlers ====================
+// ==================== Captcha Handlers ====================
 
-function onTurnstileVerify(token: string): void {
-  resendTurnstileToken.value = token
+function onCaptchaVerify(proof: CaptchaProof): void {
+  resendCaptchaProof.value = proof
+  resendCaptchaVerified.value = true
   errors.value.turnstile = ''
 }
 
-function onTurnstileExpire(): void {
-  resendTurnstileToken.value = ''
+function onCaptchaExpire(): void {
+  resendCaptchaProof.value = {}
+  resendCaptchaVerified.value = false
   errors.value.turnstile = t('auth.turnstileExpired')
 }
 
-function onTurnstileError(): void {
-  resendTurnstileToken.value = ''
+function onCaptchaError(): void {
+  resendCaptchaProof.value = {}
+  resendCaptchaVerified.value = false
   errors.value.turnstile = t('auth.turnstileFailed')
 }
 
@@ -325,18 +357,21 @@ async function sendCode(): Promise<void> {
 
     const response = await sendVerifyCode({
       email: email.value,
-      // 优先使用重发时新获取的 token（因为初始 token 可能已被使用）
-      turnstile_token: resendTurnstileToken.value || initialTurnstileToken.value || undefined,
+      ...(
+        resendCaptchaVerified.value
+          ? resendCaptchaProof.value
+          : initialCaptchaProof.value
+      ),
       locale: String(locale.value || '')
     })
 
     codeSent.value = true
     startCountdown(response.countdown)
 
-    // Reset turnstile state（token 已使用，清除以避免重复使用）
-    initialTurnstileToken.value = ''
-    showResendTurnstile.value = false
-    resendTurnstileToken.value = ''
+    initialCaptchaProof.value = {}
+    showResendCaptcha.value = false
+    resendCaptchaProof.value = {}
+    resendCaptchaVerified.value = false
   } catch (error: unknown) {
     errorMessage.value = buildAuthErrorMessage(error, {
       fallback: t('auth.sendCodeFailed')
@@ -351,14 +386,12 @@ async function sendCode(): Promise<void> {
 // ==================== Handlers ====================
 
 async function handleResendCode(): Promise<void> {
-  // If turnstile is enabled and we haven't shown it yet, show it
-  if (turnstileEnabled.value && !showResendTurnstile.value) {
-    showResendTurnstile.value = true
+  if (captchaRequired.value && !showResendCaptcha.value) {
+    showResendCaptcha.value = true
     return
   }
 
-  // If turnstile is enabled but no token yet, wait
-  if (turnstileEnabled.value && !resendTurnstileToken.value) {
+  if (captchaRequired.value && !resendCaptchaVerified.value) {
     errors.value.turnstile = t('auth.completeVerification')
     return
   }
@@ -403,7 +436,6 @@ async function handleVerify(): Promise<void> {
       email: email.value,
       password: password.value,
       verify_code: verifyCode.value.trim(),
-      turnstile_token: initialTurnstileToken.value || undefined,
       promo_code: promoCode.value || undefined,
       invitation_code: invitationCode.value || undefined,
       aff_code: affCode.value || undefined

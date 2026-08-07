@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,4 +68,21 @@ func TestEnforceCodexIdentityHeaders_IgnoresNonChatGPTOAuth(t *testing.T) {
 
 	require.Empty(t, headers.Get("originator"))
 	require.Empty(t, headers.Get("version"))
+}
+
+func TestEnforceCodexIdentityHeadersWithConfig_CanDisableOriginatorNormalization(t *testing.T) {
+	t.Parallel()
+
+	headers := http.Header{}
+	headers.Set("user-agent", "codex_vscode/1.2.3")
+	headers.Set("originator", "codex_cli_rs")
+	headers.Set("version", "0.1.0")
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth}
+	cfg := &config.Config{Gateway: config.GatewayConfig{DisableCodexOriginatorNormalization: true}}
+
+	enforceCodexIdentityHeadersWithConfig(context.Background(), headers, account, cfg)
+
+	require.Equal(t, "codex_vscode/1.2.3", headers.Get("user-agent"))
+	require.Equal(t, "codex_cli_rs", headers.Get("originator"))
+	require.Equal(t, codexCLIVersion, headers.Get("version"))
 }

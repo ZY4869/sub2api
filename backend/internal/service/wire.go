@@ -919,6 +919,7 @@ func ProvideAuthService(
 	settingService *SettingService,
 	emailService *EmailService,
 	turnstileService *TurnstileService,
+	captchaService *CaptchaService,
 	emailQueueService *EmailQueueService,
 	promoService *PromoService,
 	affiliateService *AffiliateService,
@@ -926,6 +927,7 @@ func ProvideAuthService(
 ) *AuthService {
 	authService := NewAuthService(entClient, userRepo, redeemRepo, refreshTokenCache, cfg, settingService, emailService, turnstileService, emailQueueService, promoService, affiliateService, defaultSubAssigner)
 	authService.SetAuthIdentityRepository(authIdentityRepo)
+	authService.SetCaptchaService(captchaService)
 	return authService
 }
 
@@ -942,6 +944,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAPIKeyAuthCacheInvalidator,
 	NewGroupService,
 	NewChannelService,
+	NewModelPlazaService,
 	ProvideChannelMonitorService,
 	BindChannelMonitorAccountDependencies,
 	wire.Bind(new(channelMonitorAccountTestRunner), new(*AccountTestService)),
@@ -1022,6 +1025,7 @@ var ProviderSet = wire.NewSet(
 	ProvideEmailService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
+	NewCaptchaService,
 	NewSubscriptionService,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
 	ProvideConcurrencyService,
@@ -1049,6 +1053,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageCache,
 	NewKiroRuntimeService,
 	NewTotpService,
+	NewPasskeyService,
 	NewErrorPassthroughService,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,

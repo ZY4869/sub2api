@@ -16,6 +16,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/passkeycredential"
+	"github.com/Wei-Shaw/sub2api/ent/passkeyuserhandle"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
@@ -34,6 +36,8 @@ type UserQuery struct {
 	inters                    []Interceptor
 	predicates                []predicate.User
 	withAPIKeys               *APIKeyQuery
+	withPasskeyCredentials    *PasskeyCredentialQuery
+	withPasskeyUserHandles    *PasskeyUserHandleQuery
 	withRedeemCodes           *RedeemCodeQuery
 	withSubscriptions         *UserSubscriptionQuery
 	withAssignedSubscriptions *UserSubscriptionQuery
@@ -95,6 +99,50 @@ func (_q *UserQuery) QueryAPIKeys() *APIKeyQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(apikey.Table, apikey.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.APIKeysTable, user.APIKeysColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPasskeyCredentials chains the current query on the "passkey_credentials" edge.
+func (_q *UserQuery) QueryPasskeyCredentials() *PasskeyCredentialQuery {
+	query := (&PasskeyCredentialClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(passkeycredential.Table, passkeycredential.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PasskeyCredentialsTable, user.PasskeyCredentialsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPasskeyUserHandles chains the current query on the "passkey_user_handles" edge.
+func (_q *UserQuery) QueryPasskeyUserHandles() *PasskeyUserHandleQuery {
+	query := (&PasskeyUserHandleClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(passkeyuserhandle.Table, passkeyuserhandle.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PasskeyUserHandlesTable, user.PasskeyUserHandlesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -493,6 +541,8 @@ func (_q *UserQuery) Clone() *UserQuery {
 		inters:                    append([]Interceptor{}, _q.inters...),
 		predicates:                append([]predicate.User{}, _q.predicates...),
 		withAPIKeys:               _q.withAPIKeys.Clone(),
+		withPasskeyCredentials:    _q.withPasskeyCredentials.Clone(),
+		withPasskeyUserHandles:    _q.withPasskeyUserHandles.Clone(),
 		withRedeemCodes:           _q.withRedeemCodes.Clone(),
 		withSubscriptions:         _q.withSubscriptions.Clone(),
 		withAssignedSubscriptions: _q.withAssignedSubscriptions.Clone(),
@@ -516,6 +566,28 @@ func (_q *UserQuery) WithAPIKeys(opts ...func(*APIKeyQuery)) *UserQuery {
 		opt(query)
 	}
 	_q.withAPIKeys = query
+	return _q
+}
+
+// WithPasskeyCredentials tells the query-builder to eager-load the nodes that are connected to
+// the "passkey_credentials" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithPasskeyCredentials(opts ...func(*PasskeyCredentialQuery)) *UserQuery {
+	query := (&PasskeyCredentialClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPasskeyCredentials = query
+	return _q
+}
+
+// WithPasskeyUserHandles tells the query-builder to eager-load the nodes that are connected to
+// the "passkey_user_handles" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithPasskeyUserHandles(opts ...func(*PasskeyUserHandleQuery)) *UserQuery {
+	query := (&PasskeyUserHandleClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withPasskeyUserHandles = query
 	return _q
 }
 
@@ -696,8 +768,10 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [10]bool{
+		loadedTypes = [12]bool{
 			_q.withAPIKeys != nil,
+			_q.withPasskeyCredentials != nil,
+			_q.withPasskeyUserHandles != nil,
 			_q.withRedeemCodes != nil,
 			_q.withSubscriptions != nil,
 			_q.withAssignedSubscriptions != nil,
@@ -734,6 +808,24 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadAPIKeys(ctx, query, nodes,
 			func(n *User) { n.Edges.APIKeys = []*APIKey{} },
 			func(n *User, e *APIKey) { n.Edges.APIKeys = append(n.Edges.APIKeys, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPasskeyCredentials; query != nil {
+		if err := _q.loadPasskeyCredentials(ctx, query, nodes,
+			func(n *User) { n.Edges.PasskeyCredentials = []*PasskeyCredential{} },
+			func(n *User, e *PasskeyCredential) {
+				n.Edges.PasskeyCredentials = append(n.Edges.PasskeyCredentials, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withPasskeyUserHandles; query != nil {
+		if err := _q.loadPasskeyUserHandles(ctx, query, nodes,
+			func(n *User) { n.Edges.PasskeyUserHandles = []*PasskeyUserHandle{} },
+			func(n *User, e *PasskeyUserHandle) {
+				n.Edges.PasskeyUserHandles = append(n.Edges.PasskeyUserHandles, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -820,6 +912,66 @@ func (_q *UserQuery) loadAPIKeys(ctx context.Context, query *APIKeyQuery, nodes 
 	}
 	query.Where(predicate.APIKey(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(user.APIKeysColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadPasskeyCredentials(ctx context.Context, query *PasskeyCredentialQuery, nodes []*User, init func(*User), assign func(*User, *PasskeyCredential)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(passkeycredential.FieldUserID)
+	}
+	query.Where(predicate.PasskeyCredential(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.PasskeyCredentialsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.UserID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadPasskeyUserHandles(ctx context.Context, query *PasskeyUserHandleQuery, nodes []*User, init func(*User), assign func(*User, *PasskeyUserHandle)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(passkeyuserhandle.FieldUserID)
+	}
+	query.Where(predicate.PasskeyUserHandle(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.PasskeyUserHandlesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

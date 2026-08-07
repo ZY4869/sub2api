@@ -2,6 +2,8 @@ export default {
     bulkActions: {
         selected: "已选择 {count} 个账号",
         selectCurrentPage: "本页全选",
+        selectFilteredResults: "全选当前筛选结果",
+        selectFilteredResultsWithCount: "全选筛选结果（{count}）",
         clear: "清除选择",
         archive: "批量归档",
         batchTest: "批量测试",
@@ -24,6 +26,9 @@ export default {
         refreshToken: "批量刷新令牌",
         resetStatusSuccess: "已成功重置 {count} 个账号状态",
         refreshTokenSuccess: "已成功刷新 {count} 个账号令牌",
+        selectFilteredSuccess: "已选择当前筛选命中的 {count} 个账号",
+        selectFilteredNoTargets: "当前筛选结果为空，无法选择账号",
+        selectFilteredFailed: "选择当前筛选结果失败，请稍后重试",
         partialSuccess: "操作部分完成：{success} 成功，{failed} 失败",
     },
     batchTest: {

@@ -131,6 +131,29 @@ func (c *Config) Validate() error {
 	if c.JWT.RefreshWindowMinutes < 0 {
 		return fmt.Errorf("jwt.refresh_window_minutes must be non-negative")
 	}
+	if c.WebAuthn.Enabled {
+		if strings.TrimSpace(c.WebAuthn.RPID) == "" {
+			return fmt.Errorf("webauthn.rp_id is required when webauthn is enabled")
+		}
+		if len(c.WebAuthn.RPOrigins) == 0 {
+			return fmt.Errorf("webauthn.rp_origins is required when webauthn is enabled")
+		}
+		for i, origin := range c.WebAuthn.RPOrigins {
+			if err := ValidateAbsoluteHTTPURL(origin); err != nil {
+				return fmt.Errorf("webauthn.rp_origins[%d] invalid: %w", i, err)
+			}
+			u, err := url.Parse(strings.TrimSpace(origin))
+			if err != nil {
+				return fmt.Errorf("webauthn.rp_origins[%d] invalid: %w", i, err)
+			}
+			if u.Path != "" && u.Path != "/" {
+				return fmt.Errorf("webauthn.rp_origins[%d] invalid: origin must not include path", i)
+			}
+			if u.RawQuery != "" || u.ForceQuery || u.User != nil {
+				return fmt.Errorf("webauthn.rp_origins[%d] invalid: origin must not include query or userinfo", i)
+			}
+		}
+	}
 	if c.Security.CSP.Enabled && strings.TrimSpace(c.Security.CSP.Policy) == "" {
 		return fmt.Errorf("security.csp.policy is required when CSP is enabled")
 	}

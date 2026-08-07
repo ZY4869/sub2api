@@ -477,6 +477,20 @@ func createPendingOAuthTokenForTest(t *testing.T, secret string, claims map[stri
 	return signed
 }
 
+func decodedResponseCookieValue(t *testing.T, rec *httptest.ResponseRecorder, name string) string {
+	t.Helper()
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name != name {
+			continue
+		}
+		value, err := decodeCookieValue(cookie.Value)
+		require.NoError(t, err)
+		return value
+	}
+	require.Failf(t, "missing response cookie", "cookie %q not found", name)
+	return ""
+}
+
 func TestCompleteSocialOAuthRegistration_ProviderMismatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -661,6 +675,124 @@ func TestDingTalkOAuthStartBuildsAuthorizeURLAndCookies(t *testing.T) {
 
 	require.Contains(t, rec.Header().Values("Set-Cookie")[0], "dingtalk_oauth_state=")
 	require.Contains(t, rec.Header().Get("Set-Cookie"), "Path=/api/v1/auth/oauth/dingtalk")
+	require.Equal(t, "/profile", decodedResponseCookieValue(t, rec, socialOAuthRedirectCookieName(service.AuthProviderDingTalk)))
+	require.Equal(t, "login", decodedResponseCookieValue(t, rec, socialOAuthModeCookieName(service.AuthProviderDingTalk)))
+}
+
+func TestSocialOAuthStartPostBodyDrivesBindRedirectAndAffCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, authService, _, _, userRepo := newSocialOAuthTestHandlerWithAttributes(t, map[string]string{
+		service.SettingKeyGitHubOAuthEnabled:      "true",
+		service.SettingKeyGitHubOAuthClientID:     "github-client-id",
+		service.SettingKeyGitHubOAuthClientSecret: "github-client-secret",
+		service.SettingKeyGitHubOAuthRedirectURL:  "https://api.example.com/api/v1/auth/oauth/github/callback",
+	})
+	user := &service.User{
+		ID:       42,
+		Email:    "bind@example.com",
+		Username: "bind-user",
+		Role:     service.RoleUser,
+		Status:   service.StatusActive,
+	}
+	require.NoError(t, userRepo.Create(context.Background(), user))
+	token, err := authService.GenerateToken(user)
+	require.NoError(t, err)
+
+	body := bytes.NewBufferString(`{"mode":"bind","redirect":"/profile","aff_code":"AFF-123","turnstile_token":"proof-token"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/github/start?mode=login&redirect=/query&aff_code=QUERY", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "github"}}
+
+	handler.SocialOAuthStart(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	data, ok := payload["data"].(map[string]any)
+	require.True(t, ok)
+	require.NotEmpty(t, strings.TrimSpace(anyString(data["authorize_url"])))
+	require.Equal(t, "/profile", decodedResponseCookieValue(t, rec, socialOAuthRedirectCookieName(service.AuthProviderGitHub)))
+	require.Equal(t, "bind", decodedResponseCookieValue(t, rec, socialOAuthModeCookieName(service.AuthProviderGitHub)))
+	require.Equal(t, "AFF123", decodedResponseCookieValue(t, rec, socialOAuthAffCodeCookieName(service.AuthProviderGitHub)))
+	require.Equal(t, "42", decodedResponseCookieValue(t, rec, socialOAuthBindUserCookieName(service.AuthProviderGitHub)))
+}
+
+func TestSocialOAuthStartBindPostRequiresAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, _ := newSocialOAuthTestHandler(t, map[string]string{
+		service.SettingKeyGitHubOAuthEnabled:      "true",
+		service.SettingKeyGitHubOAuthClientID:     "github-client-id",
+		service.SettingKeyGitHubOAuthClientSecret: "github-client-secret",
+		service.SettingKeyGitHubOAuthRedirectURL:  "https://api.example.com/api/v1/auth/oauth/github/callback",
+	})
+
+	body := bytes.NewBufferString(`{"mode":"bind","redirect":"/profile"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/github/start", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "github"}}
+
+	handler.SocialOAuthStart(c)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Equal(t, "AUTH_IDENTITY_BIND_REQUIRED", payload["reason"])
+}
+
+func TestLinuxDoOAuthStartPostBodyReturnsAuthorizeURL(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, _ := newSocialOAuthTestHandler(t, map[string]string{
+		service.SettingKeyLinuxDoConnectEnabled:      "true",
+		service.SettingKeyLinuxDoConnectClientID:     "linuxdo-client-id",
+		service.SettingKeyLinuxDoConnectClientSecret: "linuxdo-client-secret",
+		service.SettingKeyLinuxDoConnectRedirectURL:  "https://api.example.com/api/v1/auth/oauth/linuxdo/callback",
+	})
+	handler.cfg.LinuxDo = config.LinuxDoConnectConfig{
+		Enabled:              true,
+		ClientID:             "linuxdo-client-id",
+		ClientSecret:         "linuxdo-client-secret",
+		AuthorizeURL:         "https://connect.linux.do/oauth2/authorize",
+		TokenURL:             "https://connect.linux.do/oauth2/token",
+		UserInfoURL:          "https://connect.linux.do/api/user",
+		Scopes:               "openid",
+		RedirectURL:          "https://api.example.com/api/v1/auth/oauth/linuxdo/callback",
+		FrontendRedirectURL:  "/auth/linuxdo/callback",
+		TokenAuthMethod:      "client_secret_post",
+		UserInfoIDPath:       "id",
+		UserInfoUsernamePath: "username",
+	}
+
+	body := bytes.NewBufferString(`{"redirect":"/profile","aff_code":"LINUX-1","turnstile_token":"proof-token"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/linuxdo/start?redirect=/query&aff_code=QUERY", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	handler.LinuxDoOAuthStart(c)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	data, ok := payload["data"].(map[string]any)
+	require.True(t, ok)
+	authURL := strings.TrimSpace(anyString(data["authorize_url"]))
+	require.NotEmpty(t, authURL)
+	parsed, err := url.Parse(authURL)
+	require.NoError(t, err)
+	require.Equal(t, "connect.linux.do", parsed.Host)
+	require.Equal(t, "/profile", decodedResponseCookieValue(t, rec, linuxDoOAuthRedirectCookie))
+	require.Equal(t, "LINUX1", decodedResponseCookieValue(t, rec, linuxDoOAuthAffCodeCookieName))
 }
 
 func TestDingTalkOAuthCallbackLoginSyncsInternalOnly(t *testing.T) {

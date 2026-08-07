@@ -45,6 +45,12 @@ describe("useModelWhitelist", () => {
     const models = getModelsByPlatform("anthropic", "whitelist");
 
     expect(models).toContain("claude-fable-5");
+    expect(models).toContain("claude-sonnet-5");
+  });
+
+  it("exposes Kimi K3 and GLM-5.2 through local registry selections", () => {
+    expect(getModelsByPlatform("moonshot", "whitelist")).toContain("kimi-k3");
+    expect(getModelsByPlatform("zhipu", "whitelist")).toContain("glm-5.2");
   });
 
   it("openai models include GPT-5.4 mini/nano and GPT-5.4 official snapshots", () => {
@@ -74,6 +80,15 @@ describe("useModelWhitelist", () => {
       });
       expect(capabilities.options).toMatchObject({ store: false });
     }
+  });
+
+  it("derives Claude Sonnet 5 thinking capability from the local registry", () => {
+    const capabilities = getModelCapabilities("anthropic", "claude-sonnet-5");
+
+    expect(capabilities.name).toBe("Claude Sonnet 5");
+    expect(capabilities.options).toMatchObject({
+      thinking: { budgetTokens: 24576, type: "enabled" },
+    });
   });
 
   it("gemini models include prioritized native image models", () => {

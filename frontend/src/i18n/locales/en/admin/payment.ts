@@ -34,9 +34,12 @@ export default {
     reason: 'Refund reason',
     reasonPlaceholder: 'Customer requested refund',
     submit: 'Submit refund',
+    forceSubmit: 'Confirm forced refund',
     submitting: 'Submitting',
     success: 'Refund submitted',
-    failed: 'Refund failed'
+    failed: 'Refund failed',
+    forceRequiredTitle: 'Balance is insufficient',
+    forceRequiredDesc: 'The user currently has {current}; this refund needs to deduct {amount}. Confirm to continue the full refund and deduct the full top-up balance.'
   },
   loadFailed: 'Failed to load payment orders. Refresh and try again.',
   refresh: 'Refresh'

@@ -38,6 +38,7 @@ export default {
       bindGitHub: '绑定 GitHub',
       bindGoogle: '绑定 Google',
       bindDingTalk: '绑定钉钉',
+      bindFailed: '启动绑定失败，请稍后重试',
       verified: '已验证邮箱',
       unverified: '邮箱未验证',
       empty: '尚未绑定任何第三方身份。',

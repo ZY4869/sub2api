@@ -5,12 +5,22 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"go.uber.org/zap"
 )
 
 func enforceCodexIdentityHeaders(ctx context.Context, headers http.Header, account *Account) {
+	enforceCodexIdentityHeadersWithOptions(ctx, headers, account, false)
+}
+
+func enforceCodexIdentityHeadersWithConfig(ctx context.Context, headers http.Header, account *Account, cfg *config.Config) {
+	disableOriginatorNormalization := cfg != nil && cfg.Gateway.DisableCodexOriginatorNormalization
+	enforceCodexIdentityHeadersWithOptions(ctx, headers, account, disableOriginatorNormalization)
+}
+
+func enforceCodexIdentityHeadersWithOptions(ctx context.Context, headers http.Header, account *Account, disableOriginatorNormalization bool) {
 	if headers == nil || !isChatGPTOpenAIOAuthAccount(account) {
 		return
 	}
@@ -20,10 +30,12 @@ func enforceCodexIdentityHeaders(ctx context.Context, headers http.Header, accou
 		headers.Set("user-agent", userAgent)
 	}
 	originator := openai.SanitizeCodexOriginator(headers.Get("originator"))
-	if paired := openai.CodexOriginatorForUserAgent(userAgent); paired != "" {
-		preserveOfficialOriginator := userAgent == codexCLIUserAgent && originator != "" && originator != "codex_cli_rs" && openai.IsCodexOfficialClientOriginator(originator)
-		if !preserveOfficialOriginator {
-			originator = paired
+	if !disableOriginatorNormalization {
+		if paired := openai.CodexOriginatorForUserAgent(userAgent); paired != "" {
+			preserveOfficialOriginator := userAgent == codexCLIUserAgent && originator != "" && originator != "codex_cli_rs" && openai.IsCodexOfficialClientOriginator(originator)
+			if !preserveOfficialOriginator {
+				originator = paired
+			}
 		}
 	}
 	if originator == "" {
@@ -44,5 +56,6 @@ func enforceCodexIdentityHeaders(ctx context.Context, headers http.Header, accou
 		zap.String("component", "service.openai_gateway"),
 		zap.String("originator", originator),
 		zap.String("version", headers.Get("version")),
+		zap.Bool("originator_normalization_disabled", disableOriginatorNormalization),
 	)
 }

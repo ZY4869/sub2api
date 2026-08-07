@@ -58,7 +58,9 @@ function createCtx(overrides: Record<string, unknown> = {}) {
 
 describe('useAccountsBulkActions', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals()
     vi.mocked(adminAPI.accounts.list).mockReset()
+    vi.mocked(adminAPI.accounts.delete).mockReset()
   })
 
   it('adds ungrouped filter and resolves target total before opening filtered bulk edit', async () => {
@@ -128,5 +130,92 @@ describe('useAccountsBulkActions', () => {
     expect(ctx.bulkEditFilters.value).toEqual(expect.objectContaining({
       group: '9'
     }))
+  })
+
+  it('limits bulk delete concurrency and refreshes after success', async () => {
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    let releaseDeletes!: () => void
+    const deleteGate = new Promise<void>((resolve) => {
+      releaseDeletes = resolve
+    })
+    let activeDeletes = 0
+    let maxActiveDeletes = 0
+
+    vi.mocked(adminAPI.accounts.delete).mockImplementation(async () => {
+      activeDeletes += 1
+      maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes)
+      await deleteGate
+      activeDeletes -= 1
+      return { message: 'ok' }
+    })
+
+    const ctx = createCtx({
+      selIds: ref([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    })
+    const actions = useAccountsBulkActions(ctx)
+
+    const promise = actions.handleBulkDelete()
+
+    expect(adminAPI.accounts.delete).toHaveBeenCalledTimes(4)
+    expect(maxActiveDeletes).toBe(4)
+
+    releaseDeletes()
+    await promise
+
+    expect(adminAPI.accounts.delete).toHaveBeenCalledTimes(10)
+    expect(maxActiveDeletes).toBeLessThanOrEqual(4)
+    expect(ctx.clearSelection).toHaveBeenCalled()
+    expect(ctx.reload).toHaveBeenCalled()
+  })
+
+  it('selects all accounts matching the current filters across pages', async () => {
+    vi.mocked(adminAPI.accounts.list)
+      .mockResolvedValueOnce({
+        items: [{ id: 1 }, { id: 2 }],
+        total: 1001,
+        page: 1,
+        page_size: 1000,
+        pages: 2
+      } as any)
+      .mockResolvedValueOnce({
+        items: [{ id: 2 }, { id: 3 }],
+        total: 1001,
+        page: 2,
+        page_size: 1000,
+        pages: 2
+      } as any)
+    const ctx = createCtx()
+    const actions = useAccountsBulkActions(ctx)
+
+    await actions.handleSelectFilteredAccounts()
+
+    expect(adminAPI.accounts.list).toHaveBeenNthCalledWith(1, 1, 1000, {
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active',
+      group: undefined,
+      search: 'team-a',
+      lifecycle: 'normal',
+      privacy_mode: undefined,
+      limited_view: 'all',
+      limited_reason: undefined,
+      runtime_view: 'available_only'
+    })
+    expect(adminAPI.accounts.list).toHaveBeenNthCalledWith(2, 2, 1000, {
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active',
+      group: undefined,
+      search: 'team-a',
+      lifecycle: 'normal',
+      privacy_mode: undefined,
+      limited_view: 'all',
+      limited_reason: undefined,
+      runtime_view: 'available_only'
+    })
+    expect(ctx.setSelectedIds).toHaveBeenCalledWith([1, 2, 3])
+    expect(ctx.appStore.showSuccess).toHaveBeenCalledWith(
+      'admin.accounts.bulkActions.selectFilteredSuccess'
+    )
   })
 })

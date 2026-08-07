@@ -458,6 +458,35 @@
     ]
   },
   {
+    "id": "claude-sonnet-5",
+    "display_name": "Claude Sonnet 5",
+    "provider": "anthropic",
+    "platforms": [
+      "anthropic"
+    ],
+    "protocol_ids": [
+      "claude-sonnet-5"
+    ],
+    "aliases": [
+      "claude-sonnet-5.0"
+    ],
+    "pricing_lookup_ids": [
+      "claude-sonnet-5"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 5,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "tab_flash_lite_preview",
     "display_name": "Tab_flash_lite_preview",
     "provider": "antigravity",
@@ -3121,6 +3150,33 @@
     "capabilities": [],
     "ui_priority": 3,
     "exposed_in": [
+      "whitelist"
+    ]
+  },
+  {
+    "id": "kimi-k3",
+    "display_name": "Kimi K3",
+    "provider": "moonshot",
+    "platforms": [
+      "moonshot"
+    ],
+    "protocol_ids": [
+      "kimi-k3"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "kimi-k3"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 4,
+    "exposed_in": [
+      "runtime",
+      "test",
       "whitelist"
     ]
   },
@@ -6581,6 +6637,33 @@
     "capabilities": [],
     "ui_priority": 10,
     "exposed_in": [
+      "whitelist"
+    ]
+  },
+  {
+    "id": "glm-5.2",
+    "display_name": "GLM-5.2",
+    "provider": "zhipu",
+    "platforms": [
+      "zhipu"
+    ],
+    "protocol_ids": [
+      "glm-5.2"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "glm-5.2"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 11,
+    "exposed_in": [
+      "runtime",
+      "test",
       "whitelist"
     ]
   },

@@ -17,6 +17,7 @@ type GatewayConfig struct {
 	GeminiInteractionsEnabled                 bool                     `mapstructure:"gemini_interactions_enabled"`
 	ConnectionPoolIsolation                   string                   `mapstructure:"connection_pool_isolation"`
 	ForceCodexCLI                             bool                     `mapstructure:"force_codex_cli"`
+	DisableCodexOriginatorNormalization       bool                     `mapstructure:"disable_codex_originator_normalization"`
 	OpenAIPassthroughAllowTimeoutHeaders      bool                     `mapstructure:"openai_passthrough_allow_timeout_headers"`
 	OpenAIWS                                  GatewayOpenAIWSConfig    `mapstructure:"openai_ws"`
 	MaxIdleConns                              int                      `mapstructure:"max_idle_conns"`

@@ -145,6 +145,9 @@ type SettingsForm = SystemSettings & {
   smtp_password: string
   telegram_bot_token: string
   turnstile_secret_key: string
+  tencent_captcha_app_secret_key: string
+  tencent_captcha_cloud_secret_key: string
+  aliyun_captcha_access_key_secret: string
   linuxdo_connect_client_secret: string
   github_oauth_client_secret: string
   google_oauth_client_secret: string
@@ -267,6 +270,21 @@ const form = reactive<SettingsForm>({
   turnstile_site_key: '',
   turnstile_secret_key: '',
   turnstile_secret_key_configured: false,
+  tencent_captcha_enabled: false,
+  tencent_captcha_app_id: '',
+  tencent_captcha_app_secret_key: '',
+  tencent_captcha_app_secret_key_configured: false,
+  tencent_captcha_cloud_secret_id: '',
+  tencent_captcha_cloud_secret_key: '',
+  tencent_captcha_cloud_secret_key_configured: false,
+  aliyun_captcha_enabled: false,
+  aliyun_captcha_scene_id: '',
+  aliyun_captcha_prefix: '',
+  aliyun_captcha_region: 'cn-shanghai',
+  aliyun_captcha_access_key_id: '',
+  aliyun_captcha_access_key_secret: '',
+  aliyun_captcha_access_key_secret_configured: false,
+  passkey_enabled: false,
   // LinuxDo Connect OAuth 登录
   linuxdo_connect_enabled: false,
   linuxdo_connect_client_id: '',
@@ -511,6 +529,14 @@ const loginAgreementModeOptions = computed(() => [
   { value: 'checkbox', label: t('admin.settings.loginAgreement.checkboxMode') }
 ])
 
+type CaptchaProvider = 'none' | 'turnstile' | 'tencent' | 'aliyun'
+
+function setCaptchaProvider(provider: CaptchaProvider) {
+  form.turnstile_enabled = provider === 'turnstile'
+  form.tencent_captcha_enabled = provider === 'tencent'
+  form.aliyun_captcha_enabled = provider === 'aliyun'
+}
+
 const publishedMarkdownPageOptions = computed(() =>
   form.custom_menu_items
     .filter((item) => item.page_mode === 'markdown' && item.page_published && item.page_slug)
@@ -629,6 +655,9 @@ async function loadSettings() {
     form.smtp_password = ''
     form.telegram_bot_token = ''
     form.turnstile_secret_key = ''
+    form.tencent_captcha_app_secret_key = ''
+    form.tencent_captcha_cloud_secret_key = ''
+    form.aliyun_captcha_access_key_secret = ''
     form.linuxdo_connect_client_secret = ''
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
@@ -866,6 +895,20 @@ async function saveSettings() {
       turnstile_enabled: form.turnstile_enabled,
       turnstile_site_key: form.turnstile_site_key,
       turnstile_secret_key: form.turnstile_secret_key || undefined,
+      tencent_captcha_enabled: form.tencent_captcha_enabled,
+      tencent_captcha_app_id: form.tencent_captcha_app_id,
+      tencent_captcha_app_secret_key: form.tencent_captcha_app_secret_key || undefined,
+      tencent_captcha_cloud_secret_id: form.tencent_captcha_cloud_secret_id,
+      tencent_captcha_cloud_secret_key:
+        form.tencent_captcha_cloud_secret_key || undefined,
+      aliyun_captcha_enabled: form.aliyun_captcha_enabled,
+      aliyun_captcha_scene_id: form.aliyun_captcha_scene_id,
+      aliyun_captcha_prefix: form.aliyun_captcha_prefix,
+      aliyun_captcha_region: form.aliyun_captcha_region,
+      aliyun_captcha_access_key_id: form.aliyun_captcha_access_key_id,
+      aliyun_captcha_access_key_secret:
+        form.aliyun_captcha_access_key_secret || undefined,
+      passkey_enabled: form.passkey_enabled,
       linuxdo_connect_enabled: form.linuxdo_connect_enabled,
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret: form.linuxdo_connect_client_secret || undefined,
@@ -939,6 +982,9 @@ async function saveSettings() {
     form.smtp_password = ''
     form.telegram_bot_token = ''
     form.turnstile_secret_key = ''
+    form.tencent_captcha_app_secret_key = ''
+    form.tencent_captcha_cloud_secret_key = ''
+    form.aliyun_captcha_access_key_secret = ''
     form.linuxdo_connect_client_secret = ''
     form.github_oauth_client_secret = ''
     form.google_oauth_client_secret = ''
@@ -1004,6 +1050,7 @@ const settingsViewContext = {
   defaultSubscriptionGroupOptions,
   addDefaultSubscription,
   removeDefaultSubscription,
+  setCaptchaProvider,
   globalRealtimeCountdownEnabled,
   savingGlobalRealtimeCountdown,
   saveGlobalRealtimeCountdownPreference,

@@ -184,6 +184,18 @@ export interface SystemSettings {
   turnstile_enabled: boolean
   turnstile_site_key: string
   turnstile_secret_key_configured: boolean
+  tencent_captcha_enabled: boolean
+  tencent_captcha_app_id: string
+  tencent_captcha_app_secret_key_configured: boolean
+  tencent_captcha_cloud_secret_id: string
+  tencent_captcha_cloud_secret_key_configured: boolean
+  aliyun_captcha_enabled: boolean
+  aliyun_captcha_scene_id: string
+  aliyun_captcha_prefix: string
+  aliyun_captcha_region: string
+  aliyun_captcha_access_key_id: string
+  aliyun_captcha_access_key_secret_configured: boolean
+  passkey_enabled: boolean
 
   // LinuxDo Connect OAuth settings
   linuxdo_connect_enabled: boolean
@@ -343,6 +355,18 @@ export interface UpdateSettingsRequest {
   turnstile_enabled?: boolean
   turnstile_site_key?: string
   turnstile_secret_key?: string
+  tencent_captcha_enabled?: boolean
+  tencent_captcha_app_id?: string
+  tencent_captcha_app_secret_key?: string
+  tencent_captcha_cloud_secret_id?: string
+  tencent_captcha_cloud_secret_key?: string
+  aliyun_captcha_enabled?: boolean
+  aliyun_captcha_scene_id?: string
+  aliyun_captcha_prefix?: string
+  aliyun_captcha_region?: string
+  aliyun_captcha_access_key_id?: string
+  aliyun_captcha_access_key_secret?: string
+  passkey_enabled?: boolean
   linuxdo_connect_enabled?: boolean
   linuxdo_connect_client_id?: string
   linuxdo_connect_client_secret?: string

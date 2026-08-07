@@ -45,6 +45,9 @@ func (s *SettingService) applyParsedOAuthSettings(result *SystemSettings, settin
 	result.TelegramBotTokenConfigured = result.TelegramBotToken != ""
 	result.TelegramBotTokenMasked = maskTelegramBotToken(result.TelegramBotToken)
 	result.TurnstileSecretKey = settings[SettingKeyTurnstileSecretKey]
+	result.TencentCaptchaAppSecretKey = settings[SettingKeyTencentCaptchaAppSecretKey]
+	result.TencentCaptchaCloudSecretKey = settings[SettingKeyTencentCaptchaCloudSecretKey]
+	result.AliyunCaptchaAccessKeySecret = settings[SettingKeyAliyunCaptchaAccessKeySecret]
 
 	linuxDoBase := config.LinuxDoConnectConfig{}
 	if s.cfg != nil {

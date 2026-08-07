@@ -125,6 +125,20 @@ func TestGetModelPricing_Gpt53CodexSparkUsesGpt54Pricing(t *testing.T) {
 	require.Same(t, gpt54Pricing, got)
 }
 
+func TestGetModelPricing_GLM52UsesExactPricing(t *testing.T) {
+	glm5Pricing := &LiteLLMModelPricing{InputCostPerToken: 9e-6}
+	glm52Pricing := &LiteLLMModelPricing{InputCostPerToken: 5e-7}
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"glm-5":   glm5Pricing,
+			"glm-5.2": glm52Pricing,
+		},
+	}
+
+	require.Same(t, glm52Pricing, svc.GetModelPricing("glm-5.2"))
+	require.Nil(t, svc.GetModelPricing("glm-5.2-preview"))
+}
+
 func TestGetModelPricing_OpenAIFallbackMatchedLoggedAsDebug(t *testing.T) {
 	logSink, restore := captureStructuredLog(t)
 	defer restore()
@@ -431,4 +445,26 @@ func TestPricingService_Initialize_UsesGemini36FlashOfficialPricing(t *testing.T
 	require.InDelta(t, 2.7e-6, pricing.InputCostPerTokenPriority, 1e-12)
 	require.InDelta(t, 1.35e-5, pricing.OutputCostPerTokenPriority, 1e-12)
 	require.True(t, pricing.SupportsServiceTier)
+}
+
+func TestPricingService_Initialize_UsesCleanroomModelFallbacks(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+
+	for _, model := range []string{"claude-sonnet-5", "kimi-k3", "glm-5.2"} {
+		t.Run(model, func(t *testing.T) {
+			pricing := svc.GetModelPricing(model)
+			require.NotNil(t, pricing)
+			require.NotEmpty(t, pricing.LiteLLMProvider)
+			require.Equal(t, "chat", pricing.Mode)
+			require.Greater(t, pricing.InputCostPerToken, 0.0)
+			require.Greater(t, pricing.OutputCostPerToken, 0.0)
+		})
+	}
 }

@@ -140,6 +140,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/model-plaza',
+    name: 'ModelPlaza',
+    component: () => import('@/views/ModelPlazaView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model Plaza',
+      titleKey: 'ui.routeTitles.modelPlaza'
+    }
+  },
+  {
     path: '/legal/:slug',
     name: 'LegalDocument',
     component: () => import('@/views/LegalDocumentView.vue'),
@@ -815,7 +825,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models', '/legal']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models', '/model-plaza', '/legal']
 const LOGIN_ENTRY_PATHS = ['/login', '/register']
 
 function isAllowedPath(path: string, allowedPaths: string[]) {

@@ -137,6 +137,7 @@
           />
           <p class="input-hint">{{ t('admin.groups.rateMultiplierHint') }}</p>
         </div>
+        <GroupProfitControlFields :form="createForm" :t="t" />
         <GroupPeakRateFields
           :t="t"
           :form="createForm"
@@ -799,6 +800,7 @@ import GroupImageBatchSettingsFields from './GroupImageBatchSettingsFields.vue'
 import GroupOpenAIRuntimePolicyFields from './GroupOpenAIRuntimePolicyFields.vue'
 import GroupCompositeRoutesFields from './GroupCompositeRoutesFields.vue'
 import GroupPeakRateFields from './GroupPeakRateFields.vue'
+import GroupProfitControlFields from './GroupProfitControlFields.vue'
 import { unref } from 'vue'
 
 const props = defineProps<{ ctx: any }>()

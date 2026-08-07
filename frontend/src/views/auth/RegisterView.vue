@@ -19,6 +19,12 @@
         :show-git-hub="githubOAuthEnabled"
         :show-google="googleOAuthEnabled"
         :show-ding-talk="dingtalkOAuthEnabled"
+        :captcha-provider="captchaProvider"
+        :turnstile-site-key="turnstileSiteKey"
+        :tencent-captcha-app-id="tencentCaptchaAppID"
+        :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+        :aliyun-captcha-prefix="aliyunCaptchaPrefix"
+        :aliyun-captcha-region="aliyunCaptchaRegion"
       />
 
       <AuthMaintenanceNotice v-if="maintenanceModeEnabled && settingsLoaded" show-admin-login-hint />
@@ -230,14 +236,20 @@
           </transition>
         </div>
 
-        <!-- Turnstile Widget -->
-        <div v-if="turnstileEnabled && turnstileSiteKey">
-          <TurnstileWidget
-            ref="turnstileRef"
-            :site-key="turnstileSiteKey"
-            @verify="onTurnstileVerify"
-            @expire="onTurnstileExpire"
-            @error="onTurnstileError"
+        <!-- Captcha Widget -->
+        <div v-if="captchaRequired">
+          <CaptchaChallenge
+            ref="captchaRef"
+            :provider="captchaProvider"
+            :turnstile-site-key="turnstileSiteKey"
+            :tencent-captcha-app-id="tencentCaptchaAppID"
+            :aliyun-captcha-scene-id="aliyunCaptchaSceneID"
+            :aliyun-prefix="aliyunCaptchaPrefix"
+            :aliyun-region="aliyunCaptchaRegion"
+            :disabled="isLoading"
+            @verify="onCaptchaVerify"
+            @expire="onCaptchaExpire"
+            @error="onCaptchaError"
           />
           <p v-if="errors.turnstile" class="input-error-text mt-2 text-center">
             {{ errors.turnstile }}
@@ -273,7 +285,7 @@
           type="submit"
           :disabled="
             isLoading ||
-            (turnstileEnabled && !turnstileToken) ||
+            (captchaRequired && !captchaVerified) ||
             (loginAgreementEnabled && !loginAgreementAccepted)
           "
           class="btn btn-primary w-full"
@@ -326,15 +338,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
 import LoginAgreementPrompt from '@/components/auth/LoginAgreementPrompt.vue'
 import SocialOAuthSection from '@/components/auth/SocialOAuthSection.vue'
+import CaptchaChallenge from '@/components/auth/CaptchaChallenge.vue'
 import Icon from '@/components/icons/Icon.vue'
-import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAuthStore, useAppStore } from '@/stores'
 import { getPublicSettings, validatePromoCode, validateInvitationCode } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
@@ -342,7 +354,7 @@ import {
   isRegistrationEmailSuffixAllowed,
   normalizeRegistrationEmailSuffixWhitelist
 } from '@/utils/registrationEmailPolicy'
-import type { LoginAgreementDocument } from '@/types'
+import type { CaptchaProof, CaptchaProvider, LoginAgreementDocument } from '@/types'
 
 const { t, locale } = useI18n()
 
@@ -366,8 +378,12 @@ const emailVerifyEnabled = ref<boolean>(false)
 const promoCodeEnabled = ref<boolean>(true)
 const invitationCodeEnabled = ref<boolean>(false)
 const affiliateEnabled = ref<boolean>(false)
-const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
+const captchaProvider = ref<CaptchaProvider>('none')
+const tencentCaptchaAppID = ref<string>('')
+const aliyunCaptchaSceneID = ref<string>('')
+const aliyunCaptchaPrefix = ref<string>('')
+const aliyunCaptchaRegion = ref<string>('')
 const siteName = ref<string>('Sub2API')
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const githubOAuthEnabled = ref<boolean>(false)
@@ -380,9 +396,11 @@ const loginAgreementEnabled = ref<boolean>(false)
 const loginAgreementAccepted = ref<boolean>(false)
 const loginAgreementDocuments = ref<LoginAgreementDocument[]>([])
 
-// Turnstile
-const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
-const turnstileToken = ref<string>('')
+// Captcha
+const captchaRef = ref<InstanceType<typeof CaptchaChallenge> | null>(null)
+const captchaProof = ref<CaptchaProof>({})
+const captchaVerified = ref<boolean>(false)
+const captchaRequired = computed(() => captchaProvider.value !== 'none')
 
 // Promo code validation
 const promoValidating = ref<boolean>(false)
@@ -429,8 +447,19 @@ onMounted(async () => {
     promoCodeEnabled.value = settings.promo_code_enabled
     invitationCodeEnabled.value = settings.invitation_code_enabled
     affiliateEnabled.value = settings.affiliate_enabled === true
-    turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
+    captchaProvider.value = settings.captcha_provider ||
+      (settings.tencent_captcha_enabled
+        ? 'tencent'
+        : settings.aliyun_captcha_enabled
+          ? 'aliyun'
+          : settings.turnstile_enabled
+            ? 'turnstile'
+            : 'none')
+    tencentCaptchaAppID.value = settings.tencent_captcha_app_id || ''
+    aliyunCaptchaSceneID.value = settings.aliyun_captcha_scene_id || ''
+    aliyunCaptchaPrefix.value = settings.aliyun_captcha_prefix || ''
+    aliyunCaptchaRegion.value = settings.aliyun_captcha_region || ''
     siteName.value = settings.site_name || 'Sub2API'
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     githubOAuthEnabled.value = settings.github_oauth_enabled
@@ -621,20 +650,23 @@ function getInvitationErrorMessage(errorCode?: string): string {
   }
 }
 
-// ==================== Turnstile Handlers ====================
+// ==================== Captcha Handlers ====================
 
-function onTurnstileVerify(token: string): void {
-  turnstileToken.value = token
+function onCaptchaVerify(proof: CaptchaProof): void {
+  captchaProof.value = proof
+  captchaVerified.value = true
   errors.turnstile = ''
 }
 
-function onTurnstileExpire(): void {
-  turnstileToken.value = ''
+function onCaptchaExpire(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
   errors.turnstile = t('auth.turnstileExpired')
 }
 
-function onTurnstileError(): void {
-  turnstileToken.value = ''
+function onCaptchaError(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
   errors.turnstile = t('auth.turnstileFailed')
 }
 
@@ -700,7 +732,7 @@ function validateForm(): boolean {
   }
 
   // Turnstile validation
-  if (turnstileEnabled.value && !turnstileToken.value) {
+  if (captchaRequired.value && !captchaVerified.value) {
     errors.turnstile = t('auth.completeVerification')
     isValid = false
   }
@@ -773,7 +805,7 @@ async function handleRegister(): Promise<void> {
         JSON.stringify({
           email: formData.email,
           password: formData.password,
-          turnstile_token: turnstileToken.value,
+          ...captchaProof.value,
           promo_code: formData.promo_code || undefined,
           invitation_code: formData.invitation_code || undefined,
           aff_code: formData.aff_code || undefined
@@ -789,7 +821,7 @@ async function handleRegister(): Promise<void> {
     await authStore.register({
       email: formData.email,
       password: formData.password,
-      turnstile_token: turnstileEnabled.value ? turnstileToken.value : undefined,
+      ...captchaProof.value,
       promo_code: formData.promo_code || undefined,
       invitation_code: formData.invitation_code || undefined,
       aff_code: formData.aff_code || undefined
@@ -802,10 +834,9 @@ async function handleRegister(): Promise<void> {
     await router.push('/dashboard')
   } catch (error: unknown) {
     // Reset Turnstile on error
-    if (turnstileRef.value) {
-      turnstileRef.value.reset()
-      turnstileToken.value = ''
-    }
+    captchaRef.value?.reset()
+    captchaProof.value = {}
+    captchaVerified.value = false
 
     // Handle registration error
     errorMessage.value = buildAuthErrorMessage(error, {

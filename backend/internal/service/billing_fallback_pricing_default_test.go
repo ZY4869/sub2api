@@ -20,8 +20,10 @@ func TestBillingFallbackPricingChineseProviderFamilies(t *testing.T) {
 		{"deepseek-chat", 1.4e-7, 2.8e-7},
 		{"doubao-1.5-thinking-pro", 8e-7, 2e-6},
 		{"kimi-latest", 2e-6, 1e-5},
+		{"kimi-k3", 2e-6, 1e-5},
 		{"minimax-m1", 1e-6, 8e-6},
 		{"glm-4.6", 5e-7, 5e-7},
+		{"glm-5.2", 5e-7, 5e-7},
 	}
 
 	for _, tt := range tests {

@@ -31,8 +31,15 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPasswordResetEnabled,
 		SettingKeyInvitationCodeEnabled,
 		SettingKeyTotpEnabled,
+		SettingKeyPasskeyEnabled,
 		SettingKeyTurnstileEnabled,
 		SettingKeyTurnstileSiteKey,
+		SettingKeyTencentCaptchaEnabled,
+		SettingKeyTencentCaptchaAppID,
+		SettingKeyAliyunCaptchaEnabled,
+		SettingKeyAliyunCaptchaSceneID,
+		SettingKeyAliyunCaptchaPrefix,
+		SettingKeyAliyunCaptchaRegion,
 		SettingKeySiteName,
 		SettingKeySiteLogo,
 		SettingKeySiteSubtitle,
@@ -89,6 +96,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 	registrationEmailSuffixWhitelist := ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist])
 	paymentSettings := paymentSettingsFromRaw(settings)
+	captchaRuntime := CaptchaRuntimeSettings{
+		TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true",
+		TencentEnabled:   settings[SettingKeyTencentCaptchaEnabled] == "true",
+		AliyunEnabled:    settings[SettingKeyAliyunCaptchaEnabled] == "true",
+	}
+	captchaRuntime.Provider = CaptchaProviderFromRuntime(captchaRuntime)
 	return &PublicSettings{
 		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:               emailVerifyEnabled,
@@ -97,8 +110,16 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PasswordResetEnabled:             passwordResetEnabled,
 		InvitationCodeEnabled:            settings[SettingKeyInvitationCodeEnabled] == "true",
 		TotpEnabled:                      settings[SettingKeyTotpEnabled] == "true",
+		PasskeyEnabled:                   s.cfg != nil && s.cfg.WebAuthn.Enabled && settings[SettingKeyPasskeyEnabled] == "true",
 		TurnstileEnabled:                 settings[SettingKeyTurnstileEnabled] == "true",
 		TurnstileSiteKey:                 settings[SettingKeyTurnstileSiteKey],
+		CaptchaProvider:                  captchaRuntime.Provider,
+		TencentCaptchaEnabled:            settings[SettingKeyTencentCaptchaEnabled] == "true",
+		TencentCaptchaAppID:              strings.TrimSpace(settings[SettingKeyTencentCaptchaAppID]),
+		AliyunCaptchaEnabled:             settings[SettingKeyAliyunCaptchaEnabled] == "true",
+		AliyunCaptchaSceneID:             strings.TrimSpace(settings[SettingKeyAliyunCaptchaSceneID]),
+		AliyunCaptchaPrefix:              strings.TrimSpace(settings[SettingKeyAliyunCaptchaPrefix]),
+		AliyunCaptchaRegion:              strings.TrimSpace(settings[SettingKeyAliyunCaptchaRegion]),
 		SiteName:                         s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
 		SiteLogo:                         settings[SettingKeySiteLogo],
 		SiteSubtitle:                     s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),

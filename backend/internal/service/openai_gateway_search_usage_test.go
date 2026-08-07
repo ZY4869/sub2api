@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -146,6 +147,106 @@ func TestOpenAIGatewayServiceRecordWebSearchUsage_BillsSuccessful2xxOnce(t *test
 	require.Equal(t, 0, cmd.CacheCreationTokens)
 	require.Equal(t, 0, cmd.CacheReadTokens)
 	require.Equal(t, 0, cmd.ImageCount)
+}
+
+func TestOpenAIGatewayServiceRecordWebSearchUsage_AppliesProfitControlFlatMultiplier(t *testing.T) {
+	groupID := int64(7151)
+	price := 0.02
+	groupRate := 1.5
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+
+	err := svc.RecordWebSearchUsage(context.Background(), &OpenAIRecordWebSearchUsageInput{
+		Result: &OpenAIAlphaSearchForwardResult{
+			RequestID:  "search_profit_control",
+			StatusCode: http.StatusOK,
+			Duration:   time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      8151,
+			GroupID: &groupID,
+			Group: &Group{
+				ID:                    groupID,
+				Platform:              PlatformOpenAI,
+				RateMultiplier:        groupRate,
+				ProfitControlEnabled:  true,
+				ProfitMinMargin:       20,
+				ProfitSafetyBuffer:    5,
+				WebSearchPricePerCall: &price,
+				PeakRateEnabled:       true,
+				PeakStart:             "00:00",
+				PeakEnd:               "23:59",
+				PeakRateMultiplier:    10,
+			},
+		},
+		User:    &User{ID: 9151},
+		Account: &Account{ID: 10151, Platform: PlatformOpenAI},
+	})
+
+	require.NoError(t, err)
+	wantMultiplier := groupRate * 1.25
+	require.NotNil(t, usageRepo.lastLog)
+	require.InDelta(t, wantMultiplier, usageRepo.lastLog.RateMultiplier, 1e-12)
+	require.InDelta(t, price*wantMultiplier, usageRepo.lastLog.ActualCost, 1e-12)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.InDelta(t, price*wantMultiplier, billingRepo.lastCmd.BalanceCost, 1e-12)
+}
+
+func TestOpenAIGatewayServiceRecordWebSearchUsage_BillingErrorRetainsFailedZeroChargeUsageLog(t *testing.T) {
+	groupID := int64(7161)
+	price := 0.02
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{err: errors.New("billing tx failed with authorization=Bearer-secret")}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+
+	err := svc.RecordWebSearchUsage(context.Background(), &OpenAIRecordWebSearchUsageInput{
+		Result: &OpenAIAlphaSearchForwardResult{
+			RequestID:  "search_billing_fail",
+			StatusCode: http.StatusOK,
+			Duration:   time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      8161,
+			GroupID: &groupID,
+			Group: &Group{
+				ID:                    groupID,
+				Platform:              PlatformOpenAI,
+				RateMultiplier:        1.5,
+				WebSearchPricePerCall: &price,
+			},
+		},
+		User:    &User{ID: 9161},
+		Account: &Account{ID: 10161, Platform: PlatformOpenAI},
+	})
+
+	require.Error(t, err)
+	require.Equal(t, 1, billingRepo.calls)
+	require.Equal(t, 1, usageRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, UsageLogStatusFailed, usageRepo.lastLog.Status)
+	require.Equal(t, "search_billing_fail", usageRepo.lastLog.RequestID)
+	require.Equal(t, OpenAIAlphaSearchUsageModel, usageRepo.lastLog.Model)
+	require.InDelta(t, price, usageRepo.lastLog.TotalCost, 1e-12)
+	require.Equal(t, 0.0, usageRepo.lastLog.ActualCost)
+	require.Equal(t, 0.0, usageRepo.lastLog.ActualCostUSDEquivalent)
+	require.Nil(t, usageRepo.lastLog.ActualCostByCurrency)
+	require.NotNil(t, usageRepo.lastLog.ErrorCode)
+	require.Equal(t, usageBillingFailureErrorCode, *usageRepo.lastLog.ErrorCode)
+	require.NotNil(t, usageRepo.lastLog.ErrorMessage)
+	require.NotContains(t, *usageRepo.lastLog.ErrorMessage, "Bearer-secret")
 }
 
 func TestOpenAIGatewayServiceRecordWebSearchUsage_PriceSemantics(t *testing.T) {

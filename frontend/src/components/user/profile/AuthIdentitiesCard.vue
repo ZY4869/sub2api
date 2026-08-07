@@ -10,11 +10,26 @@
     </div>
 
     <div class="space-y-4 p-6">
+      <CaptchaChallenge
+        v-if="captchaRequired"
+        :provider="captchaProvider"
+        :turnstile-site-key="props.turnstileSiteKey"
+        :tencent-captcha-app-id="props.tencentCaptchaAppId"
+        :aliyun-captcha-scene-id="props.aliyunCaptchaSceneId"
+        :aliyun-prefix="props.aliyunCaptchaPrefix"
+        :aliyun-region="props.aliyunCaptchaRegion"
+        :disabled="bindButtonsDisabled"
+        @verify="handleCaptchaVerify"
+        @expire="handleCaptchaExpire"
+        @error="handleCaptchaExpire"
+      />
+
       <div class="flex flex-wrap gap-3">
         <button
           v-if="githubEnabled"
           type="button"
           class="btn btn-secondary btn-sm inline-flex items-center"
+          :disabled="bindButtonsDisabled"
           @click="startBind('github')"
         >
           <LobeStaticIcon
@@ -31,6 +46,7 @@
           v-if="googleEnabled"
           type="button"
           class="btn btn-secondary btn-sm inline-flex items-center"
+          :disabled="bindButtonsDisabled"
           @click="startBind('google')"
         >
           <LobeStaticIcon
@@ -47,6 +63,7 @@
           v-if="dingtalkEnabled"
           type="button"
           class="btn btn-secondary btn-sm inline-flex items-center"
+          :disabled="bindButtonsDisabled"
           @click="startBind('dingtalk')"
         >
           <LobeStaticIcon
@@ -119,24 +136,32 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { buildSocialOAuthStartURL } from '@/api/auth'
+import { startSocialOAuth } from '@/api/auth'
 import { userAPI } from '@/api'
+import CaptchaChallenge from '@/components/auth/CaptchaChallenge.vue'
 import LobeStaticIcon from '@/components/common/LobeStaticIcon.vue'
 import { useAppStore } from '@/stores'
-import type { AuthIdentity, SocialOAuthProvider } from '@/types'
+import type { AuthIdentity, CaptchaProof, CaptchaProvider, SocialOAuthProvider } from '@/types'
 import {
   buildLobeIconSources,
   resolveLobeBadgeText,
   resolveProviderIconSlugs,
 } from '@/utils/lobeIconResolver'
 
-defineProps<{
+const props = defineProps<{
   identities: AuthIdentity[]
   loading?: boolean
   githubEnabled?: boolean
   googleEnabled?: boolean
   dingtalkEnabled?: boolean
+  captchaProvider?: CaptchaProvider
+  turnstileSiteKey?: string
+  tencentCaptchaAppId?: string
+  aliyunCaptchaSceneId?: string
+  aliyunCaptchaPrefix?: string
+  aliyunCaptchaRegion?: string
 }>()
 
 const emit = defineEmits<{
@@ -148,6 +173,14 @@ const appStore = useAppStore()
 const githubIconSources = buildLobeIconSources(resolveProviderIconSlugs('github'))
 const googleIconSources = buildLobeIconSources(resolveProviderIconSlugs('google'))
 const dingtalkIconSources = buildLobeIconSources(resolveProviderIconSlugs('dingtalk'))
+const starting = ref(false)
+const captchaProof = ref<CaptchaProof>({})
+const captchaVerified = ref(false)
+const captchaProvider = computed<CaptchaProvider>(() => props.captchaProvider || 'none')
+const captchaRequired = computed(() => captchaProvider.value !== 'none')
+const bindButtonsDisabled = computed(
+  () => props.loading || starting.value || (captchaRequired.value && !captchaVerified.value)
+)
 
 function providerLabel(provider: string): string {
   switch (provider) {
@@ -179,11 +212,31 @@ function getProviderIconSources(provider: string): string[] {
   return buildLobeIconSources(resolveProviderIconSlugs(provider))
 }
 
-function startBind(provider: SocialOAuthProvider): void {
-  window.location.href = buildSocialOAuthStartURL(provider, {
-    mode: 'bind',
-    redirect: '/profile'
-  })
+function handleCaptchaVerify(proof: CaptchaProof): void {
+  captchaProof.value = proof
+  captchaVerified.value = true
+}
+
+function handleCaptchaExpire(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
+}
+
+async function startBind(provider: SocialOAuthProvider): Promise<void> {
+  if (bindButtonsDisabled.value) return
+  starting.value = true
+  try {
+    const result = await startSocialOAuth(provider, {
+      ...captchaProof.value,
+      mode: 'bind',
+      redirect: '/profile'
+    })
+    window.location.href = result.authorize_url
+  } catch (error: any) {
+    appStore.showError(error?.message || t('profile.identities.bindFailed'))
+  } finally {
+    starting.value = false
+  }
 }
 
 async function removeIdentity(provider: string): Promise<void> {

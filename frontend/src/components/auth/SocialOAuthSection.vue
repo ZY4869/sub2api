@@ -1,10 +1,24 @@
 <template>
   <div class="space-y-4">
+    <CaptchaChallenge
+      v-if="captchaRequired"
+      :provider="captchaProvider"
+      :turnstile-site-key="props.turnstileSiteKey"
+      :tencent-captcha-app-id="props.tencentCaptchaAppId"
+      :aliyun-captcha-scene-id="props.aliyunCaptchaSceneId"
+      :aliyun-prefix="props.aliyunCaptchaPrefix"
+      :aliyun-region="props.aliyunCaptchaRegion"
+      :disabled="disabled || starting"
+      @verify="handleCaptchaVerify"
+      @expire="handleCaptchaExpire"
+      @error="handleCaptchaExpire"
+    />
+
     <div class="grid gap-3">
       <button
         v-if="showLinuxDo"
         type="button"
-        :disabled="disabled"
+        :disabled="buttonsDisabled"
         class="btn btn-secondary w-full"
         @click="startLinuxDo"
       >
@@ -15,7 +29,7 @@
       <button
         v-if="showGitHub"
         type="button"
-        :disabled="disabled"
+        :disabled="buttonsDisabled"
         class="btn btn-secondary w-full"
         @click="startSocial('github')"
       >
@@ -33,7 +47,7 @@
       <button
         v-if="showGoogle"
         type="button"
-        :disabled="disabled"
+        :disabled="buttonsDisabled"
         class="btn btn-secondary w-full"
         @click="startSocial('google')"
       >
@@ -51,7 +65,7 @@
       <button
         v-if="showDingTalk"
         type="button"
-        :disabled="disabled"
+        :disabled="buttonsDisabled"
         class="btn btn-secondary w-full"
         @click="startSocial('dingtalk')"
       >
@@ -78,12 +92,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { buildSocialOAuthStartURL } from '@/api/auth'
+import { startSocialOAuth } from '@/api/auth'
+import CaptchaChallenge from '@/components/auth/CaptchaChallenge.vue'
 import LobeStaticIcon from '@/components/common/LobeStaticIcon.vue'
-import type { SocialOAuthProvider } from '@/types'
+import type { CaptchaProof, CaptchaProvider, SocialOAuthProvider } from '@/types'
 import { buildLobeIconSources, resolveProviderIconSlugs } from '@/utils/lobeIconResolver'
 
 const props = defineProps<{
@@ -94,6 +109,12 @@ const props = defineProps<{
   showDingTalk?: boolean
   mode?: 'login' | 'bind'
   redirect?: string
+  captchaProvider?: CaptchaProvider
+  turnstileSiteKey?: string
+  tencentCaptchaAppId?: string
+  aliyunCaptchaSceneId?: string
+  aliyunCaptchaPrefix?: string
+  aliyunCaptchaRegion?: string
 }>()
 
 const route = useRoute()
@@ -102,6 +123,12 @@ const { t } = useI18n()
 const showDivider = computed(
   () => props.showLinuxDo || props.showGitHub || props.showGoogle || props.showDingTalk
 )
+const starting = ref(false)
+const captchaProof = ref<CaptchaProof>({})
+const captchaVerified = ref(false)
+const captchaProvider = computed<CaptchaProvider>(() => props.captchaProvider || 'none')
+const captchaRequired = computed(() => captchaProvider.value !== 'none')
+const buttonsDisabled = computed(() => props.disabled || starting.value || (captchaRequired.value && !captchaVerified.value))
 const githubIconSources = buildLobeIconSources(resolveProviderIconSlugs('github'))
 const googleIconSources = buildLobeIconSources(resolveProviderIconSlugs('google'))
 const dingtalkIconSources = buildLobeIconSources(resolveProviderIconSlugs('dingtalk'))
@@ -110,16 +137,34 @@ function getRedirectTarget(): string {
   return props.redirect || (route.query.redirect as string) || '/dashboard'
 }
 
-function startLinuxDo(): void {
-  const redirectTo = getRedirectTarget()
-  window.location.href = buildSocialOAuthStartURL('linuxdo', { redirect: redirectTo })
+function handleCaptchaVerify(proof: CaptchaProof): void {
+  captchaProof.value = proof
+  captchaVerified.value = true
 }
 
-function startSocial(provider: SocialOAuthProvider): void {
-  const redirectTo = getRedirectTarget()
-  window.location.href = buildSocialOAuthStartURL(provider, {
-    mode: props.mode || 'login',
-    redirect: redirectTo
-  })
+function handleCaptchaExpire(): void {
+  captchaProof.value = {}
+  captchaVerified.value = false
+}
+
+async function startLinuxDo(): Promise<void> {
+  await startSocial('linuxdo')
+}
+
+async function startSocial(provider: SocialOAuthProvider): Promise<void> {
+  if (buttonsDisabled.value) return
+  starting.value = true
+  try {
+    const redirectTo = getRedirectTarget()
+    const result = await startSocialOAuth(provider, {
+      ...captchaProof.value,
+      mode: props.mode || 'login',
+      redirect: redirectTo,
+      aff_code: typeof route.query.aff_code === 'string' ? route.query.aff_code : undefined
+    })
+    window.location.href = result.authorize_url
+  } finally {
+    starting.value = false
+  }
 }
 </script>

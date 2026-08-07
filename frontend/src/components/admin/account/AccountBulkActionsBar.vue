@@ -18,6 +18,14 @@
       <button
         type="button"
         class="text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
+        @click="emit('select-filtered')"
+      >
+        {{ filteredSelectLabel }}
+      </button>
+      <span class="text-gray-300 dark:text-primary-800">|</span>
+      <button
+        type="button"
+        class="text-xs font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
         @click="emit('clear')"
       >
         {{ t('admin.accounts.bulkActions.clear') }}
@@ -67,6 +75,7 @@ import type { AccountPlatform } from '@/types'
 const props = defineProps<{
   selectedIds: number[]
   selectedPlatforms: AccountPlatform[]
+  filteredTotal?: number
 }>()
 
 const emit = defineEmits<{
@@ -76,6 +85,7 @@ const emit = defineEmits<{
   edit: []
   clear: []
   'select-page': []
+  'select-filtered': []
   'toggle-schedulable': [value: boolean]
   'reset-status': []
   'refresh-token': []
@@ -84,6 +94,14 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const canArchive = computed(() => props.selectedPlatforms.length === 1)
+
+const filteredSelectLabel = computed(() => {
+  const total = Number(props.filteredTotal || 0)
+  if (total > 0) {
+    return t('admin.accounts.bulkActions.selectFilteredResultsWithCount', { count: total })
+  }
+  return t('admin.accounts.bulkActions.selectFilteredResults')
+})
 
 const archiveButtonTitle = computed(() =>
   canArchive.value ? '' : t('admin.accounts.bulkActions.archiveMixedPlatformDisabled')

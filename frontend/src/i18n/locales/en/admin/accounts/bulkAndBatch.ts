@@ -2,6 +2,8 @@ export default {
     bulkActions: {
         selected: "{count} account(s) selected",
         selectCurrentPage: "Select this page",
+        selectFilteredResults: "Select filtered results",
+        selectFilteredResultsWithCount: "Select filtered ({count})",
         clear: "Clear selection",
         archive: "Archive",
         batchTest: "Batch Test",
@@ -24,6 +26,9 @@ export default {
         refreshToken: "Refresh Token",
         resetStatusSuccess: "Successfully reset {count} account(s) status",
         refreshTokenSuccess: "Successfully refreshed {count} account(s) token",
+        selectFilteredSuccess: "Selected {count} filtered account(s)",
+        selectFilteredNoTargets: "No account matches the current filters",
+        selectFilteredFailed: "Failed to select filtered accounts",
         partialSuccess: "Partially completed: {success} succeeded, {failed} failed",
     },
     batchTest: {

@@ -38,6 +38,7 @@ export default {
       bindGitHub: 'Bind GitHub',
       bindGoogle: 'Bind Google',
       bindDingTalk: 'Bind DingTalk',
+      bindFailed: 'Failed to start identity binding',
       verified: 'Verified Email',
       unverified: 'Email Unverified',
       empty: 'No third-party identities are linked yet.',

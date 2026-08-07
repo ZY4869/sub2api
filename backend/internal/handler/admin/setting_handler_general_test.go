@@ -292,6 +292,24 @@ func TestSettingHandlerUpdateSettings_AccountAiryWhiteSurfaceEnabled(t *testing.
 	require.Equal(t, true, settings["account_airy_white_surface_enabled"])
 }
 
+func TestSettingHandlerUpdateSettings_PasskeyEnabledRoundTrip(t *testing.T) {
+	repo := &adminSettingRepoStub{
+		values: map[string]string{
+			service.SettingKeyPasskeyEnabled: "false",
+		},
+	}
+	handler := newAdminSettingTestHandler(repo)
+
+	resp := performAdminSettingsUpdate(t, handler, `{
+		"passkey_enabled": true
+	}`)
+	require.Equal(t, http.StatusOK, resp.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyPasskeyEnabled])
+
+	settings := decodeUpdatedSystemSettings(t, resp)
+	require.Equal(t, true, settings["passkey_enabled"])
+}
+
 func TestSettingHandlerUpdateSettings_OpenAIClaudeCodeCodexPluginRoundTrip(t *testing.T) {
 	repo := &adminSettingRepoStub{
 		values: map[string]string{
@@ -312,4 +330,35 @@ func TestSettingHandlerUpdateSettings_OpenAIClaudeCodeCodexPluginRoundTrip(t *te
 	settings := decodeUpdatedSystemSettings(t, resp)
 	require.Equal(t, true, settings["openai_allow_claude_code_codex_plugin"])
 	require.Equal(t, []any{"claude_code"}, settings["openai_allowed_codex_clients"])
+}
+
+func TestSettingHandlerUpdateSettings_CodexVersionAndUserAgentPolicyRoundTrip(t *testing.T) {
+	repo := &adminSettingRepoStub{
+		values: map[string]string{
+			service.SettingKeyCodexOAuthUserAgentMode:     service.CodexOAuthUAModeDefault,
+			service.SettingKeyCodexOAuthUserAgentOverride: "",
+			service.SettingKeyMinClaudeCodeVersion:        "",
+			service.SettingKeyMaxClaudeCodeVersion:        "",
+		},
+	}
+	handler := newAdminSettingTestHandler(repo)
+
+	resp := performAdminSettingsUpdate(t, handler, `{
+		"min_claude_code_version": "2.1.63",
+		"max_claude_code_version": "3.0.0",
+		"codex_oauth_user_agent_mode": "custom",
+		"codex_oauth_user_agent_override": "Codex/9.9.9"
+	}`)
+
+	require.Equal(t, http.StatusOK, resp.Code)
+	require.Equal(t, "2.1.63", repo.values[service.SettingKeyMinClaudeCodeVersion])
+	require.Equal(t, "3.0.0", repo.values[service.SettingKeyMaxClaudeCodeVersion])
+	require.Equal(t, service.CodexOAuthUAModeCustom, repo.values[service.SettingKeyCodexOAuthUserAgentMode])
+	require.Equal(t, "Codex/9.9.9", repo.values[service.SettingKeyCodexOAuthUserAgentOverride])
+
+	settings := decodeUpdatedSystemSettings(t, resp)
+	require.Equal(t, "2.1.63", settings["min_claude_code_version"])
+	require.Equal(t, "3.0.0", settings["max_claude_code_version"])
+	require.Equal(t, service.CodexOAuthUAModeCustom, settings["codex_oauth_user_agent_mode"])
+	require.Equal(t, "Codex/9.9.9", settings["codex_oauth_user_agent_override"])
 }

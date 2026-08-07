@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import { refreshAccessToken } from './tokenRefresh'
 import { buildApiUrl } from './url'
 import type {
   LoginRequest,
@@ -16,7 +17,8 @@ import type {
   TotpLoginResponse,
   TotpLogin2FARequest,
   SocialOAuthCompleteResponse,
-  SocialOAuthProvider
+  SocialOAuthProvider,
+  CaptchaProof
 } from '@/types'
 
 /**
@@ -194,21 +196,7 @@ export interface RefreshTokenResponse {
  * @returns New token pair
  */
 export async function refreshToken(): Promise<RefreshTokenResponse> {
-  const currentRefreshToken = getRefreshToken()
-  if (!currentRefreshToken) {
-    throw new Error('No refresh token available')
-  }
-
-  const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {
-    refresh_token: currentRefreshToken
-  })
-
-  // Update tokens in localStorage
-  setAuthToken(data.access_token)
-  setRefreshToken(data.refresh_token)
-  setTokenExpiresAt(data.expires_in)
-
-  return data
+  return refreshAccessToken()
 }
 
 /**
@@ -290,9 +278,8 @@ export async function validateInvitationCode(code: string): Promise<ValidateInvi
 /**
  * Forgot password request
  */
-export interface ForgotPasswordRequest {
+export interface ForgotPasswordRequest extends CaptchaProof {
   email: string
-  turnstile_token?: string
 }
 
 /**
@@ -382,6 +369,21 @@ export function buildSocialOAuthStartURL(
   return `${buildApiUrl(`/auth/oauth/${provider}/start`)}${suffix ? `?${suffix}` : ''}`
 }
 
+export async function startSocialOAuth(
+  provider: SocialOAuthProvider,
+  payload: CaptchaProof & {
+    redirect?: string
+    mode?: 'login' | 'bind'
+    aff_code?: string
+  } = {}
+): Promise<{ authorize_url: string }> {
+  const { data } = await apiClient.post<{ authorize_url: string }>(
+    `/auth/oauth/${provider}/start`,
+    payload
+  )
+  return data
+}
+
 export async function completeSocialOAuthRegistration(
   provider: SocialOAuthProvider,
   pendingOAuthToken: string,
@@ -427,6 +429,7 @@ export const authAPI = {
   revokeAllSessions,
   completeLinuxDoOAuthRegistration,
   buildSocialOAuthStartURL,
+  startSocialOAuth,
   completeSocialOAuthRegistration
 }
 

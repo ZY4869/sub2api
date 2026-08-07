@@ -32,6 +32,7 @@ type UpdateSettingsRequest struct {
 	FrontendURL                                        string                                    `json:"frontend_url"`
 	InvitationCodeEnabled                              bool                                      `json:"invitation_code_enabled"`
 	TotpEnabled                                        bool                                      `json:"totp_enabled"`
+	PasskeyEnabled                                     bool                                      `json:"passkey_enabled"`
 	SMTPHost                                           string                                    `json:"smtp_host"`
 	SMTPPort                                           int                                       `json:"smtp_port"`
 	SMTPUsername                                       string                                    `json:"smtp_username"`
@@ -44,6 +45,17 @@ type UpdateSettingsRequest struct {
 	TurnstileEnabled                                   bool                                      `json:"turnstile_enabled"`
 	TurnstileSiteKey                                   string                                    `json:"turnstile_site_key"`
 	TurnstileSecretKey                                 string                                    `json:"turnstile_secret_key"`
+	TencentCaptchaEnabled                              bool                                      `json:"tencent_captcha_enabled"`
+	TencentCaptchaAppID                                string                                    `json:"tencent_captcha_app_id"`
+	TencentCaptchaAppSecretKey                         string                                    `json:"tencent_captcha_app_secret_key"`
+	TencentCaptchaCloudSecretID                        string                                    `json:"tencent_captcha_cloud_secret_id"`
+	TencentCaptchaCloudSecretKey                       string                                    `json:"tencent_captcha_cloud_secret_key"`
+	AliyunCaptchaEnabled                               bool                                      `json:"aliyun_captcha_enabled"`
+	AliyunCaptchaSceneID                               string                                    `json:"aliyun_captcha_scene_id"`
+	AliyunCaptchaPrefix                                string                                    `json:"aliyun_captcha_prefix"`
+	AliyunCaptchaRegion                                string                                    `json:"aliyun_captcha_region"`
+	AliyunCaptchaAccessKeyID                           string                                    `json:"aliyun_captcha_access_key_id"`
+	AliyunCaptchaAccessKeySecret                       string                                    `json:"aliyun_captcha_access_key_secret"`
 	LinuxDoConnectEnabled                              bool                                      `json:"linuxdo_connect_enabled"`
 	LinuxDoConnectClientID                             string                                    `json:"linuxdo_connect_client_id"`
 	LinuxDoConnectClientSecret                         string                                    `json:"linuxdo_connect_client_secret"`
@@ -212,6 +224,48 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 				response.ErrorFrom(c, err)
 				return
 			}
+		}
+	}
+	if err := service.ValidateCaptchaProviderMutualExclusion(req.TurnstileEnabled, req.TencentCaptchaEnabled, req.AliyunCaptchaEnabled); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if req.TencentCaptchaEnabled {
+		req.TencentCaptchaAppID = strings.TrimSpace(req.TencentCaptchaAppID)
+		req.TencentCaptchaAppSecretKey = strings.TrimSpace(req.TencentCaptchaAppSecretKey)
+		req.TencentCaptchaCloudSecretID = strings.TrimSpace(req.TencentCaptchaCloudSecretID)
+		req.TencentCaptchaCloudSecretKey = strings.TrimSpace(req.TencentCaptchaCloudSecretKey)
+		if req.TencentCaptchaAppID == "" || req.TencentCaptchaCloudSecretID == "" {
+			response.BadRequest(c, "Tencent captcha App ID and Cloud Secret ID are required when enabled")
+			return
+		}
+		if req.TencentCaptchaAppSecretKey == "" {
+			req.TencentCaptchaAppSecretKey = previousSettings.TencentCaptchaAppSecretKey
+		}
+		if req.TencentCaptchaCloudSecretKey == "" {
+			req.TencentCaptchaCloudSecretKey = previousSettings.TencentCaptchaCloudSecretKey
+		}
+		if req.TencentCaptchaAppSecretKey == "" || req.TencentCaptchaCloudSecretKey == "" {
+			response.BadRequest(c, "Tencent captcha secret keys are required when enabled")
+			return
+		}
+	}
+	if req.AliyunCaptchaEnabled {
+		req.AliyunCaptchaSceneID = strings.TrimSpace(req.AliyunCaptchaSceneID)
+		req.AliyunCaptchaPrefix = strings.TrimSpace(req.AliyunCaptchaPrefix)
+		req.AliyunCaptchaRegion = strings.TrimSpace(req.AliyunCaptchaRegion)
+		req.AliyunCaptchaAccessKeyID = strings.TrimSpace(req.AliyunCaptchaAccessKeyID)
+		req.AliyunCaptchaAccessKeySecret = strings.TrimSpace(req.AliyunCaptchaAccessKeySecret)
+		if req.AliyunCaptchaSceneID == "" || req.AliyunCaptchaAccessKeyID == "" {
+			response.BadRequest(c, "Aliyun captcha Scene ID and Access Key ID are required when enabled")
+			return
+		}
+		if req.AliyunCaptchaAccessKeySecret == "" {
+			req.AliyunCaptchaAccessKeySecret = previousSettings.AliyunCaptchaAccessKeySecret
+		}
+		if req.AliyunCaptchaAccessKeySecret == "" {
+			response.BadRequest(c, "Aliyun captcha Access Key Secret is required when enabled")
+			return
 		}
 	}
 	if req.TotpEnabled && !previousSettings.TotpEnabled {
@@ -875,7 +929,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
-	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, DingTalkOAuthEnabled: req.DingTalkOAuthEnabled, DingTalkOAuthClientID: req.DingTalkOAuthClientID, DingTalkOAuthClientSecret: req.DingTalkOAuthClientSecret, DingTalkOAuthRedirectURL: req.DingTalkOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
+	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, PasskeyEnabled: req.PasskeyEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, TencentCaptchaEnabled: req.TencentCaptchaEnabled, TencentCaptchaAppID: req.TencentCaptchaAppID, TencentCaptchaAppSecretKey: req.TencentCaptchaAppSecretKey, TencentCaptchaCloudSecretID: req.TencentCaptchaCloudSecretID, TencentCaptchaCloudSecretKey: req.TencentCaptchaCloudSecretKey, AliyunCaptchaEnabled: req.AliyunCaptchaEnabled, AliyunCaptchaSceneID: req.AliyunCaptchaSceneID, AliyunCaptchaPrefix: req.AliyunCaptchaPrefix, AliyunCaptchaRegion: req.AliyunCaptchaRegion, AliyunCaptchaAccessKeyID: req.AliyunCaptchaAccessKeyID, AliyunCaptchaAccessKeySecret: req.AliyunCaptchaAccessKeySecret, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, GitHubOAuthEnabled: req.GitHubOAuthEnabled, GitHubOAuthClientID: req.GitHubOAuthClientID, GitHubOAuthClientSecret: req.GitHubOAuthClientSecret, GitHubOAuthRedirectURL: req.GitHubOAuthRedirectURL, GoogleOAuthEnabled: req.GoogleOAuthEnabled, GoogleOAuthClientID: req.GoogleOAuthClientID, GoogleOAuthClientSecret: req.GoogleOAuthClientSecret, GoogleOAuthRedirectURL: req.GoogleOAuthRedirectURL, DingTalkOAuthEnabled: req.DingTalkOAuthEnabled, DingTalkOAuthClientID: req.DingTalkOAuthClientID, DingTalkOAuthClientSecret: req.DingTalkOAuthClientSecret, DingTalkOAuthRedirectURL: req.DingTalkOAuthRedirectURL, ContentModerationEnabled: req.ContentModerationEnabled, ContentModerationProvider: req.ContentModerationProvider, ContentModerationBaseURL: req.ContentModerationBaseURL, ContentModerationAPIKey: req.ContentModerationAPIKey, ContentModerationModel: req.ContentModerationModel, ContentModerationTimeoutMs: req.ContentModerationTimeoutMs, ContentModerationDedupeWindowSeconds: req.ContentModerationDedupeWindowSeconds, ContentModerationFailOpen: func() bool {
 		if req.ContentModerationFailOpen != nil {
 			return *req.ContentModerationFailOpen
 		}

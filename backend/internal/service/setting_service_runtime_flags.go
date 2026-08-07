@@ -17,12 +17,65 @@ func (s *SettingService) IsTurnstileEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+func (s *SettingService) IsPasskeyEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil || s.cfg == nil || !s.cfg.WebAuthn.Enabled {
+		return false
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyPasskeyEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 func (s *SettingService) GetTurnstileSecretKey(ctx context.Context) string {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyTurnstileSecretKey)
 	if err != nil {
 		return ""
 	}
 	return value
+}
+
+func (s *SettingService) GetCaptchaRuntime(ctx context.Context) CaptchaRuntimeSettings {
+	if s == nil || s.settingRepo == nil {
+		return CaptchaRuntimeSettings{Provider: CaptchaProviderNone}
+	}
+	keys := []string{
+		SettingKeyTurnstileEnabled,
+		SettingKeyTurnstileSecretKey,
+		SettingKeyTencentCaptchaEnabled,
+		SettingKeyTencentCaptchaAppID,
+		SettingKeyTencentCaptchaAppSecretKey,
+		SettingKeyTencentCaptchaCloudSecretID,
+		SettingKeyTencentCaptchaCloudSecretKey,
+		SettingKeyAliyunCaptchaEnabled,
+		SettingKeyAliyunCaptchaSceneID,
+		SettingKeyAliyunCaptchaPrefix,
+		SettingKeyAliyunCaptchaRegion,
+		SettingKeyAliyunCaptchaAccessKeyID,
+		SettingKeyAliyunCaptchaAccessKeySecret,
+	}
+	values, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return CaptchaRuntimeSettings{Provider: CaptchaProviderNone}
+	}
+	runtime := CaptchaRuntimeSettings{
+		TurnstileEnabled:      values[SettingKeyTurnstileEnabled] == "true",
+		TurnstileSecretKey:    values[SettingKeyTurnstileSecretKey],
+		TencentEnabled:        values[SettingKeyTencentCaptchaEnabled] == "true",
+		TencentAppID:          strings.TrimSpace(values[SettingKeyTencentCaptchaAppID]),
+		TencentAppSecretKey:   strings.TrimSpace(values[SettingKeyTencentCaptchaAppSecretKey]),
+		TencentCloudSecretID:  strings.TrimSpace(values[SettingKeyTencentCaptchaCloudSecretID]),
+		TencentCloudSecretKey: strings.TrimSpace(values[SettingKeyTencentCaptchaCloudSecretKey]),
+		AliyunEnabled:         values[SettingKeyAliyunCaptchaEnabled] == "true",
+		AliyunSceneID:         strings.TrimSpace(values[SettingKeyAliyunCaptchaSceneID]),
+		AliyunPrefix:          strings.TrimSpace(values[SettingKeyAliyunCaptchaPrefix]),
+		AliyunRegion:          strings.TrimSpace(values[SettingKeyAliyunCaptchaRegion]),
+		AliyunAccessKeyID:     strings.TrimSpace(values[SettingKeyAliyunCaptchaAccessKeyID]),
+		AliyunAccessKeySecret: strings.TrimSpace(values[SettingKeyAliyunCaptchaAccessKeySecret]),
+	}
+	runtime.Provider = CaptchaProviderFromRuntime(runtime)
+	return runtime
 }
 
 func (s *SettingService) IsIdentityPatchEnabled(ctx context.Context) bool {

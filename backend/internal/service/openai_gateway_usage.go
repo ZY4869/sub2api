@@ -92,6 +92,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		baseMultiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
 	}
 	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, apiKey.Group, time.Now())
+	flatMultiplier := effectiveFlatRateMultiplier(baseMultiplier, apiKey.Group)
 
 	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens,
@@ -125,7 +126,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		MediaType:                      result.MediaType,
 		ServiceTier:                    serviceTier,
 		RateMultiplier:                 multiplier,
-		FlatRateMultiplier:             cloneRateMultiplier(baseMultiplier),
+		FlatRateMultiplier:             cloneRateMultiplier(flatMultiplier),
 	})
 	if err != nil {
 		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
@@ -139,7 +140,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, baseMultiplier, result.ImageCount)
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, flatMultiplier, result.ImageCount)
 
 	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -264,6 +265,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		APIKeyService:         input.APIKeyService,
 		CurrencyConversion:    billingCurrencyConversionFromSettings(ctx, s.settingService),
 	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
+		markUsageLogBillingFailure(usageLog, billingErr)
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 		return billingErr
 	}
 

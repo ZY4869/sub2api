@@ -482,6 +482,7 @@ const userNavItems = computed((): NavItem[] => {
     ...(showPublicModelsEntry.value
       ? [{ path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon }]
       : []),
+    { path: '/model-plaza', label: t('nav.modelPlaza'), icon: GlobeIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     ...(appStore.cachedPublicSettings?.available_channels_enabled === true
       ? [
@@ -537,6 +538,7 @@ const personalNavItems = computed((): NavItem[] => {
     ...(showPublicModelsEntry.value
       ? [{ path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon }]
       : []),
+    { path: '/model-plaza', label: t('nav.modelPlaza'), icon: GlobeIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     ...(appStore.cachedPublicSettings?.available_channels_enabled === true
       ? [

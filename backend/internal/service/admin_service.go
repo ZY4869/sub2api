@@ -129,6 +129,9 @@ type CreateGroupInput struct {
 	Platform                        string
 	Priority                        int
 	RateMultiplier                  float64
+	ProfitControlEnabled            bool
+	ProfitMinMargin                 float64
+	ProfitSafetyBuffer              float64
 	PeakRateEnabled                 bool
 	PeakStart                       string
 	PeakEnd                         string
@@ -177,6 +180,9 @@ type UpdateGroupInput struct {
 	Platform                        string
 	Priority                        *int
 	RateMultiplier                  *float64
+	ProfitControlEnabled            *bool
+	ProfitMinMargin                 *float64
+	ProfitSafetyBuffer              *float64
 	PeakRateEnabled                 *bool
 	PeakStart                       *string
 	PeakEnd                         *string

@@ -79,5 +79,14 @@ export default {
         invalidTime: "高峰时间必须使用 HH:MM 格式。",
         invalidRange: "高峰开始时间必须早于结束时间。",
         invalidMultiplier: "高峰倍率必须为非负数。"
+    },
+    profitControl: {
+        title: "利润控制",
+        description: "默认关闭；开启后为该分组配置最低利润率和安全缓冲。",
+        minMargin: "最低利润率 (%)",
+        minMarginHint: "后端会将该值限制在 0 到 100 之间。",
+        safetyBuffer: "安全缓冲 (%)",
+        safetyBufferHint: "用于给成本波动预留额外空间。",
+        preview: "当前倍率预览：{value}x"
     }
 }

@@ -64,4 +64,22 @@ describe('AccountBulkActionsBar', () => {
     await batchTestButton?.trigger('click')
     expect(wrapper.emitted('batch-test')).toEqual([[]])
   })
+
+  it('emits select-filtered from the filtered results action', async () => {
+    const wrapper = mount(AccountBulkActionsBar, {
+      props: {
+        selectedIds: [1],
+        selectedPlatforms: ['openai'],
+        filteredTotal: 12
+      }
+    })
+
+    const selectFilteredButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.bulkActions.selectFilteredResultsWithCount')
+    )
+
+    expect(selectFilteredButton).toBeTruthy()
+    await selectFilteredButton?.trigger('click')
+    expect(wrapper.emitted('select-filtered')).toEqual([[]])
+  })
 })

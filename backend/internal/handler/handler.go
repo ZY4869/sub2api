@@ -52,6 +52,7 @@ type Handlers struct {
 	Meta             *MetaHandler
 	APIKey           *APIKeyHandler
 	AvailableChannel *AvailableChannelHandler
+	ModelPlaza       *ModelPlazaHandler
 	ChannelMonitor   *ChannelMonitorHandler
 	Usage            *UsageHandler
 	Redeem           *RedeemHandler
@@ -65,6 +66,7 @@ type Handlers struct {
 	Setting          *SettingHandler
 	Totp             *TotpHandler
 	Payment          *PaymentHandler
+	Passkey          *PasskeyHandler
 }
 
 // BuildInfo contains build-time information

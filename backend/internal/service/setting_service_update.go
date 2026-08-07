@@ -43,6 +43,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyFrontendURL] = strings.TrimSpace(settings.FrontendURL)
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
+	updates[SettingKeyPasskeyEnabled] = strconv.FormatBool(settings.PasskeyEnabled)
 	updates[SettingKeySMTPHost] = settings.SMTPHost
 	updates[SettingKeySMTPPort] = strconv.Itoa(settings.SMTPPort)
 	updates[SettingKeySMTPUsername] = settings.SMTPUsername
@@ -60,6 +61,26 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyTurnstileSiteKey] = settings.TurnstileSiteKey
 	if settings.TurnstileSecretKey != "" {
 		updates[SettingKeyTurnstileSecretKey] = settings.TurnstileSecretKey
+	}
+	if err := ValidateCaptchaProviderMutualExclusion(settings.TurnstileEnabled, settings.TencentCaptchaEnabled, settings.AliyunCaptchaEnabled); err != nil {
+		return err
+	}
+	updates[SettingKeyTencentCaptchaEnabled] = strconv.FormatBool(settings.TencentCaptchaEnabled)
+	updates[SettingKeyTencentCaptchaAppID] = strings.TrimSpace(settings.TencentCaptchaAppID)
+	if strings.TrimSpace(settings.TencentCaptchaAppSecretKey) != "" {
+		updates[SettingKeyTencentCaptchaAppSecretKey] = strings.TrimSpace(settings.TencentCaptchaAppSecretKey)
+	}
+	updates[SettingKeyTencentCaptchaCloudSecretID] = strings.TrimSpace(settings.TencentCaptchaCloudSecretID)
+	if strings.TrimSpace(settings.TencentCaptchaCloudSecretKey) != "" {
+		updates[SettingKeyTencentCaptchaCloudSecretKey] = strings.TrimSpace(settings.TencentCaptchaCloudSecretKey)
+	}
+	updates[SettingKeyAliyunCaptchaEnabled] = strconv.FormatBool(settings.AliyunCaptchaEnabled)
+	updates[SettingKeyAliyunCaptchaSceneID] = strings.TrimSpace(settings.AliyunCaptchaSceneID)
+	updates[SettingKeyAliyunCaptchaPrefix] = strings.TrimSpace(settings.AliyunCaptchaPrefix)
+	updates[SettingKeyAliyunCaptchaRegion] = strings.TrimSpace(settings.AliyunCaptchaRegion)
+	updates[SettingKeyAliyunCaptchaAccessKeyID] = strings.TrimSpace(settings.AliyunCaptchaAccessKeyID)
+	if strings.TrimSpace(settings.AliyunCaptchaAccessKeySecret) != "" {
+		updates[SettingKeyAliyunCaptchaAccessKeySecret] = strings.TrimSpace(settings.AliyunCaptchaAccessKeySecret)
 	}
 	updates[SettingKeyLinuxDoConnectEnabled] = strconv.FormatBool(settings.LinuxDoConnectEnabled)
 	updates[SettingKeyLinuxDoConnectClientID] = settings.LinuxDoConnectClientID

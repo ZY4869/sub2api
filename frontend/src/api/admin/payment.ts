@@ -29,7 +29,7 @@ export async function listOrders(
 
 export async function refundOrder(
   orderNo: string,
-  payload: { amount_minor?: number; reason?: string },
+  payload: { amount_minor?: number; reason?: string; force?: boolean },
   idempotencyKey?: string
 ): Promise<PaymentRefund> {
   const { data } = await apiClient.post<PaymentRefund>(

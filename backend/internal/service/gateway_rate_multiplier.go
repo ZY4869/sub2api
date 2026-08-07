@@ -19,3 +19,10 @@ func effectiveTokenRateMultiplierAt(base float64, group *Group, now time.Time) f
 	}
 	return group.EffectiveTokenRateMultiplierAt(base, now)
 }
+
+func effectiveFlatRateMultiplier(base float64, group *Group) float64 {
+	if group == nil {
+		return base
+	}
+	return group.EffectiveFlatRateMultiplier(base)
+}

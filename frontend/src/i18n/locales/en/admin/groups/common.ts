@@ -72,5 +72,14 @@ export default {
         invalidTime: "Peak time must use HH:MM format.",
         invalidRange: "Peak start time must be earlier than end time.",
         invalidMultiplier: "Peak multiplier must be non-negative."
+    },
+    profitControl: {
+        title: "Profit control",
+        description: "Off by default. Enable to configure a minimum margin and safety buffer for this group.",
+        minMargin: "Minimum margin (%)",
+        minMarginHint: "The backend clamps this value between 0 and 100.",
+        safetyBuffer: "Safety buffer (%)",
+        safetyBufferHint: "Extra room for upstream cost fluctuations.",
+        preview: "Current multiplier preview: {value}x"
     }
 }

@@ -224,6 +224,8 @@ gateway:
   #
   # 注意：开启后会影响所有客户端的行为（不仅限于 VS Code / Codex CLI），请谨慎开启。
   force_codex_cli: false
+  # 是否禁用 Codex originator 自动归一化。默认 false，保持与 User-Agent 匹配的官方 Codex 身份头。
+  disable_codex_originator_normalization: false
   # OpenAI 透传模式是否放行客户端超时头（如 x-stainless-timeout）
   # 默认 false：过滤超时头，降低上游提前断流风险。
   openai_passthrough_allow_timeout_headers: false

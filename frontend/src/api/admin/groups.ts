@@ -185,6 +185,32 @@ export async function previewCompositeRoute(
   return data
 }
 
+export interface ProfitPreviewRequest {
+  rate_multiplier: number
+  profit_control_enabled: boolean
+  profit_min_margin: number
+  profit_safety_buffer: number
+}
+
+export interface ProfitPreviewResponse {
+  rate_multiplier: number
+  profit_control_enabled: boolean
+  profit_min_margin: number
+  profit_safety_buffer: number
+  effective_markup_percent: number
+  preview_rate_multiplier: number
+}
+
+export async function previewProfitControl(
+  request: ProfitPreviewRequest
+): Promise<ProfitPreviewResponse> {
+  const { data } = await apiClient.post<ProfitPreviewResponse>(
+    '/admin/groups/profit-preview',
+    request
+  )
+  return data
+}
+
 /**
  * Get API keys in a group
  * @param id - Group ID
@@ -310,6 +336,7 @@ export const groupsAPI = {
   listCompositeRoutes,
   replaceCompositeRoutes,
   previewCompositeRoute,
+  previewProfitControl,
   getGroupApiKeys,
   getGroupRateMultipliers,
   clearGroupRateMultipliers,

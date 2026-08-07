@@ -45,6 +45,14 @@ func RegisterAuthRoutes(
 		auth.POST("/login", rateLimiter.LimitWithOptions("auth-login", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Login)
+		if h.Passkey != nil {
+			auth.POST("/passkey/login/begin", rateLimiter.LimitWithOptions("auth-passkey-login", 20, time.Minute, middleware.RateLimitOptions{
+				FailureMode: middleware.RateLimitFailClose,
+			}), h.Passkey.BeginLogin)
+			auth.POST("/passkey/login/finish", rateLimiter.LimitWithOptions("auth-passkey-login", 20, time.Minute, middleware.RateLimitOptions{
+				FailureMode: middleware.RateLimitFailClose,
+			}), h.Passkey.FinishLogin)
+		}
 		auth.POST("/login/2fa", rateLimiter.LimitWithOptions("auth-login-2fa", 20, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.Login2FA)
@@ -74,6 +82,9 @@ func RegisterAuthRoutes(
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.ResetPassword)
 		auth.GET("/oauth/linuxdo/start", h.Auth.LinuxDoOAuthStart)
+		auth.POST("/oauth/linuxdo/start", rateLimiter.LimitWithOptions("oauth-linuxdo-start", 10, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.LinuxDoOAuthStart)
 		auth.GET("/oauth/linuxdo/callback", h.Auth.LinuxDoOAuthCallback)
 		auth.POST("/oauth/linuxdo/complete-registration",
 			rateLimiter.LimitWithOptions("oauth-linuxdo-complete", 10, time.Minute, middleware.RateLimitOptions{
@@ -82,6 +93,9 @@ func RegisterAuthRoutes(
 			h.Auth.CompleteLinuxDoOAuthRegistration,
 		)
 		auth.GET("/oauth/:provider/start", h.Auth.SocialOAuthStart)
+		auth.POST("/oauth/:provider/start", rateLimiter.LimitWithOptions("oauth-social-start", 10, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.SocialOAuthStart)
 		auth.GET("/oauth/:provider/callback", h.Auth.SocialOAuthCallback)
 		auth.POST("/oauth/:provider/complete",
 			rateLimiter.LimitWithOptions("oauth-social-complete", 10, time.Minute, middleware.RateLimitOptions{
@@ -109,6 +123,17 @@ func RegisterAuthRoutes(
 	}
 	{
 		pages.GET("/:slug", h.Setting.GetCustomPage)
+	}
+
+	modelPlaza := v1.Group("/model-plaza")
+	if panelRateLimiter != nil {
+		modelPlaza.Use(panelRateLimiter.PublicIP())
+	}
+	if h.User != nil {
+		modelPlaza.Use(servermiddleware.NewOptionalJWTAuthMiddleware(h.Auth.GetAuthService(), h.User.GetUserService()))
+	}
+	if h.ModelPlaza != nil {
+		modelPlaza.GET("", h.ModelPlaza.List)
 	}
 
 	// 需要认证的当前用户信息

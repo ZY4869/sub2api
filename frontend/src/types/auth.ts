@@ -57,25 +57,31 @@ export interface AdminUser extends User {
   current_concurrency?: number;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
+export type CaptchaProvider = "none" | "turnstile" | "tencent" | "aliyun";
+
+export interface CaptchaProof {
   turnstile_token?: string;
+  tencent_captcha_ticket?: string;
+  tencent_captcha_randstr?: string;
+  aliyun_captcha_verify_param?: string;
 }
 
-export interface RegisterRequest {
+export interface LoginRequest extends CaptchaProof {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest extends CaptchaProof {
   email: string;
   password: string;
   verify_code?: string;
-  turnstile_token?: string;
   promo_code?: string;
   invitation_code?: string;
   aff_code?: string;
 }
 
-export interface SendVerifyCodeRequest {
+export interface SendVerifyCodeRequest extends CaptchaProof {
   email: string;
-  turnstile_token?: string;
   locale?: string;
 }
 
@@ -121,8 +127,16 @@ export interface PublicSettings {
   promo_code_enabled: boolean;
   password_reset_enabled: boolean;
   invitation_code_enabled: boolean;
+  passkey_enabled?: boolean;
   turnstile_enabled: boolean;
   turnstile_site_key: string;
+  captcha_provider?: CaptchaProvider;
+  tencent_captcha_enabled?: boolean;
+  tencent_captcha_app_id?: string;
+  aliyun_captcha_enabled?: boolean;
+  aliyun_captcha_scene_id?: string;
+  aliyun_captcha_prefix?: string;
+  aliyun_captcha_region?: string;
   site_name: string;
   site_logo: string;
   site_subtitle: string;

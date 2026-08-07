@@ -11,6 +11,7 @@ type SystemSettings struct {
 	FrontendURL                      string
 	InvitationCodeEnabled            bool
 	TotpEnabled                      bool // TOTP 双因素认证
+	PasskeyEnabled                   bool
 
 	SMTPHost                   string
 	SMTPPort                   int
@@ -25,10 +26,24 @@ type SystemSettings struct {
 	TelegramBotTokenConfigured bool
 	TelegramBotTokenMasked     string
 
-	TurnstileEnabled             bool
-	TurnstileSiteKey             string
-	TurnstileSecretKey           string
-	TurnstileSecretKeyConfigured bool
+	TurnstileEnabled                       bool
+	TurnstileSiteKey                       string
+	TurnstileSecretKey                     string
+	TurnstileSecretKeyConfigured           bool
+	TencentCaptchaEnabled                  bool
+	TencentCaptchaAppID                    string
+	TencentCaptchaAppSecretKey             string
+	TencentCaptchaAppSecretKeyConfigured   bool
+	TencentCaptchaCloudSecretID            string
+	TencentCaptchaCloudSecretKey           string
+	TencentCaptchaCloudSecretKeyConfigured bool
+	AliyunCaptchaEnabled                   bool
+	AliyunCaptchaSceneID                   string
+	AliyunCaptchaPrefix                    string
+	AliyunCaptchaRegion                    string
+	AliyunCaptchaAccessKeyID               string
+	AliyunCaptchaAccessKeySecret           string
+	AliyunCaptchaAccessKeySecretConfigured bool
 
 	// LinuxDo Connect OAuth 登录
 	LinuxDoConnectEnabled                bool
@@ -230,8 +245,16 @@ type PublicSettings struct {
 	PasswordResetEnabled             bool
 	InvitationCodeEnabled            bool
 	TotpEnabled                      bool // TOTP 双因素认证
+	PasskeyEnabled                   bool
 	TurnstileEnabled                 bool
 	TurnstileSiteKey                 string
+	CaptchaProvider                  string
+	TencentCaptchaEnabled            bool
+	TencentCaptchaAppID              string
+	AliyunCaptchaEnabled             bool
+	AliyunCaptchaSceneID             string
+	AliyunCaptchaPrefix              string
+	AliyunCaptchaRegion              string
 	SiteName                         string
 	SiteLogo                         string
 	SiteSubtitle                     string

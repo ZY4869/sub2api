@@ -107,13 +107,22 @@
           <span class="input-label">{{ t('admin.payment.refund.reason') }}</span>
           <input v-model.trim="refundForm.reason" type="text" class="input" :placeholder="t('admin.payment.refund.reasonPlaceholder')" />
         </label>
+        <div
+          v-if="refundForce.required"
+          class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+        >
+          <p class="font-semibold">{{ t('admin.payment.refund.forceRequiredTitle') }}</p>
+          <p class="mt-1">
+            {{ t('admin.payment.refund.forceRequiredDesc', refundForceParams) }}
+          </p>
+        </div>
       </form>
       <template #footer>
         <button type="button" class="btn btn-secondary" :disabled="refunding" @click="closeRefund">
           {{ t('common.cancel') }}
         </button>
         <button type="submit" form="payment-refund-form" class="btn btn-primary" :disabled="refunding || !refundAmountValid">
-          {{ refunding ? t('admin.payment.refund.submitting') : t('admin.payment.refund.submit') }}
+          {{ refundSubmitLabel }}
         </button>
       </template>
     </BaseDialog>
@@ -151,6 +160,13 @@ const filters = reactive({
 })
 const pagination = reactive({ page: 1, page_size: 20, total: 0, pages: 1 })
 const refundForm = reactive({ amount_minor: 0, reason: '' })
+const refundForce = reactive({
+  required: false,
+  currentBalance: '',
+  refundAmount: '',
+  currency: ''
+})
+const refundIdempotencyKey = ref('')
 
 const columns = computed<Column[]>(() => [
   { key: 'order', label: t('admin.payment.columns.order') },
@@ -185,6 +201,14 @@ const refundAmountHint = computed(() =>
     amount: formatMinor(selectedRefundableAmount.value, selectedOrder.value?.currency || 'USD')
   })
 )
+const refundForceParams = computed(() => ({
+  current: refundForce.currentBalance || '-',
+  amount: refundForce.refundAmount || '-'
+}))
+const refundSubmitLabel = computed(() => {
+  if (refunding.value) return t('admin.payment.refund.submitting')
+  return refundForce.required ? t('admin.payment.refund.forceSubmit') : t('admin.payment.refund.submit')
+})
 
 async function loadOrders() {
   loading.value = true
@@ -226,6 +250,8 @@ function openRefund(order: PaymentOrder) {
   selectedOrder.value = order
   refundForm.amount_minor = order.refundable_amount_minor || Math.max(order.amount_minor - (order.refunded_amount_minor || 0), 0)
   refundForm.reason = ''
+  resetRefundForce()
+  refundIdempotencyKey.value = randomIdempotencyKey()
   refundDialogOpen.value = true
 }
 
@@ -233,6 +259,8 @@ function closeRefund() {
   if (refunding.value) return
   refundDialogOpen.value = false
   selectedOrder.value = null
+  resetRefundForce()
+  refundIdempotencyKey.value = ''
 }
 
 async function submitRefund() {
@@ -245,17 +273,52 @@ async function submitRefund() {
   try {
     await adminAPI.payment.refundOrder(
       selectedOrder.value.order_no,
-      { amount_minor: refundForm.amount_minor, reason: refundForm.reason || undefined },
-      randomIdempotencyKey()
+      { amount_minor: refundForm.amount_minor, reason: refundForm.reason || undefined, force: refundForce.required || undefined },
+      refundIdempotencyKey.value || randomIdempotencyKey()
     )
     appStore.showSuccess(t('admin.payment.refund.success'))
     refundDialogOpen.value = false
+    resetRefundForce()
+    refundIdempotencyKey.value = ''
     await loadOrders()
   } catch (err) {
+    if (isRefundForceRequiredError(err)) {
+      applyRefundForceRequirement(err)
+      refundIdempotencyKey.value = randomIdempotencyKey()
+      appStore.showWarning(t('admin.payment.refund.forceRequiredTitle'))
+      return
+    }
     appStore.showError(resolveErrorMessage(err, t('admin.payment.refund.failed')))
   } finally {
     refunding.value = false
   }
+}
+
+function resetRefundForce() {
+  refundForce.required = false
+  refundForce.currentBalance = ''
+  refundForce.refundAmount = ''
+  refundForce.currency = ''
+}
+
+function isRefundForceRequiredError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const value = err as { reason?: unknown; code?: unknown; error?: unknown; metadata?: Record<string, string> }
+  return value.reason === 'PAYMENT_REFUND_REQUIRES_FORCE'
+    || value.code === 'PAYMENT_REFUND_REQUIRES_FORCE'
+    || value.error === 'PAYMENT_REFUND_REQUIRES_FORCE'
+    || value.metadata?.require_force === 'true'
+}
+
+function applyRefundForceRequirement(err: unknown) {
+  const metadata = (err as { metadata?: Record<string, string> } | null)?.metadata || {}
+  const currency = metadata.currency || selectedOrder.value?.currency || 'USD'
+  const current = Number(metadata.current_balance)
+  const amount = Number(metadata.refund_amount)
+  refundForce.required = true
+  refundForce.currency = currency
+  refundForce.currentBalance = Number.isFinite(current) ? formatAmount(current, currency) : metadata.current_balance || '-'
+  refundForce.refundAmount = Number.isFinite(amount) ? formatAmount(amount, currency) : metadata.refund_amount || formatMinor(refundForm.amount_minor, currency)
 }
 
 function canRefund(order: PaymentOrder): boolean {

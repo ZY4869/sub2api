@@ -40,6 +40,32 @@ func (r *paymentRepository) AddWalletBalance(ctx context.Context, userID int64, 
 	return addWalletBalanceTx(ctx, tx, userID, currency, amountMoney)
 }
 
+func (r *paymentRepository) GetWalletBalance(ctx context.Context, userID int64, currency string) (float64, error) {
+	currency = service.NormalizePaymentCurrency(currency)
+	if currency == "" {
+		return 0, service.ErrPaymentUnsupportedCurrency
+	}
+	exec := paymentExec(ctx, r.db)
+	var balance float64
+	err := scanSingleRow(ctx, exec, `
+		SELECT COALESCE(w.balance, CASE WHEN $2 = 'USD' THEN u.balance ELSE 0 END)
+		FROM users u
+		LEFT JOIN billing_wallets w ON w.user_id = u.id AND w.currency = $2
+		WHERE u.id = $1 AND u.deleted_at IS NULL
+	`, []any{userID, currency}, &balance)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, service.ErrUserNotFound
+		}
+		return 0, err
+	}
+	normalized, err := service.NormalizeAndValidateBillingAmount(balance)
+	if err != nil {
+		return 0, err
+	}
+	return normalized, nil
+}
+
 func (r *paymentRepository) AssignOrExtendSubscription(ctx context.Context, input *service.AssignSubscriptionInput) error {
 	if r == nil || input == nil {
 		return nil

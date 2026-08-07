@@ -10,12 +10,24 @@ import (
 )
 
 type AvailableGroupRef struct {
-	ID               int64
-	Name             string
-	Platform         string
-	SubscriptionType string
-	RateMultiplier   float64
-	IsExclusive      bool
+	ID                    int64
+	Name                  string
+	Description           string
+	Platform              string
+	SubscriptionType      string
+	RateMultiplier        float64
+	PeakRateEnabled       bool
+	PeakStart             string
+	PeakEnd               string
+	PeakRateMultiplier    float64
+	IsExclusive           bool
+	ImagePrice1K          *float64
+	ImagePrice2K          *float64
+	ImagePrice4K          *float64
+	WebSearchPricePerCall *float64
+	ProfitControlEnabled  bool
+	ProfitMinMargin       float64
+	ProfitSafetyBuffer    float64
 }
 
 type SupportedModelPricingInterval struct {
@@ -74,12 +86,24 @@ func (s *ChannelService) ListAvailable(ctx context.Context) ([]AvailableChannel,
 	for i := range groups {
 		g := groups[i]
 		groupByID[g.ID] = AvailableGroupRef{
-			ID:               g.ID,
-			Name:             g.Name,
-			Platform:         g.Platform,
-			SubscriptionType: g.SubscriptionType,
-			RateMultiplier:   g.RateMultiplier,
-			IsExclusive:      g.IsExclusive,
+			ID:                    g.ID,
+			Name:                  g.Name,
+			Description:           g.Description,
+			Platform:              g.Platform,
+			SubscriptionType:      g.SubscriptionType,
+			RateMultiplier:        g.RateMultiplier,
+			PeakRateEnabled:       g.PeakRateEnabled,
+			PeakStart:             g.PeakStart,
+			PeakEnd:               g.PeakEnd,
+			PeakRateMultiplier:    g.PeakRateMultiplier,
+			IsExclusive:           g.IsExclusive,
+			ImagePrice1K:          g.ImagePrice1K,
+			ImagePrice2K:          g.ImagePrice2K,
+			ImagePrice4K:          g.ImagePrice4K,
+			WebSearchPricePerCall: g.WebSearchPricePerCall,
+			ProfitControlEnabled:  g.ProfitControlEnabled,
+			ProfitMinMargin:       g.ProfitMinMargin,
+			ProfitSafetyBuffer:    g.ProfitSafetyBuffer,
 		}
 	}
 

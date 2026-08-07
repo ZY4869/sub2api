@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 	}
 	if amount > remaining {
 		return nil, ErrPaymentInvalidAmount.WithMetadata(map[string]string{"max_amount_minor": fmt.Sprintf("%d", remaining)})
+	}
+	if err := s.requireRefundBalanceConfirmation(ctx, order, amount, input.Force); err != nil {
+		return nil, err
 	}
 	refund := &PaymentRefund{
 		RefundNo:           "rf_" + randomPaymentHex(12),
@@ -99,19 +103,28 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 	}
 	if refund.Status == PaymentRefundStatusSettled {
 		now := time.Now()
-		refundedAmount, err := s.repo.SumSuccessfulRefundAmount(ctx, order.OrderNo)
-		if err != nil {
-			return nil, err
-		}
-		nextStatus := PaymentStatusPartialRefunded
-		if refundedAmount >= order.AmountMinor {
-			nextStatus = PaymentStatusRefunded
-		}
-		if err := s.repo.UpdateOrderStatus(ctx, order.OrderNo, nextStatus, nil, &now); err != nil {
+		var nextStatus string
+		if err := s.repo.RunInTx(ctx, func(txCtx context.Context) error {
+			if err := s.deductRefundedWalletBalance(txCtx, order, refund); err != nil {
+				return err
+			}
+			refundedAmount, err := s.repo.SumSuccessfulRefundAmount(txCtx, order.OrderNo)
+			if err != nil {
+				return err
+			}
+			nextStatus = PaymentStatusPartialRefunded
+			if refundedAmount >= order.AmountMinor {
+				nextStatus = PaymentStatusRefunded
+			}
+			return s.repo.UpdateOrderStatus(txCtx, order.OrderNo, nextStatus, nil, &now)
+		}); err != nil {
 			return nil, err
 		}
 		order.Status = nextStatus
 		order.RefundedAt = &now
+		if order.ProductType == PaymentProductBalanceTopup {
+			s.invalidateBalanceCaches(ctx, order.UserID)
+		}
 	}
 	success = true
 	s.logInfo(ctx, "payment.refund.create.succeeded",
@@ -121,6 +134,50 @@ func (s *PaymentService) RefundOrder(ctx context.Context, input RefundPaymentOrd
 		zap.String("status", refund.Status),
 	)
 	return refund, nil
+}
+
+func (s *PaymentService) requireRefundBalanceConfirmation(ctx context.Context, order *PaymentOrder, amountMinor int64, force bool) error {
+	if s == nil || s.repo == nil || order == nil || order.ProductType != PaymentProductBalanceTopup || force {
+		return nil
+	}
+	refundAmount, err := NormalizeAndValidatePositiveBillingAmount(PaymentMinorToAmount(amountMinor, order.Currency))
+	if err != nil {
+		return err
+	}
+	current, err := s.repo.GetWalletBalance(ctx, order.UserID, order.Currency)
+	if err != nil {
+		return err
+	}
+	currentMoney, err := NewBillingMoneyFromFloat(current)
+	if err != nil {
+		return err
+	}
+	refundMoney, err := NewPositiveBillingMoneyFromFloat(refundAmount)
+	if err != nil {
+		return err
+	}
+	if currentMoney.Cmp(refundMoney) >= 0 {
+		return nil
+	}
+	return ErrPaymentRefundRequiresForce.WithMetadata(map[string]string{
+		"require_force":       "true",
+		"order_no":            order.OrderNo,
+		"currency":            NormalizePaymentCurrency(order.Currency),
+		"current_balance":     strconv.FormatFloat(currentMoney.Float64(), 'f', 8, 64),
+		"refund_amount":       strconv.FormatFloat(refundMoney.Float64(), 'f', 8, 64),
+		"refund_amount_minor": strconv.FormatInt(amountMinor, 10),
+	})
+}
+
+func (s *PaymentService) deductRefundedWalletBalance(ctx context.Context, order *PaymentOrder, refund *PaymentRefund) error {
+	if s == nil || s.repo == nil || order == nil || refund == nil || order.ProductType != PaymentProductBalanceTopup {
+		return nil
+	}
+	amount, err := NormalizeAndValidatePositiveBillingAmount(PaymentMinorToAmount(refund.AmountMinor, refund.Currency))
+	if err != nil {
+		return err
+	}
+	return s.repo.AddWalletBalance(ctx, order.UserID, refund.Currency, -amount)
 }
 
 func normalizeRefundStatus(status string) string {

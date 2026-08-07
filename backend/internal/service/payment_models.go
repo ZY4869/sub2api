@@ -41,6 +41,7 @@ var (
 	ErrPaymentOrderForbidden        = infraerrors.Forbidden("PAYMENT_ORDER_FORBIDDEN", "payment order does not belong to current user")
 	ErrPaymentOrderNotCancelable    = infraerrors.Conflict("PAYMENT_ORDER_NOT_CANCELABLE", "payment order cannot be cancelled")
 	ErrPaymentOrderNotRefundable    = infraerrors.Conflict("PAYMENT_ORDER_NOT_REFUNDABLE", "payment order cannot be refunded")
+	ErrPaymentRefundRequiresForce   = infraerrors.Conflict("PAYMENT_REFUND_REQUIRES_FORCE", "refund requires force confirmation")
 	ErrPaymentWebhookInvalid        = infraerrors.BadRequest("PAYMENT_WEBHOOK_INVALID", "invalid payment webhook")
 	ErrPaymentProviderFailed        = infraerrors.ServiceUnavailable("PAYMENT_PROVIDER_FAILED", "payment provider request failed")
 )
@@ -165,6 +166,7 @@ type RefundPaymentOrderInput struct {
 	Reason         string
 	RequestedBy    int64
 	IdempotencyKey string
+	Force          bool
 }
 
 type AirwallexPaymentIntentRequest struct {
@@ -215,6 +217,7 @@ type PaymentRepository interface {
 	GetRefundByOrderIdempotencyHash(ctx context.Context, orderNo string, idempotencyKeyHash string) (*PaymentRefund, error)
 	UpdateRefundProvider(ctx context.Context, refundNo, providerRefundID, status string) error
 	SumSuccessfulRefundAmount(ctx context.Context, orderNo string) (int64, error)
+	GetWalletBalance(ctx context.Context, userID int64, currency string) (float64, error)
 	AddWalletBalance(ctx context.Context, userID int64, currency string, amount float64) error
 	AssignOrExtendSubscription(ctx context.Context, input *AssignSubscriptionInput) error
 }

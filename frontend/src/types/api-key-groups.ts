@@ -80,6 +80,9 @@ export interface Group {
   platform: GroupPlatform;
   priority: number;
   rate_multiplier: number;
+  profit_control_enabled: boolean;
+  profit_min_margin: number;
+  profit_safety_buffer: number;
   peak_rate_enabled?: boolean;
   peak_start?: string;
   peak_end?: string;
@@ -268,6 +271,9 @@ export interface CreateGroupRequest {
   platform?: GroupPlatform;
   priority?: number;
   rate_multiplier?: number;
+  profit_control_enabled?: boolean;
+  profit_min_margin?: number;
+  profit_safety_buffer?: number;
   peak_rate_enabled?: boolean;
   peak_start?: string;
   peak_end?: string;
@@ -313,6 +319,9 @@ export interface UpdateGroupRequest {
   platform?: GroupPlatform;
   priority?: number;
   rate_multiplier?: number;
+  profit_control_enabled?: boolean;
+  profit_min_margin?: number;
+  profit_safety_buffer?: number;
   peak_rate_enabled?: boolean;
   peak_start?: string;
   peak_end?: string;

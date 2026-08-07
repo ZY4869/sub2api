@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-07-28T07:21:51Z"
+export const generatedModelRegistryBuiltAt = "2026-08-07T05:37:52Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"2d4707e7b3838d8d9501d4ee25bf9e3d4cdd1b157754e6860e46d11d1626754f\"",
-  "updated_at": "2026-07-28T07:21:51Z",
+  "etag": "W/\"cd74f3f5c5fa1224a2a50655ddb10b3803a7af6ae5426931d9375dbd4caab607\"",
+  "updated_at": "2026-08-07T05:37:52Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -2246,6 +2246,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "kimi-k3",
+      "display_name": "Kimi K3",
+      "provider": "moonshot",
+      "platforms": [
+        "moonshot"
+      ],
+      "protocol_ids": [
+        "kimi-k3"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "kimi-k3"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 4,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "llama-3-sonar-large-32k-online",
       "display_name": "Llama-3-sonar-large-32k-online",
       "provider": "perplexity",
@@ -2428,6 +2455,35 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 5,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5",
+      "display_name": "Claude Sonnet 5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic"
+      ],
+      "protocol_ids": [
+        "claude-sonnet-5"
+      ],
+      "aliases": [
+        "claude-sonnet-5.0"
+      ],
+      "pricing_lookup_ids": [
+        "claude-sonnet-5"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 5,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -4286,6 +4342,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 11,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-5.2",
+      "display_name": "GLM-5.2",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-5.2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-5.2"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 11,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },

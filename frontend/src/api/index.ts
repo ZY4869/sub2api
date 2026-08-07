@@ -8,6 +8,7 @@ export { apiClient } from './client'
 
 // Auth API
 export { authAPI, isTotp2FARequired, type LoginResponse } from './auth'
+export { passkeyAPI } from './passkeys'
 
 // User APIs
 export { keysAPI } from './keys'
@@ -17,6 +18,7 @@ export { redeemAPI, type RedeemHistoryItem } from './redeem'
 export { userGroupsAPI } from './groups'
 export { channelsAPI } from './channels'
 export { channelMonitorsAPI } from './channelMonitors'
+export { modelPlazaAPI } from './modelPlaza'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { affiliateAPI } from './affiliate'

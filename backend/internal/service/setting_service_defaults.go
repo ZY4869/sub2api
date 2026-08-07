@@ -86,6 +86,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyDefaultBalance:                                     strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
 		SettingKeyDefaultSubscriptions:                               "[]",
 		SettingKeyDefaultAPIKeyModelBindingMode:                      APIKeyModelBindingModeGroupAllowed,
+		SettingKeyPasskeyEnabled:                                     "false",
 		SettingKeySMTPPort:                                           "587",
 		SettingKeySMTPUseTLS:                                         "false",
 		SettingKeyEnableModelFallback:                                "false",

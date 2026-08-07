@@ -293,6 +293,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  function acceptAuthResponse(response: AuthResponse): User {
+    setAuthFromResponse(response)
+    return user.value!
+  }
+
   function setCurrentUser(nextUser: User): void {
     user.value = nextUser
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser))
@@ -565,6 +570,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     login2FA,
     register,
+    acceptAuthResponse,
     setToken,
     setCurrentUser,
     setUsageModelDisplayMode,

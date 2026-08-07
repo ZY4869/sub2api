@@ -1653,6 +1653,52 @@ func HasAPIKeysWith(preds ...predicate.APIKey) predicate.User {
 	})
 }
 
+// HasPasskeyCredentials applies the HasEdge predicate on the "passkey_credentials" edge.
+func HasPasskeyCredentials() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PasskeyCredentialsTable, PasskeyCredentialsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPasskeyCredentialsWith applies the HasEdge predicate on the "passkey_credentials" edge with a given conditions (other predicates).
+func HasPasskeyCredentialsWith(preds ...predicate.PasskeyCredential) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newPasskeyCredentialsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPasskeyUserHandles applies the HasEdge predicate on the "passkey_user_handles" edge.
+func HasPasskeyUserHandles() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PasskeyUserHandlesTable, PasskeyUserHandlesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPasskeyUserHandlesWith applies the HasEdge predicate on the "passkey_user_handles" edge with a given conditions (other predicates).
+func HasPasskeyUserHandlesWith(preds ...predicate.PasskeyUserHandle) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newPasskeyUserHandlesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasRedeemCodes applies the HasEdge predicate on the "redeem_codes" edge.
 func HasRedeemCodes() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

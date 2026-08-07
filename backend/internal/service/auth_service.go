@@ -59,6 +59,7 @@ type AuthService struct {
 	settingService     *SettingService
 	emailService       *EmailService
 	turnstileService   *TurnstileService
+	captchaService     *CaptchaService
 	emailQueueService  *EmailQueueService
 	promoService       *PromoService
 	affiliateService   *AffiliateService
@@ -102,4 +103,8 @@ func NewAuthService(
 
 func (s *AuthService) SetAuthIdentityRepository(repo AuthIdentityRepository) {
 	s.authIdentityRepo = repo
+}
+
+func (s *AuthService) SetCaptchaService(captchaService *CaptchaService) {
+	s.captchaService = captchaService
 }
