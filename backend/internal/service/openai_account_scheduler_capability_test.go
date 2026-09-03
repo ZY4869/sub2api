@@ -301,3 +301,32 @@ func TestOpenAIGatewayService_SelectAccountWithSchedulerForCapability_AlphaSearc
 	defer releaseOpenAISelection(t, selection)
 	require.Equal(t, explicit.ID, selection.Account.ID)
 }
+
+func TestOpenAIGatewayService_SelectAccountWithSchedulerForCapability_AlphaSearchIgnoresAccountModelScope(t *testing.T) {
+	groupID := int64(9901)
+	account := openAICapabilityTestAccount(50901, nil, 0)
+	account.Extra = map[string]any{
+		"model_scope_v2": map[string]any{
+			"policy_mode": AccountModelPolicyModeWhitelist,
+			"entries": []any{map[string]any{
+				"display_model_id": "gpt-5.4",
+				"target_model_id":  "gpt-5.4",
+			}},
+		},
+	}
+	svc := &OpenAIGatewayService{
+		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{account}},
+		cfg:                &config.Config{},
+		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+	}
+
+	selection, _, err := svc.SelectAccountWithSchedulerForCapability(
+		context.Background(), &groupID, "", "", "", nil,
+		OpenAIUpstreamTransportAny, OpenAIEndpointCapabilityAlphaSearch,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	defer releaseOpenAISelection(t, selection)
+	require.Equal(t, account.ID, selection.Account.ID)
+}

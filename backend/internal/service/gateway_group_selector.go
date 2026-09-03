@@ -115,6 +115,57 @@ func SelectGroupBindingForAllowedPlatforms(
 	return selectGroupBindingForAllowedPlatforms(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, checker)
 }
 
+// SelectGroupForOpenAIEndpointCapability selects an OpenAI group for a
+// protocol endpoint (for example alpha/search).  Endpoint capabilities are
+// not models: direct OpenAI bindings therefore must not be filtered by the
+// API-key or group model visibility patterns.  Composite bindings remain
+// model-routed and use requestedModel to resolve their target group.
+func (s *OpenAIGatewayService) SelectGroupForOpenAIEndpointCapability(
+	ctx context.Context,
+	apiKey *APIKey,
+	allowedPlatforms []string,
+	requestedModel string,
+	capability OpenAIEndpointCapability,
+	excludedGroupIDs map[int64]struct{},
+) (*APIKeyGroupBinding, error) {
+	if s == nil || apiKey == nil || capability == "" {
+		return nil, ErrNoAvailableGroup
+	}
+	requestedModel = strings.TrimSpace(requestedModel)
+	// Always overwrite the request model context, including the empty value,
+	// so a stale model from another protocol cannot accidentally resolve a
+	// composite route for this capability endpoint.
+	ctx = context.WithValue(ctx, ctxkey.Model, requestedModel)
+	candidates := candidateGroupBindingsForAllowedPlatformsWithOptions(
+		ctx, apiKey, allowedPlatforms, requestedModel, excludedGroupIDs, true,
+	)
+	if len(candidates) == 0 {
+		return nil, ErrNoAvailableGroup
+	}
+
+	allQuotaExhausted := true
+	for _, candidate := range candidates {
+		if !candidate.binding.IsQuotaExhausted() {
+			allQuotaExhausted = false
+		} else {
+			continue
+		}
+		checkCtx := contextWithCandidateRequestPlatform(ctx, candidate.requestPlatform)
+		available, err := s.groupBindingHasSchedulableAccountsForCapability(checkCtx, &candidate.binding, capability)
+		if err != nil {
+			return nil, err
+		}
+		if available {
+			selected := candidate.binding
+			return &selected, nil
+		}
+	}
+	if allQuotaExhausted {
+		return nil, ErrAPIKeyGroupQuotaExceeded
+	}
+	return nil, ErrNoAvailableGroup
+}
+
 func selectGroupBindingForAllowedPlatforms(
 	ctx context.Context,
 	apiKey *APIKey,
@@ -165,6 +216,10 @@ func candidateGroupBindingsForRequest(ctx context.Context, apiKey *APIKey, platf
 }
 
 func candidateGroupBindingsForAllowedPlatforms(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
+	return candidateGroupBindingsForAllowedPlatformsWithOptions(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, false)
+}
+
+func candidateGroupBindingsForAllowedPlatformsWithOptions(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}, ignoreDirectOpenAIModelFilters bool) []candidateBinding {
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
 		return nil
@@ -206,12 +261,28 @@ func candidateGroupBindingsForAllowedPlatforms(ctx context.Context, apiKey *APIK
 			continue
 		}
 
-		explicit, matched := bindingMatchesModel(binding.ModelPatterns, model)
-		if !matched {
-			continue
+		canonicalPlatform := CanonicalizePlatformValue(group.Platform)
+		isOpenAIProtocolBinding := ignoreDirectOpenAIModelFilters &&
+			(canonicalPlatform == PlatformOpenAI || canonicalPlatform == PlatformComposite ||
+				CanonicalizePlatformValue(requestPlatform) == PlatformOpenAI)
+		if isOpenAIProtocolBinding {
+			// alpha/search is a protocol capability, not a model binding. Composite
+			// groups still need the request model solely to resolve their route.
+			if canonicalPlatform == PlatformComposite && strings.TrimSpace(model) == "" {
+				continue
+			}
+		} else {
+			_, matched := bindingMatchesModel(binding.ModelPatterns, model)
+			if !matched {
+				continue
+			}
+			if !groupAllowsVisibleRequestModel(group, model, ctx) {
+				continue
+			}
 		}
-		if !groupAllowsVisibleRequestModel(group, model, ctx) {
-			continue
+		explicit := false
+		if !isOpenAIProtocolBinding {
+			explicit, _ = bindingMatchesModel(binding.ModelPatterns, model)
 		}
 
 		priority := group.Priority
@@ -477,6 +548,79 @@ func (s *OpenAIGatewayService) groupBindingHasSchedulableAccounts(ctx context.Co
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// groupBindingHasSchedulableAccountsForCapability checks group availability
+// using an endpoint capability instead of a requested model. This is used by
+// protocol endpoints such as alpha/search, where the request model is only
+// meaningful for resolving composite routes and for upstream translation.
+func (s *OpenAIGatewayService) groupBindingHasSchedulableAccountsForCapability(ctx context.Context, binding *APIKeyGroupBinding, capability OpenAIEndpointCapability) (bool, error) {
+	if s == nil || binding == nil || binding.Group == nil || capability == "" {
+		return false, nil
+	}
+	group := binding.Group
+	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
+	effectivePlatform := CanonicalizePlatformValue(group.Platform)
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		effectivePlatform = CanonicalizePlatformValue(forcePlatform)
+	}
+	if CanonicalizePlatformValue(group.Platform) == PlatformComposite {
+		requestedModel := strings.TrimSpace(modelFromContext(ctx))
+		if requestedModel == "" || s.groupRepo == nil {
+			return false, nil
+		}
+		route, err := s.groupRepo.FindCompositeRoute(ctx, group.ID, requestedModel)
+		if err != nil {
+			return false, err
+		}
+		if route == nil || route.TargetGroupID <= 0 {
+			return false, nil
+		}
+		targetGroup := route.TargetGroup
+		if targetGroup == nil || targetGroup.ID <= 0 || !targetGroup.Hydrated {
+			targetGroup, err = s.groupRepo.GetByIDLite(ctx, route.TargetGroupID)
+			if err != nil {
+				return false, err
+			}
+		}
+		if targetGroup == nil || CanonicalizePlatformValue(targetGroup.Platform) != PlatformOpenAI {
+			return false, nil
+		}
+		ctx = WithOpenAIPlatform(ctx, targetGroup.Platform)
+		return s.openAIGroupHasSchedulableCapability(ctx, targetGroup.ID, capability)
+	}
+	if effectivePlatform != PlatformOpenAI {
+		return false, nil
+	}
+	ctx = WithOpenAIPlatform(ctx, effectivePlatform)
+	return s.openAIGroupHasSchedulableCapability(ctx, group.ID, capability)
+}
+
+func (s *OpenAIGatewayService) openAIGroupHasSchedulableCapability(ctx context.Context, groupID int64, capability OpenAIEndpointCapability) (bool, error) {
+	if s == nil || groupID <= 0 {
+		return false, nil
+	}
+	accounts, err := s.listSchedulableAccounts(ctx, &groupID)
+	if err != nil {
+		return false, err
+	}
+	for i := range accounts {
+		account := &accounts[i]
+		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
+			continue
+		}
+		if CanParticipateInAccountQuota(account) && account.IsQuotaExceeded() {
+			continue
+		}
+		if !account.IsSchedulableForModelWithContext(ctx, "") {
+			continue
+		}
+		if !SupportsOpenAIEndpointCapability(account, capability) {
 			continue
 		}
 		return true, nil

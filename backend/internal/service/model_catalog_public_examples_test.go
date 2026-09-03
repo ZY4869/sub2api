@@ -103,6 +103,8 @@ func TestPublicModelCatalogOpenAIExampleDocumentsAlphaSearch(t *testing.T) {
 
 	require.Contains(t, markdown, "/v1/alpha/search")
 	require.Contains(t, markdown, "/backend-api/codex/alpha/search")
+	require.Contains(t, markdown, "独立协议能力")
+	require.Contains(t, markdown, "仅表示本次请求用于上游模型映射或 composite route 解析")
 	require.NotContains(t, markdown, "/api-docs")
 }
 

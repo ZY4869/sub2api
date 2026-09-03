@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
@@ -77,6 +78,12 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 	}
 	setOpsRequestContext(c, service.OpenAIAlphaSearchUsageModel, false, body)
 	requestPayloadHash := service.HashUsageRequestPayload(body)
+	requestedModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	reqLog = reqLog.With(
+		zap.String("endpoint_capability", string(service.OpenAIEndpointCapabilityAlphaSearch)),
+		zap.Bool("requested_model_present", requestedModel != ""),
+		zap.String("group_selection_mode", "capability"),
+	)
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
@@ -89,15 +96,15 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 	}
 
 	excludedGroupIDs := make(map[int64]struct{})
-	currentAPIKey, currentSubscription, err := resolveSelectedOpenAIAPIKey(
+	currentAPIKey, currentSubscription, err := resolveSelectedOpenAIEndpointCapability(
 		c,
 		h.settingService,
 		h.gatewayService,
 		h.billingCacheService,
 		apiKey,
 		subscription,
-		service.OpenAIAlphaSearchUsageModel,
-		openAICompatiblePlatforms,
+		requestedModel,
+		service.OpenAIEndpointCapabilityAlphaSearch,
 		excludedGroupIDs,
 	)
 	if err != nil {
@@ -106,8 +113,48 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		h.errorResponse(c, status, code, message)
 		return
 	}
-	if currentAPIKey.Group == nil || currentAPIKey.Group.Platform != service.PlatformOpenAI {
-		h.errorResponse(c, http.StatusNotFound, "not_found_error", "The requested endpoint is not supported for this platform")
+	if currentAPIKey == nil || currentAPIKey.Group == nil {
+		releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI alpha/search group")
+		return
+	}
+	compositeRouteRequired := service.CanonicalizePlatformValue(currentAPIKey.Group.Platform) == service.PlatformComposite
+	reqLog = reqLog.With(zap.Bool("composite_route_required", compositeRouteRequired))
+	if compositeRouteRequired {
+		if requestedModel == "" {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+			reqLog.Warn("openai.alpha_search.composite_route_missing_model", zap.Bool("composite_route_required", true))
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI alpha/search group")
+			return
+		}
+		runtime, resolveErr := resolveOpenAICompositeRuntime(
+			c,
+			h.gatewayService,
+			h.billingCacheService,
+			reqLog,
+			currentAPIKey,
+			currentSubscription,
+			body,
+			requestedModel,
+			requestedModel,
+		)
+		if resolveErr != nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+			status, code, message := compositeRouteErrorDetails(resolveErr)
+			h.errorResponse(c, status, code, message)
+			return
+		}
+		if runtime == nil || !runtime.matched || runtime.apiKey == nil {
+			releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "No available OpenAI alpha/search group")
+			return
+		}
+		currentAPIKey = runtime.apiKey
+		currentSubscription = runtime.subscription
+	}
+	if service.CanonicalizePlatformValue(currentAPIKey.Group.Platform) != service.PlatformOpenAI {
+		releaseHeldBillingHold(c.Request.Context(), h.apiKeyService, currentAPIKey)
+		h.errorResponse(c, http.StatusNotFound, "public_endpoint_unsupported", "The requested endpoint is not supported for this platform")
 		return
 	}
 	applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)

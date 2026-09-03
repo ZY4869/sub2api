@@ -223,6 +223,76 @@ func resolveSelectedOpenAIAPIKey(
 	return selectedAPIKey, selectedSubscription, nil
 }
 
+// resolveSelectedOpenAIEndpointCapability selects an OpenAI binding by
+// protocol capability rather than treating the capability name as a model.
+// Composite bindings remain model-routed and are resolved by the caller after
+// this function returns.
+func resolveSelectedOpenAIEndpointCapability(
+	c *gin.Context,
+	settingService *service.SettingService,
+	gatewayService *service.OpenAIGatewayService,
+	billingCacheService *service.BillingCacheService,
+	apiKey *service.APIKey,
+	subscription *service.UserSubscription,
+	requestedModel string,
+	capability service.OpenAIEndpointCapability,
+	excludedGroupIDs map[int64]struct{},
+) (*service.APIKey, *service.UserSubscription, error) {
+	if apiKey == nil {
+		return nil, nil, service.ErrNoAvailableGroup
+	}
+	if selectedAPIKey, handled, err := enforcePublicCatalogBindingGroup(c.Request.Context(), apiKey, excludedGroupIDs); handled {
+		if err != nil {
+			return nil, nil, err
+		}
+		selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+		if err != nil {
+			return nil, nil, err
+		}
+		if billingCacheService != nil {
+			if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+				return nil, nil, err
+			}
+		}
+		propagateSelectedBillingHold(apiKey, selectedAPIKey)
+		applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+		return selectedAPIKey, selectedSubscription, nil
+	}
+	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
+		if isGroupExcluded(apiKey, excludedGroupIDs) {
+			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
+		if billingCacheService != nil {
+			if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
+				return nil, nil, err
+			}
+		}
+		return apiKey, subscription, nil
+	}
+	if gatewayService == nil {
+		return nil, nil, service.ErrNoAvailableGroup
+	}
+	binding, err := gatewayService.SelectGroupForOpenAIEndpointCapability(
+		c.Request.Context(), apiKey, openAICompatiblePlatforms, requestedModel, capability, excludedGroupIDs,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	selectedAPIKey := service.CloneAPIKeyWithSelectedGroup(apiKey, binding)
+	selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+	if err != nil {
+		return nil, nil, err
+	}
+	if billingCacheService != nil {
+		if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+			return nil, nil, err
+		}
+	}
+	propagateSelectedBillingHold(apiKey, selectedAPIKey)
+	applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+	return selectedAPIKey, selectedSubscription, nil
+}
+
 func loadSelectedSubscription(
 	ctx context.Context,
 	apiKey *service.APIKey,

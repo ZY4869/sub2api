@@ -83,6 +83,7 @@ curl https://api.zyxai.de/v1/alpha/search \
 ` + "```" + `
 
 Codex 兼容入口：` + "`/backend-api/codex/alpha/search`" + `，使用相同的站内 API Key 鉴权。
+` + "`model`" + ` 仅表示本次请求用于上游模型映射或 composite route 解析；` + "`alpha/search`" + ` 本身是独立协议能力，不需要加入分组模型白名单。
 `,
 	"anthropic": `### messages
 #### REST
