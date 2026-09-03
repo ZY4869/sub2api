@@ -41,6 +41,12 @@ func TestSupportsOpenAIEndpointCapability(t *testing.T) {
 	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityChatCompletions))
 	require.False(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityEmbeddings))
 	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityAlphaSearch))
+	disabledOAuth := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"access_token": "oauth-token"}, Extra: map[string]any{"openai_alpha_search_enabled": false}}
+	require.False(t, SupportsOpenAIEndpointCapability(disabledOAuth, OpenAIEndpointCapabilityAlphaSearch))
+	disabledAPIKey := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "sk-test"}, Extra: map[string]any{"openai_alpha_search_enabled": "false"}}
+	require.False(t, SupportsOpenAIEndpointCapability(disabledAPIKey, OpenAIEndpointCapabilityAlphaSearch))
+	legacyChatCapability := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "sk-test", openAIEndpointCapabilitiesCredentialKey: []any{"chat_completions"}}}
+	require.True(t, SupportsOpenAIEndpointCapability(legacyChatCapability, OpenAIEndpointCapabilityAlphaSearch))
 	require.True(t, SupportsOpenAIEndpointCapability(oauth, OpenAIEndpointCapabilityResponses))
 	require.True(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityChatCompletions))
 	require.False(t, SupportsOpenAIEndpointCapability(deepSeek, OpenAIEndpointCapabilityEmbeddings))
@@ -70,6 +76,11 @@ func TestSupportsOpenAIEndpointCapability(t *testing.T) {
 		Extra:       map[string]any{openAIResponsesSupportedExtraKey: false},
 	}
 	require.False(t, SupportsOpenAIEndpointCapability(responsesUnsupported, OpenAIEndpointCapabilityResponses))
+}
+
+func TestOpenAIPersonalAccessTokenDetectionSupportsLegacyAtToken(t *testing.T) {
+	account := &Account{Platform: PlatformOpenAI, Type: AccountTypeOAuth, Credentials: map[string]any{"access_token": "at-legacy-token"}}
+	require.True(t, account.IsOpenAIPersonalAccessToken())
 }
 
 func TestGrokMediaGenerationEligibility(t *testing.T) {

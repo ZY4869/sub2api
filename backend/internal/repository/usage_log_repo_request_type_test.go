@@ -122,6 +122,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // upstream_url
 			sqlmock.AnyArg(), // upstream_service
 			log.CacheTTLOverridden,
+			sqlmock.AnyArg(), // upstream_response_model
+			sqlmock.AnyArg(), // upstream_model_mismatch
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
@@ -235,6 +237,8 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
@@ -343,6 +347,8 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(101), createdAt))
@@ -455,6 +461,8 @@ func TestUsageLogRepositoryCreate_ResolvesRequestContextLengthTokens(t *testing.
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(102), createdAt))
@@ -506,7 +514,7 @@ func TestUsageLogRepositoryCreate_PersistsPublicCatalogDiscountAuditFields(t *te
 	args[39] = sql.NullString{Valid: true, String: "promo-window"}
 	args[40] = sql.NullString{Valid: true, String: service.PublicModelCatalogDiscountWindowDaily}
 	args[41] = sql.NullTime{Valid: true, Time: completedAt}
-	args[79] = createdAt
+	args[81] = createdAt
 	mock.ExpectQuery("INSERT INTO usage_logs").
 		WithArgs(args...).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(103), createdAt))
@@ -549,7 +557,7 @@ func TestUsageLogRepositoryCreate_PersistsImageQuality(t *testing.T) {
 	args[57] = log.ImageCount
 	args[58] = sql.NullString{Valid: true, String: imageSize}
 	args[59] = sql.NullString{Valid: true, String: imageQuality}
-	args[79] = createdAt
+	args[81] = createdAt
 
 	mock.ExpectQuery("INSERT INTO usage_logs").
 		WithArgs(args...).
@@ -562,7 +570,7 @@ func TestUsageLogRepositoryCreate_PersistsImageQuality(t *testing.T) {
 }
 
 func usageLogInsertDefaultArgs() []driver.Value {
-	return make([]driver.Value, 80)
+	return make([]driver.Value, 82)
 }
 
 func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
@@ -1167,6 +1175,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			false,
+			sql.NullString{},
+			sql.NullBool{},
 			now,
 		}})
 		require.NoError(t, err)
@@ -1262,6 +1272,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			false,
+			sql.NullString{},
+			sql.NullBool{},
 			now,
 		}})
 		require.NoError(t, err)
@@ -1343,6 +1355,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			false,
+			sql.NullString{},
+			sql.NullBool{},
 			now,
 		}})
 		require.NoError(t, err)

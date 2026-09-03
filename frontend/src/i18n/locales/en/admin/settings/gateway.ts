@@ -1,4 +1,10 @@
 export default {
+    openaiAlphaSearch: {
+        title: "OpenAI alpha/search",
+        description: "Control the Codex-native web.run search entry points. Disabled paths return 404.",
+        enabled: "Enable OpenAI alpha/search",
+        enabledHint: "Applies only to OpenAI OAuth/API Key accounts; the account-level toggle can still disable individual accounts.",
+    },
     overloadCooldown: {
         title: "Overload Cooldown Settings",
         description: "Control the cooldown applied after 529 overload responses.",

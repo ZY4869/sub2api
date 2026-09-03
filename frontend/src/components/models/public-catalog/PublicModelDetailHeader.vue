@@ -1,8 +1,8 @@
 <template>
-  <header class="shrink-0 bg-white px-6 pt-8 dark:bg-dark-900 md:px-10 md:pt-10">
-    <div class="flex items-start justify-between gap-5">
-      <div class="flex min-w-0 items-start gap-5">
-        <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50 text-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:border-dark-700 dark:from-dark-800 dark:to-dark-900 dark:text-white">
+  <header class="shrink-0 bg-white px-4 pt-5 dark:bg-dark-900 sm:px-6 md:px-8 md:pt-7 2xl:px-10">
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-200/80 bg-white text-slate-800 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-white sm:h-14 sm:w-14">
           <ModelPlatformIcon
             v-if="item"
             :platform="item.provider_icon_key || item.provider || ''"
@@ -10,7 +10,7 @@
           />
         </div>
         <div class="min-w-0">
-          <div class="flex min-w-0 items-center gap-3">
+          <div class="flex min-w-0 items-center gap-2 sm:gap-3">
             <ModelIcon
               v-if="item"
               :model="item.model"
@@ -18,7 +18,7 @@
               :display-name="item.display_name"
               size="24px"
             />
-            <h1 class="truncate text-[26px] font-extrabold leading-none tracking-tight text-slate-900 dark:text-white">
+            <h1 class="truncate text-xl font-extrabold leading-tight text-slate-900 dark:text-white sm:text-2xl">
               {{ item?.model || title }}
             </h1>
             <button
@@ -30,7 +30,7 @@
               <Icon name="copy" size="sm" />
             </button>
           </div>
-          <div class="mt-3 flex flex-wrap items-center gap-3">
+          <div class="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
             <span class="flex items-center gap-1.5 border-r border-slate-200 pr-3 text-sm font-bold text-slate-600 dark:border-dark-700 dark:text-slate-200">
               <span class="h-2 w-2 rounded-full" :class="statusClass"></span>
               {{ providerLabel }}
@@ -44,7 +44,7 @@
 
       <button
         type="button"
-        class="shrink-0 rounded-full border border-slate-200 bg-white p-2.5 text-slate-400 shadow-sm transition-all hover:bg-slate-100 hover:text-slate-800 dark:border-dark-700 dark:bg-dark-800 dark:hover:bg-dark-700 dark:hover:text-white"
+        class="shrink-0 rounded-lg border border-slate-200 bg-white p-2.5 text-slate-400 shadow-sm transition-all hover:bg-slate-100 hover:text-slate-800 dark:border-dark-700 dark:bg-dark-800 dark:hover:bg-dark-700 dark:hover:text-white"
         :title="closeTitle"
         @click="emit('close')"
       >

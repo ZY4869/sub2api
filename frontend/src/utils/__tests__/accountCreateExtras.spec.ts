@@ -108,6 +108,35 @@ describe('accountCreateExtras', () => {
       expect(out).not.toHaveProperty('image_protocol_mode')
       expect(out).not.toHaveProperty('image_compat_allowed')
     })
+
+    it('persists alpha search only when explicitly disabled', () => {
+      const disabled = buildOpenAIExtra({
+        platform: 'openai', accountCategory: 'apikey', base: { openai_alpha_search_enabled: true },
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false, openaiAlphaSearchEnabled: false, codexCLIOnlyEnabled: false,
+        ...baseOpenAIOptions
+      })
+      expect(disabled).toMatchObject({ openai_alpha_search_enabled: false })
+
+      const enabled = buildOpenAIExtra({
+        platform: 'openai', accountCategory: 'oauth-based', base: { openai_alpha_search_enabled: false },
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false, openaiAlphaSearchEnabled: true, codexCLIOnlyEnabled: false,
+        ...baseOpenAIOptions
+      })
+      expect(enabled).not.toHaveProperty('openai_alpha_search_enabled')
+
+      const nonOpenAI = buildOpenAIExtra({
+        platform: 'deepseek', accountCategory: 'apikey', base: {},
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false, openaiAlphaSearchEnabled: false, codexCLIOnlyEnabled: false,
+        ...baseOpenAIOptions
+      })
+      expect(nonOpenAI).not.toHaveProperty('openai_alpha_search_enabled')
+    })
   })
 
   describe('buildAnthropicExtra', () => {

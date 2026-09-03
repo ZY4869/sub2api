@@ -64,6 +64,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyCodexOAuthUserAgentMode:                            CodexOAuthUAModeDefault,
 		SettingKeyCodexOAuthUserAgentOverride:                        "",
 		SettingKeyOpenAIAllowClaudeCodeCodexPlugin:                   "false",
+		SettingKeyOpenAIAlphaSearchEnabled:                           "true",
 		SettingKeyOpenAIAllowedCodexClients:                          "[]",
 		SettingKeyOpenAIAdvancedSchedulerEnabled:                     "true",
 		SettingKeyOpenAIAdvancedSchedulerStickyWeightedEnabled:       "true",

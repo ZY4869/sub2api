@@ -55,6 +55,28 @@ func (a *Account) IsOpenAIOAuth() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeOAuth
 }
 
+// IsOpenAIPersonalAccessToken reports whether an OpenAI OAuth account uses a
+// Codex Personal Access Token. PATs are OAuth-shaped credentials but require
+// the Responses web_search fallback for alpha/search.
+func (a *Account) IsOpenAIPersonalAccessToken() bool {
+	if !a.IsOpenAIOAuth() {
+		return false
+	}
+	for _, key := range []string{"auth_mode", "openai_auth_mode"} {
+		value := strings.ToLower(strings.TrimSpace(a.GetCredential(key)))
+		if isOpenAIPersonalAccessTokenAuthMode(value) {
+			return true
+		}
+	}
+	// Imported Codex credentials can predate the auth_mode marker. Codex PATs
+	// use the at-* token family, while regular OAuth access tokens are JWTs.
+	accessToken := strings.TrimSpace(a.GetCredential("access_token"))
+	if len(accessToken) >= 3 && strings.EqualFold(accessToken[:3], "at-") {
+		return true
+	}
+	return false
+}
+
 func (a *Account) IsOpenAIApiKey() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeAPIKey
 }
@@ -156,6 +178,26 @@ func (a *Account) GetChatGPTUserID() string {
 		return ""
 	}
 	return a.GetCredential("chatgpt_user_id")
+}
+
+func (a *Account) IsChatGPTAccountFedRAMP() bool {
+	if !a.IsOpenAIOAuth() || a.Credentials == nil {
+		return false
+	}
+	raw, ok := a.Credentials["chatgpt_account_is_fedramp"]
+	if !ok || raw == nil {
+		return false
+	}
+	switch value := raw.(type) {
+	case bool:
+		return value
+	case string:
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "true", "1", "yes":
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Account) GetOpenAIOrganizationID() string {

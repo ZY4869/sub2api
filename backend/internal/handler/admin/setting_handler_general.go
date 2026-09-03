@@ -127,6 +127,7 @@ type UpdateSettingsRequest struct {
 	CodexOAuthUserAgentMode                            *string                                   `json:"codex_oauth_user_agent_mode"`
 	CodexOAuthUserAgentOverride                        *string                                   `json:"codex_oauth_user_agent_override"`
 	OpenAIAllowClaudeCodeCodexPlugin                   *bool                                     `json:"openai_allow_claude_code_codex_plugin"`
+	OpenAIAlphaSearchEnabled                           *bool                                     `json:"openai_alpha_search_enabled"`
 	OpenAIAllowedCodexClients                          *[]string                                 `json:"openai_allowed_codex_clients"`
 	OpenAIAdvancedSchedulerEnabled                     *bool                                     `json:"openai_advanced_scheduler_enabled"`
 	OpenAIAdvancedSchedulerStickyWeightedEnabled       *bool                                     `json:"openai_advanced_scheduler_sticky_weighted_enabled"`
@@ -986,6 +987,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	settings.AdminComplianceEnabled = req.AdminComplianceEnabled
 	settings.AuditLogRetentionDays = service.NormalizeAuditLogRetentionDays(req.AuditLogRetentionDays)
 	settings.OpenAIAdvancedSchedulerEnabled = boolSetting(req.OpenAIAdvancedSchedulerEnabled, previousSettings.OpenAIAdvancedSchedulerEnabled)
+	settings.OpenAIAlphaSearchEnabled = boolSetting(req.OpenAIAlphaSearchEnabled, previousSettings.OpenAIAlphaSearchEnabled)
 	settings.OpenAIAdvancedSchedulerStickyWeightedEnabled = boolSetting(req.OpenAIAdvancedSchedulerStickyWeightedEnabled, previousSettings.OpenAIAdvancedSchedulerStickyWeightedEnabled)
 	settings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled = boolSetting(req.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled, previousSettings.OpenAIAdvancedSchedulerSubscriptionPriorityEnabled)
 	settings.OpenAIAdvancedSchedulerLBTopK = stringSetting(req.OpenAIAdvancedSchedulerLBTopK, previousSettings.OpenAIAdvancedSchedulerLBTopK)

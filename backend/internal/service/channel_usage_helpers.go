@@ -36,6 +36,18 @@ func resolveGatewayChannelBilling(
 	upstreamModel string,
 	usage GatewayChannelUsage,
 ) *gatewayChannelBillingResolution {
+	return resolveGatewayChannelBillingWithResponse(ctx, channelService, requestedModel, upstreamModel, "", nil, usage)
+}
+
+func resolveGatewayChannelBillingWithResponse(
+	ctx context.Context,
+	channelService *ChannelService,
+	requestedModel string,
+	upstreamModel string,
+	responseModel string,
+	responseMismatch *bool,
+	usage GatewayChannelUsage,
+) *gatewayChannelBillingResolution {
 	_, state := ResolveGatewaySelectionModelWithState(ctx, requestedModel)
 	if state == nil {
 		return nil
@@ -45,7 +57,7 @@ func resolveGatewayChannelBilling(
 		State:             state,
 		ModelMappingChain: state.BuildModelMappingChain(upstreamModel),
 	}
-	resolution.BillingModel = strings.TrimSpace(state.ResolveBillingModel(upstreamModel))
+	resolution.BillingModel = strings.TrimSpace(state.ResolveBillingModelWithResponse(upstreamModel, responseModel, responseMismatch))
 	if resolution.BillingModel == "" {
 		resolution.BillingModel = strings.TrimSpace(requestedModel)
 	}
@@ -54,6 +66,13 @@ func resolveGatewayChannelBilling(
 	}
 	if channelService != nil && resolution.BillingModel != "" {
 		resolution.Pricing = channelService.ResolveUsagePricing(state, resolution.BillingModel, usage)
+		if resolution.Pricing == nil && strings.EqualFold(strings.TrimSpace(state.Channel.BillingModelSource), "response_model") {
+			resolution.BillingModel = strings.TrimSpace(state.ResolveBillingModel(upstreamModel))
+			if resolution.BillingModel == "" {
+				resolution.BillingModel = strings.TrimSpace(requestedModel)
+			}
+			resolution.Pricing = channelService.ResolveUsagePricing(state, resolution.BillingModel, usage)
+		}
 	}
 	return resolution
 }

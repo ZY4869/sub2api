@@ -578,6 +578,9 @@ type UsageLog struct {
 type AdminUsageLog struct {
 	UsageLog
 
+	UpstreamResponseModel *string `json:"upstream_response_model,omitempty"`
+	UpstreamModelMismatch *bool   `json:"upstream_model_mismatch,omitempty"`
+
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示按 1.0 处理）
 	AccountRateMultiplier *float64 `json:"account_rate_multiplier"`
 

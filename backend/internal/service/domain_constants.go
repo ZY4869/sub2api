@@ -199,6 +199,7 @@ const (
 	SettingKeyOpenAIAllowClaudeCodeCodexPlugin                   = "openai_allow_claude_code_codex_plugin"
 	SettingKeyOpenAIAllowedCodexClients                          = "openai_allowed_codex_clients"
 	SettingKeyOpenAIAdvancedSchedulerEnabled                     = "openai_advanced_scheduler_enabled"
+	SettingKeyOpenAIAlphaSearchEnabled                           = "openai_alpha_search_enabled"
 	SettingKeyOpenAIAdvancedSchedulerStickyWeightedEnabled       = "openai_advanced_scheduler_sticky_weighted_enabled"
 	SettingKeyOpenAIAdvancedSchedulerSubscriptionPriorityEnabled = "openai_advanced_scheduler_subscription_priority_enabled"
 	SettingKeyOpenAIAdvancedSchedulerLBTopK                      = "openai_advanced_scheduler_lb_top_k"
@@ -250,6 +251,7 @@ const (
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260529 = "model_registry_available_models_bootstrap_v20260529"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260715 = "model_registry_available_models_bootstrap_v20260715"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260726 = "model_registry_available_models_bootstrap_v20260726"
+	SettingKeyModelRegistryAvailableModelsBootstrapV20260818 = "model_registry_available_models_bootstrap_v20260818"
 
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"
 	SettingKeyIdentityPatchPrompt = "identity_patch_prompt"

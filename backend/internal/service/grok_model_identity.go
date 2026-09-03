@@ -10,6 +10,7 @@ const (
 	GrokModel3Fast           = "grok-3-fast"
 	GrokModel4Expert         = "grok-4-expert"
 	GrokModel4Heavy          = "grok-4-heavy"
+	GrokModelBuild46         = "grok-4.6"
 	GrokModelBuild45         = "grok-4.5"
 	GrokModelBuild43         = "grok-4.3"
 	GrokModelBuild01         = "grok-build-0.1"
@@ -39,6 +40,7 @@ type grokModelDescriptor struct {
 }
 
 var grokBuildTextModelIDs = []string{
+	GrokModelBuild46,
 	GrokModelBuild45,
 	GrokModelBuild43,
 	GrokModelBuild01,
@@ -49,7 +51,8 @@ var grokBuildTextModelIDs = []string{
 }
 
 var grokCanonicalDescriptors = []grokModelDescriptor{
-	{PublicID: GrokModelBuild45, LegacyAliases: []string{"grok", "grok-latest", "grok-4.5-latest", "grok-build-latest"}, BuildTextOnly: true},
+	{PublicID: GrokModelBuild46, LegacyAliases: []string{"grok", "grok-latest", "grok-4.6-latest", "grok-build-latest"}, BuildTextOnly: true},
+	{PublicID: GrokModelBuild45, LegacyAliases: []string{"grok-4.5-latest"}, BuildTextOnly: true},
 	{PublicID: GrokModelBuild43, BuildTextOnly: true},
 	{PublicID: GrokModelBuild01, LegacyAliases: []string{"grok-build"}, BuildTextOnly: true},
 	{PublicID: GrokModelComposer25Fast, LegacyAliases: []string{"grok-composer", "composer-2.5"}, BuildTextOnly: true},
@@ -91,7 +94,7 @@ func GrokBuildTextModelIDs() []string {
 }
 
 func DefaultGrokBuildTextModelID() string {
-	return GrokModelBuild45
+	return GrokModelBuild46
 }
 
 func NormalizeGrokPublicModelID(model string) string {

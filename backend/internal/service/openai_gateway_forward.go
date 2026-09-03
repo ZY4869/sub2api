@@ -22,6 +22,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	account = ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
 	startTime := time.Now()
 	ctx = EnsureRequestMetadata(ctx)
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
 	restrictionResult := s.detectCodexClientRestriction(c, account)
 	apiKeyID := getAPIKeyIDFromContext(c)
 	logCodexCLIOnlyDetection(ctx, c, account, apiKeyID, restrictionResult, body)
@@ -707,6 +710,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			Duration:                 time.Since(startTime),
 			FirstTokenMs:             firstTokenMs,
 		}
+		observationCtx := ctx
+		if c != nil && c.Request != nil {
+			observationCtx = c.Request.Context()
+		}
+		applyOpenAIResponseModelObservation(result, observationCtx, mappedModel)
 		applyClaudeCapabilityToOpenAIForwardResult(result, claudeCapability)
 		return result, nil
 	}

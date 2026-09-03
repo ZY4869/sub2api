@@ -62,6 +62,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		MaintenanceModeEnabled:                 settings[SettingKeyMaintenanceModeEnabled] == "true",
 		AdminComplianceEnabled:                 settings[SettingKeyAdminComplianceEnabled] == "true",
 		AuditLogRetentionDays:                  NormalizeAuditLogRetentionDays(parseSettingInt(settings[SettingKeyAuditLogRetentionDays], DefaultAuditLogRetentionDays)),
+		OpenAIAlphaSearchEnabled:               !isFalseSettingValue(settings[SettingKeyOpenAIAlphaSearchEnabled]),
 	}
 	if port, err := strconv.Atoi(settings[SettingKeySMTPPort]); err == nil {
 		result.SMTPPort = port

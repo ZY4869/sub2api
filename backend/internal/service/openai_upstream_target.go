@@ -6,6 +6,7 @@ const (
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
 	openaiPlatformEmbeddingsURL      = "https://api.openai.com/v1/embeddings"
 	openaiPlatformAlphaSearchURL     = "https://api.openai.com/v1/alpha/search"
+	chatgptCodexAlphaSearchURL       = "https://chatgpt.com/backend-api/codex/alpha/search"
 	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
 	deepseekDefaultAPIBaseURL        = "https://api.deepseek.com"
 	openRouterDefaultAPIBaseURL      = "https://openrouter.ai/api/v1"
@@ -61,6 +62,9 @@ func resolveOpenAIEmbeddingsTargetURL(account *Account, validateBaseURL func(str
 func resolveOpenAIAlphaSearchTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
 	if account == nil {
 		return openaiPlatformAlphaSearchURL, nil
+	}
+	if account.IsOpenAIOAuth() {
+		return chatgptCodexAlphaSearchURL, nil
 	}
 
 	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())

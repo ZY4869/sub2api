@@ -99,6 +99,7 @@ export function createEditAccountSubmit(ctx: any) {
     openaiAPIKeyResponsesWebSocketV2Mode,
     openaiOAuthResponsesWebSocketV2Mode,
     openaiPassthroughEnabled,
+    openaiAlphaSearchEnabled,
     parseDateTimeLocal,
     poolModeState,
     quotaControl,
@@ -457,6 +458,11 @@ return async () => {
       } else {
         delete newExtra.openai_passthrough
         delete newExtra.openai_oauth_passthrough
+      }
+      if (!openaiAlphaSearchEnabled.value) {
+        newExtra.openai_alpha_search_enabled = false
+      } else {
+        delete newExtra.openai_alpha_search_enabled
       }
       newExtra.image_protocol_mode = openAIImageCompatAllowed.value
         ? openAIImageProtocolMode.value

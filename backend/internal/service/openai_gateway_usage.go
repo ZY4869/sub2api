@@ -94,13 +94,18 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	multiplier := effectiveTokenRateMultiplierAt(baseMultiplier, apiKey.Group, time.Now())
 	flatMultiplier := effectiveFlatRateMultiplier(baseMultiplier, apiKey.Group)
 
-	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
+	channelResolution := resolveGatewayChannelBillingWithResponse(ctx, s.channelService, result.Model, result.UpstreamModel, result.UpstreamResponseModel, result.UpstreamModelMismatch, GatewayChannelUsage{
 		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens,
 		ImageOutputTokens: result.Usage.OutputTokens,
 	})
 	billingModel := result.BillingModel
 	if billingModel == "" {
 		billingModel = forwardResultBillingModel(result.Model, result.UpstreamModel)
+	}
+	if channelResolution != nil && channelResolution.Pricing != nil &&
+		channelResolution.State != nil && channelResolution.State.Channel != nil &&
+		strings.EqualFold(strings.TrimSpace(channelResolution.State.Channel.BillingModelSource), "response_model") {
+		billingModel = channelResolution.BillingModel
 	}
 	serviceTier := ""
 	if result.ServiceTier != nil {
@@ -168,6 +173,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		Model:                    result.Model,
 		RequestedModel:           result.Model,
 		UpstreamModel:            optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
+		UpstreamResponseModel:    optionalTrimmedStringPtr(result.UpstreamResponseModel),
+		UpstreamModelMismatch:    result.UpstreamModelMismatch,
 		ServiceTier:              result.ServiceTier,
 		ReasoningEffort:          legacyReasoningEffort,
 		ReasoningEffortRaw:       reasoningEffortRaw,

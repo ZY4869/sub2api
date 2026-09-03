@@ -113,6 +113,7 @@ export function useEditAccountModalWatchers(ctx: any) {
     openaiAPIKeyResponsesWebSocketV2Mode,
     openaiOAuthResponsesWebSocketV2Mode,
     openaiPassthroughEnabled,
+    openaiAlphaSearchEnabled,
     poolModeState,
     protocolGatewayProbeModels,
     quotaControl,
@@ -226,6 +227,7 @@ watch(
 
       // Load OpenAI passthrough toggle (OpenAI OAuth/API Key)
       openaiPassthroughEnabled.value = false
+      openaiAlphaSearchEnabled.value = true
       openAIOAuthPlanTypeOverride.value = ''
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
@@ -246,6 +248,7 @@ watch(
           storedCompatAllowed: extra?.image_compat_allowed
         })
         openaiPassthroughEnabled.value = extra?.openai_passthrough === true || extra?.openai_oauth_passthrough === true
+        openaiAlphaSearchEnabled.value = extra?.openai_alpha_search_enabled !== false
         openAIImageProtocolMode.value = openAIImageState.mode
         openAIImageCompatAllowed.value = openAIImageState.compatAllowed
         openaiOAuthResponsesWebSocketV2Mode.value = resolveOpenAIWSModeFromExtra(extra, {

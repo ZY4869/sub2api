@@ -27,6 +27,7 @@
   {"model":"gemini-3.1-pro","display_name":"Gemini 3.1 Pro","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-pro-preview","pricing_lookup_model_id":"gemini-3.1-pro-preview"},
   {"model":"gemini-3.1-flash-lite","display_name":"Gemini 3.1 Flash Lite","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-flash-lite-preview","pricing_lookup_model_id":"gemini-3.1-flash-lite-preview"},
   {"model":"gemini-3.1-flash-image","display_name":"Gemini 3.1 Flash Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-3.1-flash-image-preview","pricing_lookup_model_id":"gemini-3.1-flash-image-preview"},
+  {"model":"grok-4.6","display_name":"Grok 4.6","provider":"grok","mode":"chat","canonical_model_id":"grok-4.6","pricing_lookup_model_id":"grok-4.6"},
   {"model":"grok-auto","display_name":"Grok Auto","provider":"grok","mode":"chat","canonical_model_id":"grok-auto","pricing_lookup_model_id":"grok-auto"},
   {"model":"grok-3-fast","display_name":"Grok 3 Fast","provider":"grok","mode":"chat","canonical_model_id":"grok-3-fast","pricing_lookup_model_id":"grok-3-fast"},
   {"model":"grok-4-expert","display_name":"Grok 4 Expert","provider":"grok","mode":"chat","canonical_model_id":"grok-4-expert","pricing_lookup_model_id":"grok-4-expert"},

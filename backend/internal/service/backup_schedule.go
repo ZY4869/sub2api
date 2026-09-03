@@ -100,6 +100,19 @@ func (s *BackupService) runScheduledBackup() {
 
 	ctx, cancel := context.WithTimeout(s.bgCtx, 30*time.Minute)
 	defer cancel()
+	run := func(runCtx context.Context) {
+		s.runScheduledBackupAsLeader(runCtx)
+	}
+	if s.leaderGate != nil {
+		if !s.leaderGate.RunIfLeader(ctx, "backup.schedule", 30*time.Minute, run) {
+			logger.LegacyPrintf("service.backup", "[Backup] 定时备份跳过: 当前实例不是 leader")
+		}
+		return
+	}
+	run(ctx)
+}
+
+func (s *BackupService) runScheduledBackupAsLeader(ctx context.Context) {
 
 	// 读取定时备份配置中的过期天数
 	schedule, _ := s.GetSchedule(ctx)

@@ -241,6 +241,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyCodexOAuthUserAgentMode] = codexUAPolicy.Mode
 	updates[SettingKeyCodexOAuthUserAgentOverride] = codexUAPolicy.Override
 	updates[SettingKeyOpenAIAllowClaudeCodeCodexPlugin] = strconv.FormatBool(settings.OpenAIAllowClaudeCodeCodexPlugin)
+	updates[SettingKeyOpenAIAlphaSearchEnabled] = strconv.FormatBool(settings.OpenAIAlphaSearchEnabled)
 	allowedCodexClientsJSON, err := MarshalOpenAIAllowedCodexClients(settings.OpenAIAllowedCodexClients)
 	if err != nil {
 		return err

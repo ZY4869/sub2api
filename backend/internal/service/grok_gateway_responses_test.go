@@ -109,6 +109,34 @@ func TestSanitizeGrokForwardResponsesDirectOpenAICompatiblePost(t *testing.T) {
 	}
 }
 
+func TestGrokForwardResponsesPreservesWebAndXSearchTools(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"grok-4.6","input":"search","tools":[{"type":"web_search","external_web_access":true,"search_parameters":{"mode":"auto"}},{"type":"x_search","usernames":["xai"]}],"include":["web_search_call.action.sources"]}`)
+	_, c := newCompatGatewayTestContext(http.MethodPost, "/grok/v1/responses", body)
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"id":"resp_search","usage":{"input_tokens":2,"output_tokens":3},"output":[{"content":[{"type":"output_text","text":"ok"}]}]}`)),
+	}}
+	svc := &GrokGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	_, err := svc.ForwardResponses(context.Background(), c, newGrokAPIKeyResponsesTestAccount(), body, http.MethodPost, "")
+
+	require.NoError(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "/v1/responses", upstream.lastReq.URL.Path)
+	require.Equal(t, "grok-4.6", gjson.GetBytes(upstream.lastBody, "model").String())
+	require.Equal(t, "web_search", gjson.GetBytes(upstream.lastBody, "tools.0.type").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "tools.0.external_web_access").Exists())
+	require.Equal(t, "auto", gjson.GetBytes(upstream.lastBody, "tools.0.search_parameters.mode").String())
+	require.Equal(t, "x_search", gjson.GetBytes(upstream.lastBody, "tools.1.type").String())
+	require.Equal(t, "xai", gjson.GetBytes(upstream.lastBody, "tools.1.usernames.0").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "include").Exists())
+}
+
 func TestGrokResponsesToolPromptCacheScopesByIdentityAndPreservesExplicitKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"grok-4","input":"hello","tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}]}`)

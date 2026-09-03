@@ -10,6 +10,7 @@ describe('settings Claude Code Codex plugin control', () => {
   it('renders the switch and updates the form field', async () => {
     const form = reactive({
       openai_allow_claude_code_codex_plugin: false,
+      openai_alpha_search_enabled: true,
       openai_allowed_codex_clients: [] as string[],
       claude_oauth_system_prompt_blocks_enabled: false,
       claude_oauth_system_prompt_blocks: '',
@@ -35,6 +36,11 @@ describe('settings Claude Code Codex plugin control', () => {
     await switches[0].trigger('click')
 
     expect(form.openai_allow_claude_code_codex_plugin).toBe(true)
+
+    const alphaSearchSwitch = switches.at(2)
+    expect(alphaSearchSwitch).toBeTruthy()
+    await alphaSearchSwitch!.trigger('click')
+    expect(form.openai_alpha_search_enabled).toBe(false)
     const clientCheckbox = wrapper.find('input[type="checkbox"][value="claude_code"]')
     expect(clientCheckbox.exists()).toBe(true)
 
@@ -70,6 +76,7 @@ describe('settings Claude Code Codex plugin control', () => {
   it('allows the save payload field in the typed settings request', () => {
     const payload: UpdateSettingsRequest = {
       openai_allow_claude_code_codex_plugin: true,
+      openai_alpha_search_enabled: false,
       openai_allowed_codex_clients: ['claude_code'],
       claude_oauth_system_prompt_blocks_enabled: true,
       claude_oauth_system_prompt_blocks: 'Site safety block',

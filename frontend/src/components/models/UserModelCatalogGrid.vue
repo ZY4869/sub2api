@@ -1,7 +1,7 @@
 <template>
   <section class="space-y-4">
     <div
-      class="gap-4"
+      class="model-results-grid gap-4"
       :class="items.length > 1 ? 'grid md:grid-cols-2 2xl:grid-cols-3' : 'grid'"
       data-testid="user-model-results"
     >
@@ -28,7 +28,7 @@
 
     <div
       v-if="items.length === 0"
-      class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
+      class="rounded-lg border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
     >
       {{ t('ui.modelCatalog.emptyPublished') }}
     </div>

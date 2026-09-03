@@ -128,6 +128,10 @@ func (s *GatewayChannelState) ChannelName() string {
 }
 
 func (s *GatewayChannelState) ResolveBillingModel(upstreamModel string) string {
+	return s.ResolveBillingModelWithResponse(upstreamModel, "", nil)
+}
+
+func (s *GatewayChannelState) ResolveBillingModelWithResponse(upstreamModel, responseModel string, responseMismatch *bool) string {
 	if s == nil || s.Channel == nil {
 		return strings.TrimSpace(upstreamModel)
 	}
@@ -135,6 +139,7 @@ func (s *GatewayChannelState) ResolveBillingModel(upstreamModel string) string {
 	requestedModel := strings.TrimSpace(s.RequestedModel)
 	selectionModel := strings.TrimSpace(s.SelectionModel)
 	upstreamModel = strings.TrimSpace(upstreamModel)
+	responseModel = strings.TrimSpace(responseModel)
 
 	switch source {
 	case model.ChannelBillingModelSourceRequested:
@@ -144,6 +149,10 @@ func (s *GatewayChannelState) ResolveBillingModel(upstreamModel string) string {
 	case model.ChannelBillingModelSourceUpstream:
 		if upstreamModel != "" {
 			return upstreamModel
+		}
+	case model.ChannelBillingModelSourceResponse:
+		if responseModel != "" && (responseMismatch == nil || !*responseMismatch) {
+			return responseModel
 		}
 	}
 
@@ -194,60 +203,65 @@ func (s *ChannelService) ResolveUsagePricing(state *GatewayChannelState, billing
 	}
 
 	platform := normalizeChannelRuntimePlatform(state.Platform)
+	bestIndex := -1
+	bestRank := -1
 	for i := range state.Channel.ModelPricing {
 		pricing := &state.Channel.ModelPricing[i]
-		if !matchesChannelPricingPlatform(pricing.Platform, platform) {
+		rank, matched := channelPricingMatchRank(pricing, platform, billingModel)
+		if !matched || rank <= bestRank {
 			continue
 		}
-		if !matchAnyChannelPattern(pricing.Models, billingModel) {
-			continue
-		}
-
-		resolved := &GatewayChannelResolvedPricing{
-			PricingID:        pricing.ID,
-			BillingMode:      pricing.BillingMode,
-			BillingModel:     billingModel,
-			InputPrice:       cloneNullableFloat(pricing.InputPrice),
-			OutputPrice:      cloneNullableFloat(pricing.OutputPrice),
-			CacheWritePrice:  cloneNullableFloat(pricing.CacheWritePrice),
-			CacheReadPrice:   cloneNullableFloat(pricing.CacheReadPrice),
-			ImageOutputPrice: cloneNullableFloat(pricing.ImageOutputPrice),
-			PerRequestPrice:  cloneNullableFloat(pricing.PerRequestPrice),
-		}
-
-		tokenBasis := usage.TotalTokens
-		if resolved.BillingMode == model.ChannelBillingModeImage {
-			tokenBasis = usage.ImageOutputTokens
-			if tokenBasis <= 0 {
-				tokenBasis = usage.ImageCount
-			}
-		}
-
-		if interval := matchChannelPricingInterval(pricing.Intervals, tokenBasis); interval != nil {
-			if strings.TrimSpace(interval.TierLabel) != "" {
-				resolved.BillingTier = strings.TrimSpace(interval.TierLabel)
-			}
-			if interval.InputPrice != nil {
-				resolved.InputPrice = cloneNullableFloat(interval.InputPrice)
-			}
-			if interval.OutputPrice != nil {
-				resolved.OutputPrice = cloneNullableFloat(interval.OutputPrice)
-			}
-			if interval.CacheWritePrice != nil {
-				resolved.CacheWritePrice = cloneNullableFloat(interval.CacheWritePrice)
-			}
-			if interval.CacheReadPrice != nil {
-				resolved.CacheReadPrice = cloneNullableFloat(interval.CacheReadPrice)
-			}
-			if interval.PerRequestPrice != nil {
-				resolved.PerRequestPrice = cloneNullableFloat(interval.PerRequestPrice)
-			}
-		}
-
-		return resolved
+		bestRank = rank
+		bestIndex = i
+	}
+	if bestIndex < 0 {
+		return nil
 	}
 
-	return nil
+	pricing := &state.Channel.ModelPricing[bestIndex]
+
+	resolved := &GatewayChannelResolvedPricing{
+		PricingID:        pricing.ID,
+		BillingMode:      pricing.BillingMode,
+		BillingModel:     billingModel,
+		InputPrice:       cloneNullableFloat(pricing.InputPrice),
+		OutputPrice:      cloneNullableFloat(pricing.OutputPrice),
+		CacheWritePrice:  cloneNullableFloat(pricing.CacheWritePrice),
+		CacheReadPrice:   cloneNullableFloat(pricing.CacheReadPrice),
+		ImageOutputPrice: cloneNullableFloat(pricing.ImageOutputPrice),
+		PerRequestPrice:  cloneNullableFloat(pricing.PerRequestPrice),
+	}
+
+	tokenBasis := usage.TotalTokens
+	if resolved.BillingMode == model.ChannelBillingModeImage {
+		tokenBasis = usage.ImageOutputTokens
+		if tokenBasis <= 0 {
+			tokenBasis = usage.ImageCount
+		}
+	}
+
+	if interval := matchChannelPricingInterval(pricing.Intervals, tokenBasis); interval != nil {
+		if strings.TrimSpace(interval.TierLabel) != "" {
+			resolved.BillingTier = strings.TrimSpace(interval.TierLabel)
+		}
+		if interval.InputPrice != nil {
+			resolved.InputPrice = cloneNullableFloat(interval.InputPrice)
+		}
+		if interval.OutputPrice != nil {
+			resolved.OutputPrice = cloneNullableFloat(interval.OutputPrice)
+		}
+		if interval.CacheWritePrice != nil {
+			resolved.CacheWritePrice = cloneNullableFloat(interval.CacheWritePrice)
+		}
+		if interval.CacheReadPrice != nil {
+			resolved.CacheReadPrice = cloneNullableFloat(interval.CacheReadPrice)
+		}
+		if interval.PerRequestPrice != nil {
+			resolved.PerRequestPrice = cloneNullableFloat(interval.PerRequestPrice)
+		}
+	}
+
+	return resolved
 }
 
 func normalizeChannelRuntimePlatform(platform string) string {
@@ -333,6 +347,39 @@ func matchesChannelPricingPlatform(entryPlatform, platform string) bool {
 	entryPlatform = normalizeChannelRuntimePlatform(entryPlatform)
 	platform = normalizeChannelRuntimePlatform(platform)
 	return entryPlatform == "" || entryPlatform == "*" || entryPlatform == platform
+}
+
+func channelPricingMatchRank(pricing *model.ChannelModelPricing, platform, value string) (int, bool) {
+	if pricing == nil || !matchesChannelPricingPlatform(pricing.Platform, platform) {
+		return 0, false
+	}
+	modelScore, matched := bestMatchingChannelModelSpecificity(pricing.Models, value)
+	if !matched {
+		return 0, false
+	}
+	platformScore := 0
+	entryPlatform := normalizeChannelRuntimePlatform(pricing.Platform)
+	if entryPlatform != "" && entryPlatform != "*" && entryPlatform == platform {
+		platformScore = 1
+	}
+	return platformScore*1_000_000 + modelScore, true
+}
+
+func bestMatchingChannelModelSpecificity(patterns []string, value string) (int, bool) {
+	best := -1
+	for _, pattern := range patterns {
+		if !matchChannelPattern(pattern, value) {
+			continue
+		}
+		score := channelPatternSpecificity(pattern)
+		if !strings.Contains(pattern, "*") {
+			score += 100_000
+		}
+		if score > best {
+			best = score
+		}
+	}
+	return best, best >= 0
 }
 
 func matchAnyChannelPattern(patterns []string, value string) bool {

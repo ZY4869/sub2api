@@ -125,6 +125,7 @@ type SystemSettings struct {
 	CodexOAuthUserAgentMode                                string
 	CodexOAuthUserAgentOverride                            string
 	OpenAIAllowClaudeCodeCodexPlugin                       bool
+	OpenAIAlphaSearchEnabled                               bool
 	OpenAIAllowedCodexClients                              []string
 	OpenAIAdvancedSchedulerEnabled                         bool
 	OpenAIAdvancedSchedulerStickyWeightedEnabled           bool

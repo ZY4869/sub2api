@@ -134,6 +134,7 @@ var modelRegistryCapabilityOrder = []string{
 	"image_generation",
 	"image_generation_tool",
 	"web_search",
+	"x_search",
 	"audio_understanding",
 	"video_understanding",
 	"audio_generation",

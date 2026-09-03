@@ -3,8 +3,11 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,6 +15,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -73,6 +77,116 @@ func (s *S3BackupStore) Upload(ctx context.Context, key string, body io.Reader, 
 		return 0, fmt.Errorf("S3 PutObject: %w", err)
 	}
 	return int64(len(data)), nil
+}
+
+func (s *S3BackupStore) UploadMultipart(
+	ctx context.Context,
+	key string,
+	body io.Reader,
+	contentType string,
+	partSize int64,
+	progress func(service.BackupMultipartProgress) error,
+) (service.BackupUploadResult, error) {
+	if partSize < 5<<20 {
+		partSize = 8 << 20
+	}
+	createResult, err := s.client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
+		Bucket:      &s.bucket,
+		Key:         &key,
+		ContentType: &contentType,
+	})
+	if err != nil {
+		return service.BackupUploadResult{}, fmt.Errorf("S3 CreateMultipartUpload: %w", err)
+	}
+	uploadID := aws.ToString(createResult.UploadId)
+	if uploadID == "" {
+		return service.BackupUploadResult{}, fmt.Errorf("S3 CreateMultipartUpload returned empty upload id")
+	}
+
+	digest := sha256.New()
+	parts := make([]types.CompletedPart, 0, 8)
+	var uploadedBytes int64
+	partNumber := int32(1)
+	buf := make([]byte, partSize)
+	abort := func(cause error) (service.BackupUploadResult, error) {
+		_ = s.AbortMultipart(context.Background(), key, uploadID)
+		return service.BackupUploadResult{UploadID: uploadID}, cause
+	}
+
+	for {
+		n, readErr := io.ReadFull(body, buf)
+		if n > 0 {
+			part := append([]byte(nil), buf[:n]...)
+			if _, err := digest.Write(part); err != nil {
+				return abort(fmt.Errorf("hash multipart part: %w", err))
+			}
+			result, uploadErr := s.client.UploadPart(ctx, &s3.UploadPartInput{
+				Bucket:     &s.bucket,
+				Key:        &key,
+				UploadId:   &uploadID,
+				PartNumber: aws.Int32(partNumber),
+				Body:       bytes.NewReader(part),
+			})
+			if uploadErr != nil {
+				return abort(fmt.Errorf("S3 UploadPart %d: %w", partNumber, uploadErr))
+			}
+			etag := aws.ToString(result.ETag)
+			parts = append(parts, types.CompletedPart{ETag: &etag, PartNumber: aws.Int32(partNumber)})
+			uploadedBytes += int64(n)
+			if progress != nil {
+				if progressErr := progress(service.BackupMultipartProgress{
+					UploadID:      uploadID,
+					PartNumber:    int(partNumber),
+					PartSizeBytes: int64(n),
+					UploadedBytes: uploadedBytes,
+					PartETag:      etag,
+				}); progressErr != nil {
+					return abort(progressErr)
+				}
+			}
+			partNumber++
+		}
+		if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+			break
+		}
+		if readErr != nil {
+			return abort(fmt.Errorf("read multipart body: %w", readErr))
+		}
+	}
+
+	if len(parts) == 0 {
+		return abort(fmt.Errorf("multipart body is empty"))
+	}
+	_, err = s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
+		Bucket:   &s.bucket,
+		Key:      &key,
+		UploadId: &uploadID,
+		MultipartUpload: &types.CompletedMultipartUpload{
+			Parts: parts,
+		},
+	})
+	if err != nil {
+		return abort(fmt.Errorf("S3 CompleteMultipartUpload: %w", err))
+	}
+
+	return service.BackupUploadResult{
+		UploadID:  uploadID,
+		SizeBytes: uploadedBytes,
+		SHA256:    hex.EncodeToString(digest.Sum(nil)),
+		PartCount: len(parts),
+	}, nil
+}
+
+func (s *S3BackupStore) AbortMultipart(ctx context.Context, key, uploadID string) error {
+	if strings.TrimSpace(uploadID) == "" {
+		return nil
+	}
+	_, err := s.client.AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
+		Bucket:   &s.bucket,
+		Key:      &key,
+		UploadId: &uploadID,
+	})
+	return err
 }
 
 func (s *S3BackupStore) Download(ctx context.Context, key string) (io.ReadCloser, error) {

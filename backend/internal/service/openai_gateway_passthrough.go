@@ -176,6 +176,9 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 		Duration:                 time.Since(startTime),
 		FirstTokenMs:             firstTokenMs,
 	}
+	if c != nil && c.Request != nil {
+		applyOpenAIResponseModelObservation(result, c.Request.Context(), reqModel)
+	}
 	if upstreamModel = strings.TrimSpace(upstreamModel); upstreamModel != "" && upstreamModel != strings.TrimSpace(requestedModel) {
 		result.UpstreamModel = upstreamModel
 	}

@@ -1,34 +1,34 @@
 <template>
-  <div class="grid grid-cols-1 gap-8 pb-10 lg:grid-cols-12">
-    <div class="flex flex-col gap-8 lg:col-span-8">
+  <div class="grid grid-cols-1 gap-5 pb-8 lg:grid-cols-12 2xl:gap-6">
+    <div class="flex min-w-0 flex-col gap-6 lg:col-span-8">
       <section>
         <h3 class="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-widest text-slate-800 dark:text-white">
           {{ labels.telemetry }}
         </h3>
-        <div class="grid gap-4 md:grid-cols-3">
-          <div class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div class="grid gap-3 md:grid-cols-3">
+          <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
               {{ labels.latency }}
             </div>
-            <div class="text-3xl font-black tracking-tight text-slate-800 dark:text-white">
+            <div class="truncate text-2xl font-black text-slate-800 dark:text-white 2xl:text-3xl">
               {{ hasMetrics ? formatLatency(health?.latency_ms) : '-' }}
             </div>
             <div class="mt-2 text-xs text-slate-400">{{ healthSourceText }}</div>
           </div>
-          <div class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+          <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
               {{ labels.weekSuccess }}
             </div>
-            <div class="text-3xl font-black tracking-tight" :class="rateColor(health?.success_rate_7d)">
+            <div class="truncate text-2xl font-black 2xl:text-3xl" :class="rateColor(health?.success_rate_7d)">
               {{ hasMetrics ? formatRate(health?.success_rate_7d) : '-' }}
             </div>
             <div class="mt-2 text-xs text-slate-400">{{ healthReasonText }}</div>
           </div>
-          <div class="relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-5 shadow-sm dark:border-emerald-500/30 dark:from-emerald-500/10 dark:to-teal-500/10">
+          <div class="relative min-w-0 overflow-hidden rounded-lg border border-emerald-200/60 bg-emerald-50 p-4 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
             <div class="relative z-10 mb-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-200">
               {{ labels.todaySuccess }}
             </div>
-            <div class="relative z-10 text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-300">
+            <div class="relative z-10 truncate text-2xl font-black text-emerald-600 dark:text-emerald-300 2xl:text-3xl">
               {{ hasMetrics ? formatRate(health?.success_rate_today) : '-' }}
             </div>
           </div>
@@ -39,20 +39,20 @@
         <h3 class="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-widest text-slate-800 dark:text-white">
           {{ labels.publishStatus }}
         </h3>
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
               {{ labels.publishAvailability }}
             </div>
-            <div class="text-lg font-black tracking-tight text-slate-800 dark:text-white">
+            <div class="truncate text-base font-black text-slate-800 dark:text-white 2xl:text-lg">
               {{ publishStatusText }}
             </div>
           </div>
-          <div class="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+          <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">
               {{ labels.realtimeSource }}
             </div>
-            <div class="text-lg font-black tracking-tight text-slate-800 dark:text-white">
+            <div class="truncate text-base font-black text-slate-800 dark:text-white 2xl:text-lg">
               {{ healthSourceText }}
             </div>
           </div>
@@ -63,9 +63,9 @@
         <h3 class="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-widest text-slate-800 dark:text-white">
           {{ labels.pricing }}
         </h3>
-        <div class="overflow-hidden rounded-3xl border border-slate-200/60 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
-          <div class="border-b border-slate-100 p-6 pb-8 dark:border-dark-700">
-            <div class="mb-6 flex items-center justify-between">
+        <div class="min-w-0 overflow-hidden rounded-lg border border-slate-200/60 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+          <div class="border-b border-slate-100 p-4 pb-5 dark:border-dark-700 2xl:p-5">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-[15px] font-bold text-slate-800 dark:text-white">{{ labels.salePrice }}</span>
                 <span
@@ -79,7 +79,7 @@
                 {{ item.currency || 'USD' }} {{ priceUnitSummary }}
               </span>
             </div>
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid gap-3 sm:grid-cols-3">
               <PublicModelPriceRow
                 v-for="entry in prices"
                 :key="entry.id"
@@ -91,12 +91,12 @@
               />
             </div>
           </div>
-          <div class="border-b border-slate-100 p-6 dark:border-dark-700">
+          <div class="border-b border-slate-100 p-4 dark:border-dark-700 2xl:p-5">
             <div class="mb-4 text-sm font-bold text-slate-700 dark:text-slate-200">{{ labels.officialReferencePrice }}</div>
-            <div v-if="officialPrices.length === 0" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-800/50 dark:text-slate-400">
+            <div v-if="officialPrices.length === 0" class="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-800/50 dark:text-slate-400">
               {{ labels.officialReferenceMissing }}
             </div>
-            <div v-else class="grid gap-4 sm:grid-cols-3">
+            <div v-else class="grid gap-3 sm:grid-cols-3">
               <PublicModelPriceRow
                 v-for="entry in officialPrices"
                 :key="`official-${entry.id}`"
@@ -107,14 +107,14 @@
               />
             </div>
           </div>
-          <div class="bg-slate-50/50 p-6 dark:bg-dark-800/50">
-            <div class="mb-4 flex items-center justify-between">
+          <div class="bg-slate-50/50 p-4 dark:bg-dark-800/50 2xl:p-5">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ labels.multiplierRules }}</div>
               <div class="rounded-md border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold uppercase text-indigo-600 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
                 {{ multiplierLabel }}
               </div>
             </div>
-            <div class="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
+            <div class="rounded-lg border border-slate-200/80 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
               <div class="flex flex-wrap items-center gap-2 text-[13px] font-medium text-slate-600 dark:text-slate-300">
                 <span class="h-2.5 w-2.5 rounded-full bg-blue-500 shadow-sm"></span>
                 <span>{{ protocolSummary }}</span>
@@ -125,8 +125,8 @@
       </section>
     </div>
 
-    <div class="flex flex-col gap-6 lg:col-span-4">
-      <section class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+    <div class="flex min-w-0 flex-col gap-4 lg:col-span-4">
+      <section class="rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <h4 class="mb-5 text-[11px] font-black uppercase tracking-widest text-slate-400">
           {{ labels.modalities }}
         </h4>
@@ -142,7 +142,7 @@
         </div>
       </section>
 
-      <section class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <section class="rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <h4 class="mb-5 text-[11px] font-black uppercase tracking-widest text-slate-400">
           {{ labels.capabilities }}
         </h4>
@@ -158,7 +158,7 @@
         </div>
       </section>
 
-      <section class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <section class="rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <h4 class="mb-6 text-[11px] font-black uppercase tracking-widest text-slate-400">
           {{ labels.specs }}
         </h4>
@@ -179,7 +179,7 @@
         </div>
       </section>
 
-      <section class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <section class="rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <h4 class="mb-5 text-[11px] font-black uppercase tracking-widest text-slate-400">
           {{ labels.capabilityMatrix }}
         </h4>
@@ -187,10 +187,10 @@
           <div
             v-for="entry in capabilityRows"
             :key="`${entry.capability}-${entry.protocol}-${entry.endpoint}`"
-            class="rounded-xl border border-slate-100 bg-slate-50/70 p-3 dark:border-dark-700 dark:bg-dark-800/60"
+            class="min-w-0 rounded-lg border border-slate-100 bg-slate-50/70 p-3 dark:border-dark-700 dark:bg-dark-800/60"
           >
             <div class="flex items-center justify-between gap-3">
-              <span class="text-sm font-bold text-slate-700 dark:text-slate-100">{{ formatTokenLabel(entry.capability) }}</span>
+              <span class="min-w-0 truncate text-sm font-bold text-slate-700 dark:text-slate-100">{{ formatTokenLabel(entry.capability) }}</span>
               <span class="rounded-md px-2 py-1 text-[11px] font-bold" :class="supportClass(entry.support)">
                 {{ supportText(entry.support) }}
               </span>

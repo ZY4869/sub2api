@@ -212,6 +212,7 @@ const quotaControlState = quotaControl.state
 const umqModeOptions = quotaControl.umqModeOptions
 
 const openaiPassthroughEnabled = ref(false)
+const openaiAlphaSearchEnabled = ref(true)
 const openAIOAuthPlanTypeOverride = ref('')
 const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
 const openAIImageCompatAllowed = ref(true)
@@ -941,7 +942,7 @@ const modalContext = {
   gatewayTestProvider, geminiTierAIStudio, geminiVertexAccessToken, geminiVertexApiKey, geminiVertexAuthMode, geminiVertexBaseUrl, geminiVertexExpiresAtInput, geminiVertexLocation,
   geminiVertexProjectId, geminiVertexServiceAccountJson, interceptWarmupRequests, isBaiduDocumentAIAccount, isGeminiVertexAccount, isOpenAIWSModeEnabled, isProtocolGatewayAccount, mixedScheduling,
   modelMappings, modelRestrictionEnabled, modelRestrictionMode, normalizeAnthropicAPIKeyAuthScheme, normalizeGeminiAIStudioTier, openAIOAuthPlanTypeOverride, openAIImageCompatAllowed, openAIImageProtocolMode, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuthResponsesWebSocketV2Mode,
-  openaiPassthroughEnabled, parseDateTimeLocal, poolModeState, quotaControl, resolveGoogleBatchArchiveTargetKind, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, shouldPersistGeminiTierId,
+  openaiPassthroughEnabled, openaiAlphaSearchEnabled, parseDateTimeLocal, poolModeState, quotaControl, resolveGoogleBatchArchiveTargetKind, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, shouldPersistGeminiTierId,
   submitUpdateAccount, t, BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL, DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE, DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT, DEFAULT_POOL_MODE_RETRY_COUNT, OPENAI_WS_MODE_OFF, actualModelLocked,
   antigravityModelRestrictionMode, antigravityWhitelistModels, applyModelRestrictionFromRecord, baiduDocumentAIAccessToken, baiduDocumentAIAsyncBaseUrl, baiduDocumentAIDirectApiUrlsText, createDefaultDeepSeekModelConcurrencyLimitDraft, createStaticProbeModels,
   defaultGoogleBatchArchiveState, deriveConfiguredAccountModelIds, ensureModelRegistryFresh, formatDateTimeLocal, geminiOAuthType, grokDefaultModelMappingForTier, isBaiduDocumentAIPlatform, isGeminiVertexAI,

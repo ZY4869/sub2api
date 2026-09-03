@@ -117,6 +117,10 @@ func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem, capability
 			keywords = []string{"/grok/v1/messages", "anthropic-version"}
 		case "grok.messages.countTokens":
 			keywords = []string{"/grok/v1/messages/count_tokens", "count tokens"}
+		case "grok.responses":
+			if capability == "web_search" || capability == "x_search" {
+				keywords = []string{"/grok/v1/responses", "web_search", "x_search"}
+			}
 		}
 		return publicModelCatalogExampleSpec{
 			PageID:      "grok",
@@ -158,6 +162,8 @@ func (s *ModelCatalogService) publicModelCatalogExampleCapability(ctx context.Co
 		return "image_generation_tool"
 	case containsAnyRegistryValue(detail.Capabilities, "image_generation"):
 		return "image_generation"
+	case strings.EqualFold(item.Provider, PlatformGrok) && containsAnyRegistryValue(detail.Capabilities, "x_search", "web_search"):
+		return "web_search"
 	default:
 		return ""
 	}
@@ -229,6 +235,8 @@ func publicModelCatalogPreferredExampleEndpointKeys(item PublicModelCatalogItem,
 		return []string{"grok.videos.generations"}
 	case strings.Contains(modelID, "embedding") || strings.Contains(modelID, "embed"):
 		return []string{"openai.embeddings", "gemini.embedContent"}
+	case capability == "web_search" || capability == "x_search":
+		return []string{"grok.responses", "openai.responses"}
 	default:
 		return []string{"openai.responses", "openai.chat.completions", "anthropic.messages", "gemini.generateContent", "grok.responses", "grok.messages"}
 	}

@@ -68,6 +68,21 @@ curl https://api.zyxai.de/v1/chat/completions \
     ]
   }'
 ` + "```" + `
+
+### alpha/search（Codex web.run）
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/v1/alpha/search \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.4",
+    "commands": {"search_query": [{"q": "OpenAI 最新公告"}]},
+    "settings": {"search_context_size": "high"}
+  }'
+` + "```" + `
+
+Codex 兼容入口：` + "`/backend-api/codex/alpha/search`" + `，使用相同的站内 API Key 鉴权。
 `,
 	"anthropic": `### messages
 #### REST
@@ -105,8 +120,24 @@ curl https://api.zyxai.de/grok/v1/responses \
   -H "Authorization: Bearer sk-你的站内Key" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "grok-4.5",
+    "model": "grok-4.6",
     "input": "用一句话介绍这个模型。"
+  }'
+` + "```" + `
+
+### Grok web and X search
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/grok/v1/responses \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "grok-4.6",
+    "input": "检索最新公开信息并用两句话总结。",
+    "tools": [
+      { "type": "web_search" },
+      { "type": "x_search" }
+    ]
   }'
 ` + "```" + `
 
@@ -118,7 +149,7 @@ curl https://api.zyxai.de/grok/v1/messages \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "grok-4.5",
+    "model": "grok-4.6",
     "max_tokens": 512,
     "messages": [
       { "role": "user", "content": "用一句话介绍这个模型。" }
@@ -134,7 +165,7 @@ curl https://api.zyxai.de/grok/v1/messages/count_tokens \
   -H "Content-Type: application/json" \
   -H "anthropic-version: 2023-06-01" \
   -d '{
-    "model": "grok-4.5",
+    "model": "grok-4.6",
     "messages": [
       { "role": "user", "content": "估算这句话的输入 tokens。" }
     ]

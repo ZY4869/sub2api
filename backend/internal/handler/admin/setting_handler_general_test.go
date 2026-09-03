@@ -362,3 +362,27 @@ func TestSettingHandlerUpdateSettings_CodexVersionAndUserAgentPolicyRoundTrip(t 
 	require.Equal(t, service.CodexOAuthUAModeCustom, settings["codex_oauth_user_agent_mode"])
 	require.Equal(t, "Codex/9.9.9", settings["codex_oauth_user_agent_override"])
 }
+
+func TestSettingHandlerUpdateSettings_OpenAIAlphaSearchEnabledRoundTrip(t *testing.T) {
+	repo := &adminSettingRepoStub{values: map[string]string{
+		service.SettingKeyOpenAIAlphaSearchEnabled: "true",
+	}}
+	handler := newAdminSettingTestHandler(repo)
+
+	closeResp := performAdminSettingsUpdate(t, handler, `{"openai_alpha_search_enabled":false}`)
+	require.Equal(t, http.StatusOK, closeResp.Code)
+	require.Equal(t, "false", repo.values[service.SettingKeyOpenAIAlphaSearchEnabled])
+	closed := decodeUpdatedSystemSettings(t, closeResp)
+	require.Equal(t, false, closed["openai_alpha_search_enabled"])
+
+	openResp := performAdminSettingsUpdate(t, handler, `{"openai_alpha_search_enabled":true}`)
+	require.Equal(t, http.StatusOK, openResp.Code)
+	require.Equal(t, "true", repo.values[service.SettingKeyOpenAIAlphaSearchEnabled])
+	opened := decodeUpdatedSystemSettings(t, openResp)
+	require.Equal(t, true, opened["openai_alpha_search_enabled"])
+
+	before := &service.SystemSettings{OpenAIAlphaSearchEnabled: true}
+	after := &service.SystemSettings{OpenAIAlphaSearchEnabled: false}
+	changed := diffSettings(before, after, UpdateSettingsRequest{})
+	require.Contains(t, changed, "openai_alpha_search_enabled")
+}

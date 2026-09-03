@@ -17,6 +17,7 @@ const (
 	ChannelBillingModelSourceMapped    = "channel_mapped"
 	ChannelBillingModelSourceRequested = "requested"
 	ChannelBillingModelSourceUpstream  = "upstream"
+	ChannelBillingModelSourceResponse  = "response_model"
 )
 
 type Channel struct {
@@ -90,7 +91,8 @@ func (c *Channel) Validate() error {
 	}
 	if c.BillingModelSource != ChannelBillingModelSourceMapped &&
 		c.BillingModelSource != ChannelBillingModelSourceRequested &&
-		c.BillingModelSource != ChannelBillingModelSourceUpstream {
+		c.BillingModelSource != ChannelBillingModelSourceUpstream &&
+		c.BillingModelSource != ChannelBillingModelSourceResponse {
 		return &ValidationError{Field: "billing_model_source", Message: "invalid billing_model_source"}
 	}
 

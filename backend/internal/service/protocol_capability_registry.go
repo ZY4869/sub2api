@@ -80,6 +80,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodPost, Pattern: "/v1/alpha/search"},
 			{Method: http.MethodPost, Pattern: "/alpha/search"},
+			{Method: http.MethodPost, Pattern: "/backend-api/codex/alpha/search"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointAlphaSearch, RequestFormat: EndpointAlphaSearch, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},

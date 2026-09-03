@@ -195,7 +195,7 @@ func extractOpenAIUsageImageInputTokens(body []byte, usagePath string) int {
 	))
 }
 
-func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*OpenAIUsage, error) {
+func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*OpenAIUsage, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(s.cfg)
 	body, err := readUpstreamResponseBodyLimitedFromResponse(resp, maxBytes)
 	if err != nil {
@@ -206,6 +206,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 		return nil, err
 	}
 	SetOpsTraceUpstreamResponse(c, "openai_upstream_response", body, resp.Header.Get("Content-Type"), false)
+	setOpenAIResponseModelObservationOnRequest(c, responseModelObservation{model: responseModelFromJSON(body)}, mappedModel)
 	if account.Type == AccountTypeOAuth {
 		bodyLooksLikeSSE := looksLikeEventStreamBody(body)
 		if isEventStreamResponse(resp.Header) || bodyLooksLikeSSE {
@@ -254,6 +255,7 @@ func isEventStreamResponse(header http.Header) bool {
 func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.Context, body []byte, originalModel, mappedModel string) (*OpenAIUsage, error) {
 	SetOpsTraceUpstreamResponse(c, "openai_oauth_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	bodyText := string(body)
+	setOpenAIResponseModelObservationOnRequest(c, responseModelObservationFromSSE(bodyText), mappedModel)
 	finalResponse, ok := extractCodexFinalResponse(bodyText)
 	usage := &OpenAIUsage{}
 	if ok {

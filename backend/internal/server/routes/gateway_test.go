@@ -720,6 +720,29 @@ func TestGatewayRoutesAlphaSearchRejectsNonOpenAIGroup(t *testing.T) {
 	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.code").String())
 }
 
+func TestGatewayRoutesAlphaSearchAllPublicPathsRejectNonOpenAIWithStructuredError(t *testing.T) {
+	paths := []string{"/v1/alpha/search", "/alpha/search", "/backend-api/codex/alpha/search"}
+	platforms := []string{service.PlatformAnthropic, service.PlatformGrok, service.PlatformGemini, service.PlatformDeepSeek}
+	for _, platform := range platforms {
+		for _, endpoint := range paths {
+			t.Run(platform+"_"+strings.ReplaceAll(endpoint, "/", "_"), func(t *testing.T) {
+				router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
+					groupID := int64(1)
+					c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{GroupID: &groupID, Group: &service.Group{Platform: platform}})
+					c.Next()
+				})
+				req := httptest.NewRequest(http.MethodPost, endpoint, strings.NewReader(`{"query":"hello"}`))
+				req.Header.Set("Content-Type", "application/json")
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
+				require.Equal(t, http.StatusNotFound, w.Code)
+				require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.reason").String())
+				require.NotContains(t, strings.ToLower(w.Body.String()), "cannot ")
+			})
+		}
+	}
+}
+
 func TestGatewayRoutesCompletionsRejectOpenAIGroupExplicitly(t *testing.T) {
 	router := newGatewayRoutesTestRouterForPlatform(service.PlatformOpenAI)
 

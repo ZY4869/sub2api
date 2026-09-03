@@ -1,20 +1,20 @@
 <template>
-  <div class="mx-auto max-w-[1500px] space-y-6">
-    <section class="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900/85">
-      <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div class="max-w-3xl">
+  <div class="model-library-shell mx-auto max-w-[1760px] space-y-4 px-2 sm:px-4 2xl:space-y-5">
+    <section class="rounded-lg border border-slate-200 bg-white/95 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 2xl:p-6">
+      <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div class="min-w-0 flex-1 max-w-3xl">
           <p class="text-xs font-semibold uppercase tracking-[0.22em] text-primary-600 dark:text-primary-300">
             {{ t('ui.modelPlaza.eyebrow') }}
           </p>
-          <h1 class="mt-3 text-2xl font-semibold text-slate-950 dark:text-white md:text-3xl">
+          <h1 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white md:text-3xl">
             {{ t('ui.modelPlaza.title') }}
           </h1>
-          <p class="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+          <p class="mt-2 max-w-4xl break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
             {{ t('ui.modelPlaza.description') }}
           </p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto xl:justify-end">
           <span class="stat-pill">
             {{ t('ui.modelPlaza.groups', { count: groups.length }) }}
           </span>
@@ -34,9 +34,9 @@
       </div>
     </section>
 
-    <section class="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/85">
+    <section class="rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 2xl:p-5">
       <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <label class="relative block">
+        <label class="relative block min-w-0">
           <span class="sr-only">{{ t('ui.modelPlaza.searchPlaceholder') }}</span>
           <Icon
             name="search"
@@ -46,12 +46,12 @@
           <input
             v-model.trim="searchQuery"
             type="search"
-            class="input h-12 w-full rounded-2xl border-slate-200 bg-slate-50/80 pl-11 pr-4 text-sm dark:border-dark-700 dark:bg-dark-800/80"
+            class="input h-11 w-full rounded-lg border-slate-200 bg-slate-50/80 pl-11 pr-4 text-sm dark:border-dark-700 dark:bg-dark-800/80"
             :placeholder="t('ui.modelPlaza.searchPlaceholder')"
           />
         </label>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex min-w-0 flex-wrap gap-2">
           <button
             v-for="option in accessOptions"
             :key="option.id"
@@ -65,7 +65,7 @@
         </div>
       </div>
 
-      <div class="mt-4 flex flex-wrap gap-2">
+      <div class="mt-4 flex min-w-0 flex-wrap gap-2">
         <button
           type="button"
           class="filter-button"
@@ -91,7 +91,7 @@
 
     <div
       v-if="errorMessage"
-      class="rounded-3xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+      class="min-w-0 break-words rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
     >
       {{ errorMessage }}
     </div>
@@ -102,7 +102,7 @@
 
     <div
       v-else-if="filteredGroups.length === 0"
-      class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-14 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
+      class="rounded-lg border border-dashed border-slate-300 bg-white/80 px-6 py-14 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
     >
       {{ t('ui.modelPlaza.empty') }}
     </div>
@@ -111,7 +111,7 @@
       <article
         v-for="group in filteredGroups"
         :key="group.id"
-        class="rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/85"
+        class="rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 2xl:p-5"
       >
         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div class="min-w-0">
@@ -127,7 +127,7 @@
                 {{ t('ui.modelPlaza.subscription') }}
               </span>
             </div>
-            <p v-if="group.description" class="mt-2 max-w-4xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+            <p v-if="group.description" class="mt-2 max-w-4xl break-words text-sm leading-6 text-slate-500 dark:text-slate-400">
               {{ group.description }}
             </p>
           </div>
@@ -149,17 +149,17 @@
           <span
             v-for="item in imagePriceItems(group)"
             :key="item.label"
-            class="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
+            class="max-w-full break-words rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
           >
             {{ item.label }} {{ item.value }}
           </span>
         </div>
 
-        <div class="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+        <div class="model-plaza-grid mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <div
             v-for="model in group.models"
             :key="`${group.id}:${model.platform}:${model.display_model_id}`"
-            class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-800/70"
+            class="min-w-0 rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-dark-700 dark:bg-dark-800/70 2xl:p-4"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="flex min-w-0 items-center gap-2">
@@ -175,7 +175,7 @@
               </div>
               <button
                 type="button"
-                class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-700 dark:bg-dark-900 dark:text-slate-300 dark:hover:text-primary-200"
+                class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-700 dark:bg-dark-900 dark:text-slate-300 dark:hover:text-primary-200"
                 :title="t('ui.modelPlaza.copyModelId')"
                 @click="copyModel(model.display_model_id)"
               >
@@ -187,13 +187,13 @@
               <span
                 v-for="item in priceItems(model.pricing)"
                 :key="`${model.display_model_id}:${item.label}`"
-                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600 dark:border-dark-700 dark:bg-dark-900 dark:text-slate-300"
+                class="max-w-full break-words rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-600 dark:border-dark-700 dark:bg-dark-900 dark:text-slate-300"
               >
                 {{ item.label }} {{ item.value }}
               </span>
               <span
                 v-if="priceItems(model.pricing).length === 0"
-                class="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-400 dark:border-dark-700 dark:bg-dark-900"
+                class="max-w-full break-words rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-400 dark:border-dark-700 dark:bg-dark-900"
               >
                 {{ t('ui.modelPlaza.pricingUnavailable') }}
               </span>
@@ -378,18 +378,18 @@ function formatCurrency(value: number): string {
 
 <style scoped>
 .stat-pill {
-  @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-200;
+  @apply inline-flex max-w-full min-w-0 min-h-9 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-200;
 }
 
 .filter-button {
-  @apply inline-flex h-10 items-center gap-2 rounded-2xl border px-3 text-sm font-medium transition;
+  @apply inline-flex max-w-full min-w-0 min-h-10 items-center justify-center gap-2 rounded-lg border px-3 text-left text-sm font-medium leading-snug transition;
 }
 
 .tag-pill {
-  @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-300;
+  @apply inline-flex max-w-full min-w-0 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-300;
 }
 
 .metric-pill {
-  @apply inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200;
+  @apply inline-flex max-w-full min-w-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200;
 }
 </style>

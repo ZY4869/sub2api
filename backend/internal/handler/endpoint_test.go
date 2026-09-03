@@ -29,6 +29,7 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/embeddings", EndpointEmbeddings},
 		{"/v1/alpha/search", EndpointAlphaSearch},
 		{"/alpha/search", EndpointAlphaSearch},
+		{"/backend-api/codex/alpha/search", EndpointAlphaSearch},
 		{"/embeddings", EndpointEmbeddings},
 		{"/v1/videos", EndpointVideosCreate},
 		{"/v1/videos/generations", EndpointVideosCreate},

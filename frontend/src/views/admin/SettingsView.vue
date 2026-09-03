@@ -222,6 +222,7 @@ const form = reactive<SettingsForm>({
   codex_oauth_user_agent_mode: 'default',
   codex_oauth_user_agent_override: '',
   openai_allow_claude_code_codex_plugin: false,
+  openai_alpha_search_enabled: true,
   openai_allowed_codex_clients: [],
   openai_advanced_scheduler_enabled: true,
   openai_advanced_scheduler_sticky_weighted_enabled: true,
@@ -846,6 +847,7 @@ async function saveSettings() {
       codex_oauth_user_agent_mode: form.codex_oauth_user_agent_mode,
       codex_oauth_user_agent_override: form.codex_oauth_user_agent_override,
       openai_allow_claude_code_codex_plugin: form.openai_allow_claude_code_codex_plugin,
+      openai_alpha_search_enabled: form.openai_alpha_search_enabled,
       openai_allowed_codex_clients: form.openai_allowed_codex_clients,
       openai_advanced_scheduler_enabled: form.openai_advanced_scheduler_enabled,
       openai_advanced_scheduler_sticky_weighted_enabled:

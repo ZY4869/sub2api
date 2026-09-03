@@ -41,6 +41,7 @@ func TestGrokBuildTextModelIDsDefaultOrder(t *testing.T) {
 
 	require.Equal(t, DefaultGrokBuildTextModelID(), models[0])
 	require.Equal(t, []string{
+		GrokModelBuild46,
 		GrokModelBuild45,
 		GrokModelBuild43,
 		GrokModelBuild01,
@@ -49,6 +50,14 @@ func TestGrokBuildTextModelIDsDefaultOrder(t *testing.T) {
 		GrokModel420NonReasoning,
 		GrokModel420MultiAgent,
 	}, models)
+}
+
+func TestGrokLatestAliasesResolveToBuild46(t *testing.T) {
+	require.Equal(t, GrokModelBuild46, DefaultGrokBuildTextModelID())
+	require.Equal(t, GrokModelBuild46, NormalizeGrokPublicModelID("grok"))
+	require.Equal(t, GrokModelBuild46, NormalizeGrokPublicModelID("grok-latest"))
+	require.Equal(t, GrokModelBuild46, NormalizeGrokPublicModelID("grok-build-latest"))
+	require.Equal(t, GrokModelBuild45, NormalizeGrokPublicModelID("grok-4.5-latest"))
 }
 
 func TestGrokSSOVisibleModelsDoNotUseBuildTextCatalog(t *testing.T) {

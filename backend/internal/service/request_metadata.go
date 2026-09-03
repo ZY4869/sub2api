@@ -67,6 +67,8 @@ type RequestMetadata struct {
 	ImagegenCompatNormalized       *bool
 	ImagegenCompatSize             *string
 	OpenAIRealSSEStarted           *bool
+	UpstreamResponseModel          *string
+	UpstreamModelMismatch          *bool
 }
 
 var (
@@ -824,6 +826,32 @@ func SetOpenAIRealSSEStartedMetadata(ctx context.Context, value bool) {
 func OpenAIRealSSEStartedMetadataFromContext(ctx context.Context) (bool, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.OpenAIRealSSEStarted != nil {
 		return *md.OpenAIRealSSEStarted, true
+	}
+	return false, false
+}
+
+func SetUpstreamResponseModelMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.UpstreamResponseModel, value)
+	}
+}
+
+func UpstreamResponseModelMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.UpstreamResponseModel != nil {
+		return strings.TrimSpace(*md.UpstreamResponseModel), true
+	}
+	return "", false
+}
+
+func SetUpstreamModelMismatchMetadata(ctx context.Context, value bool) {
+	if md := metadataFromContext(ctx); md != nil {
+		setBoolMetadataField(&md.UpstreamModelMismatch, value)
+	}
+}
+
+func UpstreamModelMismatchMetadataFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.UpstreamModelMismatch != nil {
+		return *md.UpstreamModelMismatch, true
 	}
 	return false, false
 }

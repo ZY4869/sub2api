@@ -50,7 +50,8 @@ func (s *BackupService) RestoreBackup(ctx context.Context, backupID string) erro
 	defer func() { _ = body.Close() }()
 
 	// 流式解压 gzip -> psql（不将全部数据加载到内存）
-	gzReader, err := gzip.NewReader(body)
+	verifiedBody, verifyChecksum := verifyBackupChecksum(body, record.SHA256)
+	gzReader, err := gzip.NewReader(verifiedBody)
 	if err != nil {
 		return fmt.Errorf("gzip reader: %w", err)
 	}
@@ -59,6 +60,9 @@ func (s *BackupService) RestoreBackup(ctx context.Context, backupID string) erro
 	// 流式恢复
 	if err := s.dumper.Restore(ctx, gzReader); err != nil {
 		return fmt.Errorf("pg restore: %w", err)
+	}
+	if err := verifyChecksum(); err != nil {
+		return err
 	}
 
 	return nil
@@ -147,7 +151,8 @@ func (s *BackupService) executeRestore(record *BackupRecord, objectStore BackupO
 	}
 	defer func() { _ = body.Close() }()
 
-	gzReader, err := gzip.NewReader(body)
+	verifiedBody, verifyChecksum := verifyBackupChecksum(body, record.SHA256)
+	gzReader, err := gzip.NewReader(verifiedBody)
 	if err != nil {
 		record.RestoreStatus = "failed"
 		record.RestoreError = fmt.Sprintf("gzip reader: %v", err)
@@ -159,6 +164,12 @@ func (s *BackupService) executeRestore(record *BackupRecord, objectStore BackupO
 	if err := s.dumper.Restore(ctx, gzReader); err != nil {
 		record.RestoreStatus = "failed"
 		record.RestoreError = fmt.Sprintf("pg restore: %v", err)
+		_ = s.saveRecord(context.Background(), record)
+		return
+	}
+	if err := verifyChecksum(); err != nil {
+		record.RestoreStatus = "failed"
+		record.RestoreError = err.Error()
 		_ = s.saveRecord(context.Background(), record)
 		return
 	}

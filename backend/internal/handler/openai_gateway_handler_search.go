@@ -42,6 +42,18 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 		zap.Int64("api_key_id", apiKey.ID),
 		zap.Any("group_id", apiKey.GroupID),
 	)
+	if h.settingService != nil {
+		alphaSearchEnabled, settingErr := h.settingService.IsOpenAIAlphaSearchEnabled(c.Request.Context())
+		if settingErr != nil {
+			reqLog.Error("openai.alpha_search.setting_read_failed", zap.Error(settingErr))
+			h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "OpenAI alpha/search availability could not be determined")
+			return
+		}
+		if !alphaSearchEnabled {
+			h.errorResponse(c, http.StatusNotFound, "not_found_error", "OpenAI alpha/search is disabled")
+			return
+		}
+	}
 	if !h.ensureResponsesDependencies(c, reqLog) {
 		return
 	}
@@ -170,6 +182,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 			responseLatencyMs = forwardDurationMs - upstreamLatencyMs
 		}
 		service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, responseLatencyMs)
+		if result != nil && result.UpstreamEndpoint != "" {
+			setOpsUpstreamEndpoint(c, result.UpstreamEndpoint)
+		}
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
@@ -238,7 +253,7 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 				Account:            account,
 				Subscription:       currentSubscription,
 				InboundEndpoint:    GetInboundEndpoint(c),
-				UpstreamEndpoint:   service.EndpointAlphaSearch,
+				UpstreamEndpoint:   firstNonEmptyAlphaSearchEndpoint(result),
 				UserAgent:          userAgent,
 				IPAddress:          clientIP,
 				RequestPayloadHash: requestPayloadHash,
@@ -263,4 +278,11 @@ func alphaSearchStatusCode(result *service.OpenAIAlphaSearchForwardResult) int {
 		return 0
 	}
 	return result.StatusCode
+}
+
+func firstNonEmptyAlphaSearchEndpoint(result *service.OpenAIAlphaSearchForwardResult) string {
+	if result != nil && result.UpstreamEndpoint != "" {
+		return result.UpstreamEndpoint
+	}
+	return service.EndpointAlphaSearch
 }

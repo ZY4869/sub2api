@@ -115,6 +115,8 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			upstream_url,
 			upstream_service,
 			cache_ttl_overridden,
+			upstream_response_model,
+			upstream_model_mismatch,
 			created_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
@@ -129,7 +131,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			$54, $55, $56, $57, $58, $59, $60,
 			$61, $62, $63, $64, $65, $66, $67,
 			$68, $69, $70, $71, $72, $73, $74,
-			$75, $76, $77, $78, $79, $80
+			$75, $76, $77, $78, $79, $80, $81, $82
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -169,6 +171,8 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	upstreamEndpoint := nullString(log.UpstreamEndpoint)
 	upstreamURL := nullString(log.UpstreamURL)
 	upstreamService := nullString(log.UpstreamService)
+	upstreamResponseModel := nullString(log.UpstreamResponseModel)
+	upstreamModelMismatch := nullUsageLogBool(log.UpstreamModelMismatch)
 	billingExemptReason := nullString(log.BillingExemptReason)
 	discountPercent := nullFloat(log.DiscountPercent)
 	discountWindowID := nullString(log.DiscountWindowID)
@@ -200,7 +204,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	}
 	sessionIDValue := strings.TrimSpace(log.SessionID)
 	sessionID := nullString(&sessionIDValue)
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, sessionID, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.ImageInputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.ImageInputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, accountRateMultiplier, log.DiscountApplied, discountPercent, discountWindowID, discountWindowType, discountCompletedAt, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageQuality, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, reasoningEffortRaw, reasoningEffortEffective, requestedModelRaw, requestedModelNormalized, requestContextLengthTokens, millionContextRequested, millionContextEffective, millionContextSource, millionContextBetaToken, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, sessionID, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.ImageInputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.ImageInputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, accountRateMultiplier, log.DiscountApplied, discountPercent, discountWindowID, discountWindowType, discountCompletedAt, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageQuality, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, reasoningEffortRaw, reasoningEffortEffective, requestedModelRaw, requestedModelNormalized, requestContextLengthTokens, millionContextRequested, millionContextEffective, millionContextSource, millionContextBetaToken, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, upstreamResponseModel, upstreamModelMismatch, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

@@ -90,9 +90,11 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		upstreamURL           sql.NullString
 		upstreamService       sql.NullString
 		cacheTTLOverridden    bool
+		upstreamResponseModel sql.NullString
+		upstreamModelMismatch sql.NullBool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &sessionID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &imageInputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &imageInputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &discountApplied, &discountPercent, &discountWindowID, &discountWindowType, &discountCompletedAt, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageQuality, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &requestContextLength, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &sessionID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &imageInputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &imageInputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingCurrency, &totalCostUSDEq, &actualCostUSDEq, &usdToCNYRate, &fxRateDate, &fxLockedAt, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &discountApplied, &discountPercent, &discountWindowID, &discountWindowType, &discountCompletedAt, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageQuality, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &reasoningEffortRaw, &reasoningEffortEff, &requestedModelRaw, &requestedModelNorm, &requestContextLength, &millionContextReq, &millionContextEff, &millionContextSource, &millionContextBeta, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &upstreamResponseModel, &upstreamModelMismatch, &createdAt); err != nil {
 		return nil, err
 	}
 	currency := service.NormalizeUsageBillingCurrency(billingCurrency)
@@ -109,6 +111,13 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	}
 	if upstreamModel.Valid {
 		log.UpstreamModel = &upstreamModel.String
+	}
+	if upstreamResponseModel.Valid {
+		log.UpstreamResponseModel = &upstreamResponseModel.String
+	}
+	if upstreamModelMismatch.Valid {
+		value := upstreamModelMismatch.Bool
+		log.UpstreamModelMismatch = &value
 	}
 	if channelID.Valid {
 		value := channelID.Int64

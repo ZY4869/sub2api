@@ -67,6 +67,21 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			input:    "DEEPSEEK V4 PRO",
 			expected: "deepseek-v4-pro",
 		},
+		{
+			name:     "grok latest follows current build",
+			input:    "grok-latest",
+			expected: "grok-4.6",
+		},
+		{
+			name:     "grok build latest follows current build",
+			input:    "grok-build-latest",
+			expected: "grok-4.6",
+		},
+		{
+			name:     "grok 4.5 latest remains explicit",
+			input:    "grok-4.5-latest",
+			expected: "grok-4.5",
+		},
 	}
 
 	for _, test := range tests {
@@ -122,6 +137,11 @@ func TestResolveToPricingIDUsesIntendedSharedOrExactTargets(t *testing.T) {
 			name:     "gpt 5.4 pro dated snapshot shares base pricing id",
 			input:    "gpt-5.4-pro-2026-03-05",
 			expected: "gpt-5.4-pro",
+		},
+		{
+			name:     "grok 4.6 keeps exact pricing id",
+			input:    "grok-4.6",
+			expected: "grok-4.6",
 		},
 	}
 

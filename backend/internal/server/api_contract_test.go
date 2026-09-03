@@ -1485,6 +1485,7 @@ func TestAPIContracts(t *testing.T) {
 					"openai_advanced_scheduler_effective_weight_session_sticky": "3",
 					"openai_allow_claude_code_codex_plugin": false,
 					"openai_allowed_codex_clients": [],
+					"openai_alpha_search_enabled": true,
 					"openai_fast_policy_settings": {
 						"rules": [
 							{ "service_tier": "priority", "action": "filter", "scope": "all" },

@@ -109,6 +109,7 @@ interface UseCreateAccountResetOptions {
   autoRenewPeriod: Ref<AccountAutoRenewPeriod>
   expiryProbeExtensionDays: Ref<number>
   openaiPassthroughEnabled: Ref<boolean>
+  openaiAlphaSearchEnabled?: Ref<boolean>
   openAIImageProtocolMode: Ref<OpenAIImageProtocolMode>
   openAIImageCompatAllowed: Ref<boolean>
   gatewayOpenAIImageProtocolMode: Ref<OpenAIImageProtocolMode>
@@ -217,6 +218,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.autoRenewPeriod.value = 'month'
     options.expiryProbeExtensionDays.value = 1
     options.openaiPassthroughEnabled.value = false
+    options.openaiAlphaSearchEnabled && (options.openaiAlphaSearchEnabled.value = true)
     options.openAIImageProtocolMode.value = 'native'
     options.openAIImageCompatAllowed.value = true
     options.gatewayOpenAIImageProtocolMode.value = 'native'

@@ -79,6 +79,9 @@ func SupportsOpenAIEndpointCapability(account *Account, capability OpenAIEndpoin
 	if !supportsOpenAIEndpointCapabilityByAccountKind(resolved, capability) {
 		return false
 	}
+	if capability == OpenAIEndpointCapabilityAlphaSearch && !openAIAlphaSearchAccountEnabled(resolved) {
+		return false
+	}
 	configured := resolved.GetOpenAIEndpointCapabilities()
 	if len(configured) == 0 {
 		return true
@@ -87,7 +90,35 @@ func SupportsOpenAIEndpointCapability(account *Account, capability OpenAIEndpoin
 		return openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityResponses) ||
 			openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityChatCompletions)
 	}
+	if capability == OpenAIEndpointCapabilityAlphaSearch {
+		// Legacy installations used chat_completions as the broad OpenAI
+		// capability marker before alpha/search had its own entry.
+		return openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityAlphaSearch) ||
+			openAIEndpointCapabilityConfigured(configured, OpenAIEndpointCapabilityChatCompletions)
+	}
 	return openAIEndpointCapabilityConfigured(configured, capability)
+}
+
+func openAIAlphaSearchAccountEnabled(account *Account) bool {
+	if account == nil || (!account.IsOpenAIOAuth() && !account.IsOpenAIApiKey()) {
+		return false
+	}
+	if account.Extra == nil {
+		return true
+	}
+	raw, ok := account.Extra["openai_alpha_search_enabled"]
+	if !ok || raw == nil {
+		return true
+	}
+	switch value := raw.(type) {
+	case bool:
+		return value
+	case string:
+		n := strings.ToLower(strings.TrimSpace(value))
+		return n != "false" && n != "0" && n != "no"
+	default:
+		return true
+	}
 }
 
 func supportsOpenAIEndpointCapabilityByAccountKind(account *Account, capability OpenAIEndpointCapability) bool {

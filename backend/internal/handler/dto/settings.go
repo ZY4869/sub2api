@@ -167,6 +167,7 @@ type SystemSettings struct {
 	CodexOAuthUserAgentMode                                string                    `json:"codex_oauth_user_agent_mode"`
 	CodexOAuthUserAgentOverride                            string                    `json:"codex_oauth_user_agent_override"`
 	OpenAIAllowClaudeCodeCodexPlugin                       bool                      `json:"openai_allow_claude_code_codex_plugin"`
+	OpenAIAlphaSearchEnabled                               bool                      `json:"openai_alpha_search_enabled"`
 	OpenAIAllowedCodexClients                              []string                  `json:"openai_allowed_codex_clients"`
 	OpenAIAdvancedSchedulerEnabled                         bool                      `json:"openai_advanced_scheduler_enabled"`
 	OpenAIAdvancedSchedulerStickyWeightedEnabled           bool                      `json:"openai_advanced_scheduler_sticky_weighted_enabled"`

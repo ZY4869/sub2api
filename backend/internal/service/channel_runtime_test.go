@@ -25,6 +25,25 @@ func TestChannelService_ResolveUsagePricing_UsesPlatformScopedPricing(t *testing
 	require.Equal(t, antigravityPrice, *resolved.InputPrice)
 }
 
+func TestChannelService_ResolveUsagePricing_PrefersSpecificModelAndPlatform(t *testing.T) {
+	generic := 0.01
+	exactModel := 0.02
+	exactPlatform := 0.03
+	channel := &model.Channel{
+		ModelPricing: []model.ChannelModelPricing{
+			{ID: 1, Platform: "*", Models: []string{"gpt-*"}, BillingMode: model.ChannelBillingModeToken, InputPrice: &generic},
+			{ID: 2, Platform: "*", Models: []string{"gpt-5.4"}, BillingMode: model.ChannelBillingModeToken, InputPrice: &exactModel},
+			{ID: 3, Platform: PlatformOpenAI, Models: []string{"gpt-*"}, BillingMode: model.ChannelBillingModeToken, InputPrice: &exactPlatform},
+		},
+	}
+	state := &GatewayChannelState{Channel: channel, Platform: PlatformOpenAI}
+
+	resolved := (&ChannelService{}).ResolveUsagePricing(state, "gpt-5.4", GatewayChannelUsage{TotalTokens: 128})
+	require.NotNil(t, resolved)
+	require.Equal(t, int64(3), resolved.PricingID)
+	require.Equal(t, exactPlatform, *resolved.InputPrice)
+}
+
 func TestResolveChannelMappingTarget_UsesPlatformScopedMapping(t *testing.T) {
 	channel := &model.Channel{
 		ModelMapping: map[string]map[string]string{
@@ -60,4 +79,15 @@ func TestGatewayChannelState_ResolveBillingModel_ChannelMappedUsesSelectionWhenM
 	}
 
 	require.Equal(t, "gpt-5.1", state.ResolveBillingModel("gpt-5.1-codex"))
+}
+
+func TestGatewayChannelState_ResolveBillingModel_ResponseModelRequiresNoMismatch(t *testing.T) {
+	state := &GatewayChannelState{
+		Channel:        &model.Channel{BillingModelSource: model.ChannelBillingModelSourceResponse},
+		RequestedModel: "gpt-alias",
+		SelectionModel: "gpt-5.4",
+	}
+	mismatch := true
+	require.Equal(t, "gpt-5.4", state.ResolveBillingModelWithResponse("gpt-5.4", "gpt-5.3", &mismatch))
+	require.Equal(t, "gpt-5.3", state.ResolveBillingModelWithResponse("gpt-5.4", "gpt-5.3", nil))
 }

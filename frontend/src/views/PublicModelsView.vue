@@ -8,18 +8,18 @@
     class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_28%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,0.98))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_28%),linear-gradient(180deg,_rgba(2,6,23,1),_rgba(15,23,42,0.98))]"
   >
     <header class="border-b border-slate-200/80 bg-white/80 backdrop-blur dark:border-dark-700 dark:bg-dark-950/80">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div class="flex items-center gap-3">
-          <div class="h-10 w-10 overflow-hidden rounded-xl shadow-sm">
+      <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-4">
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <div class="h-10 w-10 shrink-0 overflow-hidden rounded-xl shadow-sm">
             <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
           </div>
-          <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ siteName }}</div>
+          <div class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ siteName }}</div>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-2 sm:gap-3">
           <router-link
             to="/login"
-            class="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-dark-700 dark:text-slate-200 dark:hover:bg-dark-800"
+            class="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-dark-700 dark:text-slate-200 dark:hover:bg-dark-800 sm:px-4"
           >
             {{ t('auth.signIn') }}
           </router-link>

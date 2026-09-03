@@ -1,6 +1,6 @@
 <template>
   <article
-    class="group/card relative flex w-full flex-col rounded-[20px] border border-slate-200/80 bg-white p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-all duration-300 hover:-translate-y-1 hover:border-slate-300/80 hover:shadow-[0_12px_30px_-8px_rgba(0,0,0,0.08)] dark:border-dark-700 dark:bg-dark-900 dark:hover:border-dark-600"
+    class="public-model-card group/card relative flex w-full min-w-0 flex-col rounded-lg border border-slate-200/80 bg-white p-4 shadow-sm transition-colors duration-200 hover:border-slate-300/80 hover:shadow-md dark:border-dark-700 dark:bg-dark-900 dark:hover:border-dark-600 2xl:p-5"
     :data-testid="`public-model-card-${item.raw.model}`"
   >
     <PublicModelCardHeader
@@ -15,7 +15,7 @@
       @open-detail="emit('openDetail', $event)"
     />
 
-    <div class="mb-5 flex flex-wrap gap-2">
+    <div class="mb-4 flex flex-wrap gap-2">
       <span class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold" :class="providerClass">
         <ModelPlatformIcon :platform="item.raw.provider_icon_key || item.raw.provider || ''" size="xs" />
         {{ providerLabel }}
@@ -45,7 +45,7 @@
       </span>
     </div>
 
-    <div class="mb-4 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-slate-300">
+    <div class="mb-4 min-w-0 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2 text-xs text-slate-500 dark:border-dark-700 dark:bg-dark-800/60 dark:text-slate-300">
       <div class="flex flex-wrap items-center gap-2">
         <span class="font-bold text-slate-700 dark:text-slate-100">{{ cardView.healthSourceLabel }}</span>
         <span>{{ cardView.healthReasonLabel }}</span>
@@ -57,8 +57,8 @@
       </div>
     </div>
 
-    <div class="mb-5 grid grid-cols-2 gap-3">
-      <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
+    <div class="mb-4 grid grid-cols-2 gap-3">
+      <div class="min-w-0 rounded-lg border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
         <div class="mb-2 flex items-center justify-between gap-2">
           <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ todayLabel }}</span>
           <PublicModelSuccessBars :rate="cardView.hasHealthMetrics ? health?.success_rate_today : undefined" :label="todayLabel" />
@@ -67,7 +67,7 @@
           {{ cardView.hasHealthMetrics ? formatRate(health?.success_rate_today) : '-' }}
         </div>
       </div>
-      <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
+      <div class="min-w-0 rounded-lg border border-slate-100 bg-slate-50/80 p-3 dark:border-dark-700 dark:bg-dark-800/70">
         <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
           {{ latencyLabel }}
         </div>
@@ -77,7 +77,7 @@
       </div>
     </div>
 
-    <div class="mb-5 flex items-end justify-between gap-3 border-t border-slate-100 pt-4 dark:border-dark-700">
+    <div class="mb-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-4 dark:border-dark-700">
       <div>
         <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
           {{ weekLabel }}
@@ -93,7 +93,7 @@
       />
     </div>
 
-    <div class="mt-auto overflow-hidden rounded-[14px] border border-slate-200/60 bg-[#F8FAFC] p-3.5 transition-colors group-hover/card:bg-[#F4F7FB] dark:border-dark-700 dark:bg-dark-800/70 dark:group-hover/card:bg-dark-800">
+    <div class="mt-auto min-w-0 overflow-hidden rounded-lg border border-slate-200/60 bg-[#F8FAFC] p-3 transition-colors group-hover/card:bg-[#F4F7FB] dark:border-dark-700 dark:bg-dark-800/70 dark:group-hover/card:bg-dark-800">
       <div class="mb-2.5 flex items-center justify-between px-1">
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -110,7 +110,7 @@
           {{ priceUnitSummary }}
         </span>
       </div>
-      <div class="relative z-10 grid grid-cols-[repeat(auto-fit,minmax(8.25rem,1fr))] gap-2.5">
+      <div class="relative z-10 grid grid-cols-[repeat(auto-fit,minmax(7.75rem,1fr))] gap-2.5">
         <PublicModelPriceRow
           v-for="entry in priceEntries"
           :key="entry.id"

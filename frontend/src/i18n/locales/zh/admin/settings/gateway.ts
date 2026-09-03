@@ -1,4 +1,10 @@
 export default {
+    openaiAlphaSearch: {
+        title: "OpenAI alpha/search",
+        description: "控制 Codex 原生 web.run 搜索入口。关闭后所有 alpha/search 路径返回 404。",
+        enabled: "启用 OpenAI alpha/search",
+        enabledHint: "仅影响 OpenAI OAuth/API Key 账号；账号级开关仍可单独关闭。",
+    },
     overloadCooldown: {
         title: "过载冷却设置",
         description: "控制 529 过载错误触发后的账号冷却策略。",

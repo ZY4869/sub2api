@@ -1,26 +1,26 @@
 <template>
-  <div class="mx-auto max-w-[1700px] space-y-6 px-1">
-    <section class="overflow-hidden rounded-[2rem] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,116,144,0.12),_transparent_35%),linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(240,249,255,0.92))] p-6 shadow-sm dark:border-dark-700 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.12),_transparent_35%),linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(17,24,39,0.92))] md:p-8">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="max-w-3xl">
+  <div class="model-library-shell mx-auto max-w-[1760px] space-y-4 px-2 sm:px-4 2xl:space-y-5">
+    <section class="overflow-hidden rounded-lg border border-slate-200 bg-white/95 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 2xl:p-6">
+      <div class="flex flex-wrap items-start justify-between gap-4 2xl:gap-6">
+        <div class="min-w-0 flex-1 max-w-3xl">
           <p class="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
             {{ t("ui.modelCatalog.platformProvided") }}
           </p>
-          <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
+          <h1 class="mt-2 text-2xl font-semibold text-slate-950 dark:text-white md:text-3xl">
             {{ t("nav.modelsCatalog") }}
           </h1>
-          <p class="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-200">
+          <p class="mt-2 max-w-4xl break-words text-sm leading-6 text-slate-700 dark:text-slate-200">
             {{ t("ui.modelCatalog.description") }}
           </p>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="rounded-full border border-emerald-200 bg-emerald-50/90 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+        <div class="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto xl:justify-end">
+          <span class="rounded-lg border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
             {{ t("ui.modelCatalog.eyebrow") }}
           </span>
-          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
+          <span class="rounded-lg border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
             {{ modelCountLabel }}
           </span>
-          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
+          <span class="rounded-lg border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
             {{ t("ui.modelCatalog.pagination.pageSize", { size: pageSize }) }}
           </span>
           <button
@@ -34,7 +34,7 @@
           </button>
         </div>
       </div>
-      <div class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
+      <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600 dark:text-slate-300">
         <span>{{ t("ui.modelCatalog.publishedAt", { time: publishedAtLabel }) }}</span>
         <span>{{ t("ui.modelCatalog.lastRevalidatedAt", { time: lastRevalidatedAtLabel }) }}</span>
         <span v-if="staleReasonLabel" class="text-amber-700 dark:text-amber-200">
@@ -45,35 +45,35 @@
 
     <div
       v-if="errorMessage"
-      class="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+      class="min-w-0 break-words rounded-lg border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
     >
       {{ errorMessage }}
     </div>
 
     <div
       v-if="softNotice"
-      class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+      class="min-w-0 break-words rounded-lg border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
     >
       {{ softNotice }}
     </div>
 
     <div
       v-if="sourceNotice"
-      class="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+      class="min-w-0 break-words rounded-lg border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
     >
       {{ sourceNotice }}
     </div>
 
     <div
       v-if="exchangeRateNotice"
-      class="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+      class="min-w-0 break-words rounded-lg border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
     >
       {{ exchangeRateNotice }}
     </div>
 
-    <section class="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/80">
+    <section class="rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 2xl:p-5">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <label class="relative block w-full xl:max-w-xl">
+        <label class="relative block w-full xl:max-w-2xl">
           <span class="sr-only">{{ t("ui.modelCatalog.searchPlaceholder") }}</span>
           <Icon
             name="search"
@@ -83,20 +83,20 @@
           <input
             v-model.trim="searchQuery"
             type="search"
-            class="input h-12 w-full rounded-2xl border-slate-200 bg-slate-50/80 pl-11 pr-4 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-800/80 dark:text-slate-100"
+            class="input h-11 w-full rounded-lg border-slate-200 bg-slate-50/80 pl-11 pr-4 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-800/80 dark:text-slate-100"
             :placeholder="t('ui.modelCatalog.searchPlaceholder')"
             data-testid="public-models-search"
           />
         </label>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 xl:justify-end">
+        <div class="flex w-full min-w-0 flex-wrap items-center justify-between gap-3 sm:w-auto xl:justify-end">
           <span class="text-sm text-slate-500 dark:text-slate-400">
             {{ t("ui.modelCatalog.pagination.summary", pageSummaryParams) }}
           </span>
-          <div class="inline-flex rounded-2xl border border-slate-200 bg-slate-50/90 p-1 dark:border-dark-700 dark:bg-dark-800/80">
+          <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50/90 p-1 dark:border-dark-700 dark:bg-dark-800/80">
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition"
+              class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
               :class="viewMode === 'grid' ? activeToggleClass : inactiveToggleClass"
               data-testid="public-models-view-grid"
               @click="viewMode = 'grid'"
@@ -106,7 +106,7 @@
             </button>
             <button
               type="button"
-              class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition"
+              class="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
               :class="viewMode === 'list' ? activeToggleClass : inactiveToggleClass"
               data-testid="public-models-view-list"
               @click="viewMode = 'list'"
@@ -119,8 +119,8 @@
       </div>
     </section>
 
-    <div class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-      <aside class="space-y-4 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/80 xl:sticky xl:top-24 xl:self-start">
+    <div class="model-catalog-grid grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
+      <aside class="model-filter-panel space-y-4 rounded-lg border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/90 xl:sticky xl:top-20 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:self-start">
         <section class="space-y-3">
           <div class="text-sm font-semibold text-slate-900 dark:text-white">
             {{ t("ui.modelCatalog.filters.provider") }}
@@ -128,7 +128,7 @@
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <button
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedProvider === '' ? activeFilterClass : inactiveFilterClass"
               data-testid="models-filter-provider-all"
               @click="selectedProvider = ''"
@@ -151,7 +151,7 @@
               v-for="provider in providerOptions"
               :key="provider.id"
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedProvider === provider.id ? activeFilterClass : inactiveFilterClass"
               :data-testid="`models-filter-provider-${provider.id}`"
               @click="selectedProvider = provider.id"
@@ -180,7 +180,7 @@
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <button
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedProtocol === '' ? activeFilterClass : inactiveFilterClass"
               data-testid="models-filter-protocol-all"
               @click="selectedProtocol = ''"
@@ -203,7 +203,7 @@
               v-for="protocol in protocolOptions"
               :key="protocol.id"
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedProtocol === protocol.id ? activeFilterClass : inactiveFilterClass"
               :data-testid="`models-filter-protocol-${protocol.id}`"
               @click="selectedProtocol = protocol.id"
@@ -232,7 +232,7 @@
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <button
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedMultiplier === '' ? activeFilterClass : inactiveFilterClass"
               data-testid="models-filter-multiplier-all"
               @click="selectedMultiplier = ''"
@@ -255,7 +255,7 @@
               v-for="option in multiplierOptions"
               :key="option.id"
               type="button"
-              class="group rounded-2xl border px-4 py-3 text-left transition"
+              class="group rounded-lg border px-3 py-2.5 text-left transition"
               :class="selectedMultiplier === option.id ? activeFilterClass : inactiveFilterClass"
               :data-testid="`models-filter-multiplier-${option.id}`"
               @click="selectedMultiplier = option.id"
@@ -280,7 +280,7 @@
 
       <section class="space-y-4">
         <div
-          class="gap-4"
+          class="model-results-grid gap-4"
           :class="viewMode === 'grid' ? 'grid md:grid-cols-2 2xl:grid-cols-3' : 'flex flex-col'"
           data-testid="public-model-results"
           :data-view-mode="viewMode"
@@ -309,14 +309,14 @@
 
         <div
           v-if="!loading && filteredItems.length === 0"
-          class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
+          class="rounded-lg border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
         >
           {{ emptyStateMessage }}
         </div>
 
         <div
           v-else-if="filteredItems.length > 0"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white/90 px-5 py-4 text-sm shadow-sm dark:border-dark-700 dark:bg-dark-900/80"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white/95 px-5 py-4 text-sm shadow-sm dark:border-dark-700 dark:bg-dark-900/90"
         >
           <span class="text-slate-500 dark:text-slate-400">
             {{ t("ui.modelCatalog.pagination.page", { page: currentPage, pages: totalPages }) }}
@@ -802,6 +802,6 @@ function normalizePageSize(value?: number): number {
 
 <style scoped>
 .filter-icon-shell {
-  @apply inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/70 text-current dark:border-dark-700 dark:bg-dark-900/70;
+  @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white/70 text-current dark:border-dark-700 dark:bg-dark-900/70;
 }
 </style>

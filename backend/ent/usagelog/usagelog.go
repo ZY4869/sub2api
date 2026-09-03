@@ -30,6 +30,10 @@ const (
 	FieldRequestedModel = "requested_model"
 	// FieldUpstreamModel holds the string denoting the upstream_model field in the database.
 	FieldUpstreamModel = "upstream_model"
+	// FieldUpstreamResponseModel holds the string denoting the upstream_response_model field in the database.
+	FieldUpstreamResponseModel = "upstream_response_model"
+	// FieldUpstreamModelMismatch holds the string denoting the upstream_model_mismatch field in the database.
+	FieldUpstreamModelMismatch = "upstream_model_mismatch"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
 	// FieldSubscriptionID holds the string denoting the subscription_id field in the database.
@@ -174,6 +178,8 @@ var Columns = []string{
 	FieldModel,
 	FieldRequestedModel,
 	FieldUpstreamModel,
+	FieldUpstreamResponseModel,
+	FieldUpstreamModelMismatch,
 	FieldGroupID,
 	FieldSubscriptionID,
 	FieldInputTokens,
@@ -239,6 +245,8 @@ var (
 	RequestedModelValidator func(string) error
 	// UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
 	UpstreamModelValidator func(string) error
+	// UpstreamResponseModelValidator is a validator for the "upstream_response_model" field. It is called by the builders before save.
+	UpstreamResponseModelValidator func(string) error
 	// DefaultInputTokens holds the default value on creation for the "input_tokens" field.
 	DefaultInputTokens int
 	// DefaultImageInputTokens holds the default value on creation for the "image_input_tokens" field.
@@ -355,6 +363,16 @@ func ByRequestedModel(opts ...sql.OrderTermOption) OrderOption {
 // ByUpstreamModel orders the results by the upstream_model field.
 func ByUpstreamModel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpstreamModel, opts...).ToFunc()
+}
+
+// ByUpstreamResponseModel orders the results by the upstream_response_model field.
+func ByUpstreamResponseModel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamResponseModel, opts...).ToFunc()
+}
+
+// ByUpstreamModelMismatch orders the results by the upstream_model_mismatch field.
+func ByUpstreamModelMismatch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamModelMismatch, opts...).ToFunc()
 }
 
 // ByGroupID orders the results by the group_id field.

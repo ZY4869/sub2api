@@ -35,6 +35,7 @@ export function buildOpenAIExtra(options: {
   openaiOAuthResponsesWebSocketV2Mode: OpenAIWSMode
   openaiAPIKeyResponsesWebSocketV2Mode: OpenAIWSMode
   openaiPassthroughEnabled: boolean
+  openaiAlphaSearchEnabled?: boolean
   codexCLIOnlyEnabled: boolean
   codexImageToolPolicy?: CodexImageToolPolicy
   openAIImageProtocolMode: OpenAIImageProtocolMode
@@ -66,6 +67,12 @@ export function buildOpenAIExtra(options: {
   } else {
     delete extra.openai_passthrough
     delete extra.openai_oauth_passthrough
+  }
+
+  if (options.openaiAlphaSearchEnabled === false) {
+    extra.openai_alpha_search_enabled = false
+  } else {
+    delete extra.openai_alpha_search_enabled
   }
 
   if (options.accountCategory === 'oauth-based' && options.codexCLIOnlyEnabled) {

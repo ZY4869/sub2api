@@ -31,6 +31,7 @@ var (
 	ErrBackupS3TestRequiresSecret = infraerrors.BadRequest("BACKUP_S3_TEST_SECRET_REQUIRED", "secret_access_key is required when testing S3 connectivity")
 	ErrBackupS3EndpointInvalid    = infraerrors.BadRequest("BACKUP_S3_ENDPOINT_INVALID", "S3 endpoint is not allowed")
 	ErrBackupS3SecretInvalid      = infraerrors.BadRequest("BACKUP_S3_SECRET_INVALID", "backup S3 secret cannot be decrypted safely")
+	ErrBackupChecksumMismatch     = infraerrors.InternalServer("BACKUP_CHECKSUM_MISMATCH", "backup checksum verification failed")
 )
 
 // ─── 接口定义 ───
@@ -48,6 +49,28 @@ type BackupObjectStore interface {
 	Delete(ctx context.Context, key string) error
 	PresignURL(ctx context.Context, key string, expiry time.Duration) (string, error)
 	HeadBucket(ctx context.Context) error
+}
+
+// BackupMultipartStore is an optional large-object implementation. Keeping it
+// separate preserves compatibility with existing object-store adapters.
+type BackupMultipartStore interface {
+	UploadMultipart(ctx context.Context, key string, body io.Reader, contentType string, partSize int64, progress func(BackupMultipartProgress) error) (BackupUploadResult, error)
+	AbortMultipart(ctx context.Context, key, uploadID string) error
+}
+
+type BackupMultipartProgress struct {
+	UploadID      string
+	PartNumber    int
+	PartSizeBytes int64
+	UploadedBytes int64
+	PartETag      string
+}
+
+type BackupUploadResult struct {
+	UploadID  string
+	SizeBytes int64
+	SHA256    string
+	PartCount int
 }
 
 // BackupObjectStoreFactory creates an object store from S3 config
@@ -87,6 +110,9 @@ type BackupRecord struct {
 	FileName      string `json:"file_name"`
 	S3Key         string `json:"s3_key"`
 	SizeBytes     int64  `json:"size_bytes"`
+	SHA256        string `json:"sha256,omitempty"`
+	UploadID      string `json:"upload_id,omitempty"`
+	PartCount     int    `json:"part_count,omitempty"`
 	TriggeredBy   string `json:"triggered_by"` // manual, scheduled
 	ErrorMsg      string `json:"error_message,omitempty"`
 	StartedAt     string `json:"started_at"`
@@ -106,6 +132,7 @@ type BackupService struct {
 	encryptor    SecretEncryptor
 	storeFactory BackupObjectStoreFactory
 	dumper       DBDumper
+	leaderGate   PeriodicJobLeaderGate
 
 	opMu      sync.Mutex // 保护 backingUp/restoring 标志
 	backingUp bool
@@ -133,8 +160,13 @@ func NewBackupService(
 	encryptor SecretEncryptor,
 	storeFactory BackupObjectStoreFactory,
 	dumper DBDumper,
+	leaderGates ...PeriodicJobLeaderGate,
 ) *BackupService {
 	bgCtx, bgCancel := context.WithCancel(context.Background())
+	var leaderGate PeriodicJobLeaderGate
+	if len(leaderGates) > 0 {
+		leaderGate = leaderGates[0]
+	}
 	return &BackupService{
 		settingRepo:  settingRepo,
 		dbCfg:        &cfg.Database,
@@ -142,6 +174,7 @@ func NewBackupService(
 		encryptor:    encryptor,
 		storeFactory: storeFactory,
 		dumper:       dumper,
+		leaderGate:   leaderGate,
 		bgCtx:        bgCtx,
 		bgCancel:     bgCancel,
 	}

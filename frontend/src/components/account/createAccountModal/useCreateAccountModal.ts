@@ -280,6 +280,7 @@ const autoRenewEnabled = ref(false)
 const autoRenewPeriod = ref<AccountAutoRenewPeriod>('month')
 const expiryProbeExtensionDays = ref(1)
 const openaiPassthroughEnabled = ref(false)
+const openaiAlphaSearchEnabled = ref(true)
 const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
 const openAIImageCompatAllowed = ref(true)
 const openAIImageProtocolTouched = ref(false)
@@ -892,6 +893,7 @@ const { resetForm } = useCreateAccountReset({
   autoRenewPeriod,
   expiryProbeExtensionDays,
   openaiPassthroughEnabled,
+  openaiAlphaSearchEnabled,
   openAIImageProtocolMode,
   openAIImageCompatAllowed,
   gatewayOpenAIImageProtocolMode,
@@ -1089,7 +1091,7 @@ const modalContext = {
   grokOAuthRef, handleClose, hasCustomizedOpenAIOAuthDefaults, interceptWarmupRequests, isBaiduDocumentAISelected, isOAuthFlow, isOpenAIModelRestrictionDisabled, isProtocolGatewayPlatform, manualModels, maybeImportCreatedAccounts, mergeAccountManualModelsIntoExtra,
   mergeAccountModelProbeSnapshotIntoExtra, mergeResolvedUpstreamDraftIntoExtra, mixedScheduling, modelMappings, modelProbeSnapshot, modelRestrictionEnabled, modelRestrictionMode, normalizeGeminiAIStudioTier, oauth, oauthDraftCredentials,
   oauthDraftExtra, oauthDraftProbeReady, oauthFlowRef, oauthInputDraft, openAIImageCompatAllowed, openAIImageProtocolMode, openMixedChannelDialog, openRouterHTTPReferer, openRouterTitle, openaiAPIKeyResponsesWebSocketV2Mode, openaiOAuth,
-  openaiOAuthResponsesWebSocketV2Mode, openaiPassthroughEnabled, parseBaiduDocumentAIDirectApiUrlsInput, poolModeState, quotaControl, requiresMixedChannelCheck, resolveAccountApiKeyDefaultBaseUrl, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, resolvedUpstream,
+  openaiOAuthResponsesWebSocketV2Mode, openaiPassthroughEnabled, openaiAlphaSearchEnabled, parseBaiduDocumentAIDirectApiUrlsInput, poolModeState, quotaControl, requiresMixedChannelCheck, resolveAccountApiKeyDefaultBaseUrl, resolveVertexAuthBaseUrl, resolveVertexBaseUrl, resolvedUpstream,
   shouldPersistGeminiTierId, showOAuthFinalizeStep, step, t, tempUnschedEnabled, toRef, upstreamApiKey, upstreamBaseUrl, useCreateAccountAnthropicCookieAuth, useCreateAccountAnthropicExchange,
   useCreateAccountAntigravityHandlers, useCreateAccountOpenAIExchange, useCreateAccountOpenAIRefreshTokenValidation, useCreateAccountSubmit, withConfirmFlag, DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE, DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT, OPENAI_WS_MODE_OFF, actualModelLocked, applyOpenAIOAuthPresetModels,
   autoImportModels, createDefaultDeepSeekModelConcurrencyLimitDraft, ensureModelRegistryFresh, geminiAIStudioOAuthEnabled, geminiOAuth, geminiOAuthType, geminiVertexAccessToken, geminiVertexExpiresAtInput, isBaiduDocumentAIPlatform, kiroAuthRef,

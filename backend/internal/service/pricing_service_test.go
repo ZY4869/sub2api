@@ -447,6 +447,56 @@ func TestPricingService_Initialize_UsesGemini36FlashOfficialPricing(t *testing.T
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestPricingService_Initialize_UsesCurrentGrok46OfficialPricing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+
+	pricing := svc.GetModelPricing("grok-4.6")
+	require.NotNil(t, pricing)
+	require.Equal(t, "USD", pricing.Currency)
+	require.InDelta(t, 2e-6, pricing.InputCostPerToken, 1e-12)
+	require.InDelta(t, 4e-6, pricing.InputCostPerTokenAboveThreshold, 1e-12)
+	require.InDelta(t, 6e-6, pricing.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 1.2e-5, pricing.OutputCostPerTokenAboveThreshold, 1e-12)
+	require.InDelta(t, 5e-7, pricing.CacheReadInputTokenCost, 1e-12)
+	require.Equal(t, 200000, pricing.InputTokenThreshold)
+	require.Equal(t, 200000, pricing.OutputTokenThreshold)
+	require.Equal(t, 200000, pricing.LongContextInputTokenThreshold)
+	require.InDelta(t, 2.0, pricing.LongContextInputCostMultiplier, 1e-12)
+	require.InDelta(t, 2.0, pricing.LongContextOutputCostMultiplier, 1e-12)
+}
+
+func TestPricingService_Initialize_UsesCurrentGrok420OfficialPricing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+
+	for _, model := range []string{GrokModel420Reasoning, GrokModel420NonReasoning, GrokModel420MultiAgent} {
+		t.Run(model, func(t *testing.T) {
+			pricing := svc.GetModelPricing(model)
+			require.NotNil(t, pricing)
+			require.InDelta(t, 1.25e-6, pricing.InputCostPerToken, 1e-12)
+			require.InDelta(t, 2.5e-6, pricing.InputCostPerTokenAboveThreshold, 1e-12)
+			require.InDelta(t, 2.5e-6, pricing.OutputCostPerToken, 1e-12)
+			require.InDelta(t, 5e-6, pricing.OutputCostPerTokenAboveThreshold, 1e-12)
+			require.InDelta(t, 2e-7, pricing.CacheReadInputTokenCost, 1e-12)
+			require.Equal(t, 200000, pricing.InputTokenThreshold)
+			require.Equal(t, 200000, pricing.OutputTokenThreshold)
+		})
+	}
+}
+
 func TestPricingService_Initialize_UsesCleanroomModelFallbacks(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Pricing.DataDir = t.TempDir()

@@ -343,6 +343,10 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				line = s.replaceModelInSSELine(line, mappedModel, originalModel)
 			}
 			dataBytes := []byte(data)
+			setOpenAIResponseModelObservation(ctx, responseModelObservation{model: responseModelFromJSON(dataBytes)}, mappedModel)
+			if c != nil && c.Request != nil {
+				c.Request = c.Request.WithContext(ctx)
+			}
 			if correctedData, corrected := s.toolCorrector.CorrectToolCallsInSSEBytes(dataBytes); corrected {
 				dataBytes = correctedData
 				data = string(correctedData)

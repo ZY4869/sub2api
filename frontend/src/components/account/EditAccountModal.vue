@@ -371,6 +371,8 @@
       <AccountGatewaySettingsEditor
         :show-open-ai-passthrough="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
+        :show-open-ai-alpha-search="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
+        :open-ai-alpha-search-enabled="openaiAlphaSearchEnabled"
         :show-open-ai-image-protocol-mode="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-image-protocol-mode="openAIImageProtocolMode"
         :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
@@ -388,6 +390,7 @@
         :show-codex-image-tool-policy="effectivePlatform === 'openai' && account?.type === 'oauth'"
         :codex-image-tool-policy="codexImageToolPolicy"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
+        @update:open-ai-alpha-search-enabled="openaiAlphaSearchEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
@@ -623,6 +626,7 @@ const {
   quotaControlState,
   umqModeOptions,
   openaiPassthroughEnabled,
+  openaiAlphaSearchEnabled,
   openAIImageProtocolMode,
   openAIImageCompatAllowed,
   codexCLIOnlyEnabled,

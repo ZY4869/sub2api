@@ -382,6 +382,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OpenAIAllowClaudeCodeCodexPlugin != after.OpenAIAllowClaudeCodeCodexPlugin {
 		changed = append(changed, "openai_allow_claude_code_codex_plugin")
 	}
+	if before.OpenAIAlphaSearchEnabled != after.OpenAIAlphaSearchEnabled {
+		changed = append(changed, "openai_alpha_search_enabled")
+	}
 	if !equalStringSlice(before.OpenAIAllowedCodexClients, after.OpenAIAllowedCodexClients) {
 		changed = append(changed, "openai_allowed_codex_clients")
 	}
@@ -599,6 +602,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		CodexOAuthUserAgentMode:                                settings.CodexOAuthUserAgentMode,
 		CodexOAuthUserAgentOverride:                            settings.CodexOAuthUserAgentOverride,
 		OpenAIAllowClaudeCodeCodexPlugin:                       settings.OpenAIAllowClaudeCodeCodexPlugin,
+		OpenAIAlphaSearchEnabled:                               settings.OpenAIAlphaSearchEnabled,
 		OpenAIAllowedCodexClients:                              cloneStringSliceForJSON(settings.OpenAIAllowedCodexClients),
 		OpenAIAdvancedSchedulerEnabled:                         settings.OpenAIAdvancedSchedulerEnabled,
 		OpenAIAdvancedSchedulerStickyWeightedEnabled:           settings.OpenAIAdvancedSchedulerStickyWeightedEnabled,

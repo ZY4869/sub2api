@@ -107,10 +107,11 @@ func (s *BackupService) CreateBackup(ctx context.Context, triggeredBy string, ex
 	}()
 
 	contentType := "application/gzip"
-	sizeBytes, err := objectStore.Upload(ctx, s3Key, pr, contentType)
+	uploadResult, err := uploadBackupBody(ctx, objectStore, s3Key, pr, contentType)
 	if err != nil {
 		_ = pr.CloseWithError(err) // 确保 gzip goroutine 不会悬挂
 		gzErr := <-gzipDone        // 安全等待 gzip goroutine 完成
+		_ = objectStore.Delete(context.Background(), s3Key)
 		record.Status = "failed"
 		errMsg := fmt.Sprintf("S3 upload failed: %v", err)
 		if gzErr != nil {
@@ -123,7 +124,10 @@ func (s *BackupService) CreateBackup(ctx context.Context, triggeredBy string, ex
 	}
 	<-gzipDone // 确保 gzip goroutine 已退出
 
-	record.SizeBytes = sizeBytes
+	record.SizeBytes = uploadResult.SizeBytes
+	record.SHA256 = uploadResult.SHA256
+	record.UploadID = uploadResult.UploadID
+	record.PartCount = uploadResult.PartCount
 	record.Status = "completed"
 	record.FinishedAt = time.Now().Format(time.RFC3339)
 	if err := s.saveRecord(ctx, record); err != nil {
@@ -275,10 +279,11 @@ func (s *BackupService) executeBackup(record *BackupRecord, objectStore BackupOb
 	}()
 
 	contentType := "application/gzip"
-	sizeBytes, err := objectStore.Upload(ctx, record.S3Key, pr, contentType)
+	uploadResult, err := uploadBackupBody(ctx, objectStore, record.S3Key, pr, contentType)
 	if err != nil {
 		_ = pr.CloseWithError(err) // 确保 gzip goroutine 不会悬挂
 		gzErr := <-gzipDone        // 安全等待 gzip goroutine 完成
+		_ = objectStore.Delete(context.Background(), record.S3Key)
 		record.Status = "failed"
 		errMsg := fmt.Sprintf("S3 upload failed: %v", err)
 		if gzErr != nil {
@@ -292,7 +297,10 @@ func (s *BackupService) executeBackup(record *BackupRecord, objectStore BackupOb
 	}
 	<-gzipDone // 确保 gzip goroutine 已退出
 
-	record.SizeBytes = sizeBytes
+	record.SizeBytes = uploadResult.SizeBytes
+	record.SHA256 = uploadResult.SHA256
+	record.UploadID = uploadResult.UploadID
+	record.PartCount = uploadResult.PartCount
 	record.Status = "completed"
 	record.Progress = ""
 	record.FinishedAt = time.Now().Format(time.RFC3339)

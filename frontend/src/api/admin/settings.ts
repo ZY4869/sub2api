@@ -138,6 +138,7 @@ export interface SystemSettings {
   codex_oauth_user_agent_mode: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override: string
   openai_allow_claude_code_codex_plugin: boolean
+  openai_alpha_search_enabled: boolean
   openai_allowed_codex_clients: string[]
   openai_advanced_scheduler_enabled: boolean
   openai_advanced_scheduler_sticky_weighted_enabled: boolean
@@ -321,6 +322,7 @@ export interface UpdateSettingsRequest {
   codex_oauth_user_agent_mode?: 'default' | 'force' | 'custom' | string
   codex_oauth_user_agent_override?: string
   openai_allow_claude_code_codex_plugin?: boolean
+  openai_alpha_search_enabled?: boolean
   openai_allowed_codex_clients?: string[]
   openai_advanced_scheduler_enabled?: boolean
   openai_advanced_scheduler_sticky_weighted_enabled?: boolean

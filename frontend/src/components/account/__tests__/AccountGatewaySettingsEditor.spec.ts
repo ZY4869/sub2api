@@ -18,6 +18,8 @@ describe('AccountGatewaySettingsEditor', () => {
       props: {
         showOpenAiPassthrough: true,
         openAiPassthroughEnabled: false,
+        showOpenAiAlphaSearch: true,
+        openAiAlphaSearchEnabled: false,
         showOpenAiImageProtocolMode: true,
         openAiImageProtocolMode: 'native',
         openAiImageProtocolCompatAllowed: true,
@@ -53,13 +55,16 @@ describe('AccountGatewaySettingsEditor', () => {
     await buttons[0]?.trigger('click')
     expect(wrapper.emitted('update:openAiPassthroughEnabled')?.[0]).toEqual([true])
 
+    await wrapper.get('[data-testid="openai-alpha-search-toggle"]').trigger('click')
+    expect(wrapper.emitted('update:openAiAlphaSearchEnabled')?.[0]).toEqual([true])
+
     await selects[1]?.trigger('click')
     expect(wrapper.emitted('update:openAiWsMode')?.[0]).toEqual(['passthrough'])
 
-    await buttons[1]?.trigger('click')
+    await buttons[2]?.trigger('click')
     expect(wrapper.emitted('update:anthropicPassthroughEnabled')?.[0]).toEqual([true])
 
-    await buttons[2]?.trigger('click')
+    await buttons[3]?.trigger('click')
     expect(wrapper.emitted('update:codexCliOnlyEnabled')?.[0]).toEqual([true])
   })
 })

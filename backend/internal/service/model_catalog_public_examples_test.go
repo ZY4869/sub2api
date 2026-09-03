@@ -71,6 +71,41 @@ func TestSelectPublicModelCatalogExampleSpec_UsesGrokMessagesExample(t *testing.
 	require.NotContains(t, markdown, "/grok/v1/responses")
 }
 
+func TestPublicModelCatalogGrokExampleDocumentsWebAndXSearchTools(t *testing.T) {
+	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
+		Model:            "grok-4.6",
+		Provider:         PlatformGrok,
+		RequestProtocols: []string{PlatformGrok},
+		ProtocolEndpoints: []PublicModelProtocolEndpoint{{
+			Key:      "grok.responses",
+			Protocol: PlatformGrok,
+			Endpoint: "/grok/v1/responses",
+			Support:  PublicModelSupportSupported,
+		}},
+	}, "web_search")
+
+	require.True(t, ok)
+	require.Equal(t, "grok", spec.PageID)
+	require.Equal(t, PlatformGrok, spec.Protocol)
+	require.Equal(t, "grok.responses", spec.EndpointKey)
+	require.Contains(t, spec.Keywords, "web_search")
+
+	markdown := publicModelCatalogExampleTemplateMarkdown(spec.PageID, spec.Keywords)
+
+	require.Contains(t, markdown, `"model": "grok-4.6"`)
+	require.Contains(t, markdown, `"type": "web_search"`)
+	require.Contains(t, markdown, `"type": "x_search"`)
+	require.NotContains(t, markdown, "/api-docs")
+}
+
+func TestPublicModelCatalogOpenAIExampleDocumentsAlphaSearch(t *testing.T) {
+	markdown := publicModelCatalogExampleTemplateMarkdown("openai", []string{"alpha/search"})
+
+	require.Contains(t, markdown, "/v1/alpha/search")
+	require.Contains(t, markdown, "/backend-api/codex/alpha/search")
+	require.NotContains(t, markdown, "/api-docs")
+}
+
 func TestSelectPublicModelCatalogExampleSpec_UsesGrokCountTokensExample(t *testing.T) {
 	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
 		Model:    "grok-4",

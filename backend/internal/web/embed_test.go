@@ -438,6 +438,7 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/v1beta/chat",
 			"/grok/v1/models",
 			"/antigravity/test",
+			"/backend-api/codex/alpha/search",
 			"/alpha/search",
 			"/setup/init",
 			"/health",

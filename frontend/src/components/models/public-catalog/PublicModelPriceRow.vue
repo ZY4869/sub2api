@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex min-w-0 cursor-default flex-col rounded-xl border bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)] transition-all dark:bg-dark-900"
+    class="flex min-w-0 cursor-default flex-col rounded-lg border bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] transition-all dark:bg-dark-900"
     :class="themeClass"
     :data-testid="testid"
   >
@@ -11,12 +11,13 @@
       {{ label }}
     </span>
     <div class="mt-2 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-1 font-mono leading-none">
-      <span class="whitespace-nowrap text-[15px] font-black" :class="valueClass">
+      <span class="max-w-full truncate whitespace-nowrap text-[14px] font-black 2xl:text-[15px]" :class="valueClass" :title="priceParts.amount">
         {{ priceParts.amount }}
       </span>
       <span
         v-if="priceParts.unit"
-        class="whitespace-nowrap text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400"
+        class="max-w-full truncate whitespace-nowrap text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400"
+        :title="priceParts.unit"
       >
         {{ priceParts.unit }}
       </span>

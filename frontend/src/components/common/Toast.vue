@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div
-      class="pointer-events-none fixed right-4 top-4 z-[9999] space-y-3"
+      class="pointer-events-none fixed left-2 right-2 top-3 z-[9999] space-y-3 sm:left-auto sm:right-4 sm:top-4"
       aria-live="polite"
       aria-atomic="true"
     >
@@ -17,14 +17,14 @@
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-xl overflow-hidden rounded-lg shadow-lg',
+            'pointer-events-auto w-full min-w-0 max-w-xl overflow-hidden rounded-lg shadow-lg sm:min-w-[320px]',
             'bg-white dark:bg-dark-800',
             'border-l-4',
             getBorderColor(toast.type),
           ]"
         >
-          <div class="p-4">
-            <div class="flex items-start gap-3">
+          <div class="min-w-0 p-4">
+            <div class="flex min-w-0 items-start gap-3">
               <div class="mt-0.5 flex-shrink-0">
                 <Icon
                   :name="getToastIconName(toast.type)"
@@ -43,7 +43,7 @@
                 </p>
                 <p
                   :class="[
-                    'text-sm leading-relaxed',
+                    'break-words text-sm leading-relaxed',
                     toast.title
                       ? 'mt-1 text-gray-600 dark:text-gray-300'
                       : 'text-gray-900 dark:text-white',
@@ -85,7 +85,7 @@
 
               <button
                 @click="removeToast(toast.id)"
-                class="-m-1 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-300"
+                class="flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-300"
                 aria-label="Close notification"
               >
                 <Icon name="x" size="sm" />

@@ -5363,6 +5363,46 @@
     ]
   },
   {
+    "id": "grok-4.6",
+    "display_name": "Grok 4.6",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-4.6",
+      "grok",
+      "grok-latest",
+      "grok-4.6-latest",
+      "grok-build-latest"
+    ],
+    "aliases": [
+      "grok",
+      "grok-latest",
+      "grok-4.6-latest",
+      "grok-build-latest"
+    ],
+    "pricing_lookup_ids": [
+      "grok-4.6"
+    ],
+    "preferred_protocol_ids": {
+      "grok": "grok-4.6"
+    },
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "web_search",
+      "x_search"
+    ],
+    "ui_priority": 1,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "grok-4.5",
     "display_name": "Grok 4.5",
     "provider": "grok",
@@ -5371,16 +5411,10 @@
     ],
     "protocol_ids": [
       "grok-4.5",
-      "grok",
-      "grok-latest",
-      "grok-4.5-latest",
-      "grok-build-latest"
+      "grok-4.5-latest"
     ],
     "aliases": [
-      "grok",
-      "grok-latest",
-      "grok-4.5-latest",
-      "grok-build-latest"
+      "grok-4.5-latest"
     ],
     "pricing_lookup_ids": [
       "grok-4.5"
@@ -5392,7 +5426,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 1,
+    "ui_priority": 2,
     "exposed_in": [
       "runtime",
       "test",
@@ -5417,7 +5451,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 2,
+    "ui_priority": 3,
     "exposed_in": [
       "runtime",
       "test",
@@ -5448,7 +5482,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 3,
+    "ui_priority": 4,
     "exposed_in": [
       "runtime",
       "test",
@@ -5481,7 +5515,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 4,
+    "ui_priority": 5,
     "exposed_in": [
       "runtime",
       "test",
@@ -5512,7 +5546,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 5,
+    "ui_priority": 6,
     "exposed_in": [
       "runtime",
       "test",
@@ -5543,7 +5577,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 6,
+    "ui_priority": 7,
     "exposed_in": [
       "runtime",
       "test",
@@ -5568,7 +5602,7 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 7,
+    "ui_priority": 8,
     "exposed_in": [
       "runtime",
       "test",

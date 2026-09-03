@@ -45,6 +45,13 @@ func (UsageLog) Fields() []ent.Field {
 			MaxLen(100).
 			Optional().
 			Nillable(),
+		field.String("upstream_response_model").
+			MaxLen(200).
+			Optional().
+			Nillable(),
+		field.Bool("upstream_model_mismatch").
+			Optional().
+			Nillable(),
 		field.Int64("group_id").
 			Optional().
 			Nillable(),

@@ -11,7 +11,7 @@
     <Transition name="drawer">
       <aside
         v-if="show"
-        class="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1000px] flex-col border-l border-slate-200/80 bg-[#FAFAFA] shadow-2xl dark:border-dark-700 dark:bg-dark-950"
+        class="fixed right-0 top-0 z-50 flex h-full w-full max-w-[1040px] flex-col border-l border-slate-200/80 bg-[#FAFAFA] shadow-2xl dark:border-dark-700 dark:bg-dark-950 lg:w-[82vw] 2xl:w-[58vw]"
         role="dialog"
         aria-modal="true"
         :aria-label="dialogTitle"
@@ -29,8 +29,8 @@
         />
         <PublicModelDetailTabs v-model="activeTab" :tabs="tabs" />
 
-        <main class="flex-1 overflow-y-auto bg-slate-50/50 px-6 py-8 dark:bg-dark-950 md:px-10">
-          <div v-if="!sourceItem" class="rounded-3xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-dark-700 dark:text-slate-400">
+        <main class="flex-1 overflow-y-auto bg-slate-50/50 px-4 py-5 dark:bg-dark-950 sm:px-6 md:px-8 2xl:px-10 2xl:py-7">
+          <div v-if="!sourceItem" class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-dark-700 dark:text-slate-400">
             {{ t('ui.modelCatalog.detail.loading') }}
           </div>
           <PublicModelDetailOverview

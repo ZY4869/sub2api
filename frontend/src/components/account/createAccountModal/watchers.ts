@@ -88,6 +88,7 @@ export function useCreateAccountModalWatchers(ctx: any) {
     openaiOAuth,
     openaiOAuthResponsesWebSocketV2Mode,
     openaiPassthroughEnabled,
+    openaiAlphaSearchEnabled,
     props,
     protocolGatewayProbeModels,
     resetOAuthInputDraft,
@@ -305,6 +306,7 @@ watch(
     }
     if (effectivePlatform.value !== 'openai') {
       openaiPassthroughEnabled.value = false
+      openaiAlphaSearchEnabled.value = true
       openAIImageProtocolMode.value = 'native'
       openAIImageCompatAllowed.value = true
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -350,6 +352,7 @@ watch(
     gatewayBatchEnabled.value = false
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
+      openaiAlphaSearchEnabled.value = true
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false

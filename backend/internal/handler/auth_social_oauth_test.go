@@ -565,6 +565,46 @@ func TestCompleteSocialOAuthRegistration_PendingInvitationSuccess(t *testing.T) 
 	require.True(t, repo.items[0].EmailVerified)
 }
 
+func TestCompleteSocialOAuthRegistration_ExistingEmailCannotAdoptIdentity(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, _, _, repo, _, userRepo := newSocialOAuthTestHandlerWithAttributes(t, map[string]string{
+		service.SettingKeyRegistrationEnabled:   "true",
+		service.SettingKeyInvitationCodeEnabled: "true",
+	})
+	require.NoError(t, userRepo.Create(context.Background(), &service.User{
+		ID:       77,
+		Email:    "victim@example.com",
+		Username: "victim",
+		Role:     service.RoleUser,
+		Status:   service.StatusActive,
+	}))
+
+	pendingToken := createPendingOAuthTokenForTest(t, "social-oauth-handler-test-secret", map[string]any{
+		"email":            "victim@example.com",
+		"username":         "attacker",
+		"provider":         service.AuthProviderGitHub,
+		"provider_user_id": "gh-attacker-1",
+		"email_verified":   true,
+	})
+
+	body := bytes.NewBufferString(`{"pending_oauth_token":"` + pendingToken + `","invitation_code":"INVITE-CODE"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/github/complete", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	c.Params = gin.Params{{Key: "provider", Value: "github"}}
+
+	handler.CompleteSocialOAuthRegistration(c)
+
+	require.Equal(t, http.StatusConflict, rec.Code)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	require.Equal(t, "AUTH_IDENTITY_EMAIL_CONFLICT", payload["reason"])
+	require.Empty(t, repo.items, "an existing local account must not receive the pending OAuth identity")
+}
+
 func TestSocialOAuthCallback_RedirectsPendingInvitationFragment(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

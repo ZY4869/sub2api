@@ -1,6 +1,6 @@
 <template>
-  <div class="rounded-3xl border border-slate-800 bg-slate-900 shadow-xl">
-    <div class="flex flex-col gap-3 border-b border-slate-800 px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="min-w-0 rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
+    <div class="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between 2xl:px-6">
       <div class="hidden items-center gap-2 sm:flex">
         <span class="h-3 w-3 rounded-full bg-rose-500"></span>
         <span class="h-3 w-3 rounded-full bg-amber-500"></span>
@@ -19,13 +19,13 @@
       </select>
     </div>
 
-    <div v-if="loading" class="p-6 text-sm text-slate-300">
+    <div v-if="loading" class="p-4 text-sm text-slate-300 2xl:p-6">
       {{ labels.loading }}
     </div>
-    <div v-else-if="errorMessage" class="m-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+    <div v-else-if="errorMessage" class="m-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-100 2xl:m-6">
       {{ errorMessage }}
     </div>
-    <div v-else-if="exampleGroup" class="p-6">
+    <div v-else-if="exampleGroup" class="min-w-0 p-4 2xl:p-6">
       <div class="mb-4 flex flex-wrap gap-2 text-xs">
         <span class="rounded-full bg-slate-800 px-2.5 py-1 text-slate-200">
           {{ protocol || 'openai' }}
@@ -34,12 +34,12 @@
           {{ exampleSource === 'docs_section' ? labels.exampleSourceDocs : labels.exampleSourceOverride }}
         </span>
       </div>
-      <div class="mb-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs text-indigo-100">
+      <div class="mb-4 rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-4 py-3 text-xs text-indigo-100">
         {{ keyHint }}
       </div>
       <DocsCodeTabs :group="exampleGroup" :theme="docsTheme" />
     </div>
-    <div v-else class="p-6 text-sm text-slate-300">
+    <div v-else class="p-4 text-sm text-slate-300 2xl:p-6">
       {{ labels.exampleUnavailable }}
     </div>
   </div>

@@ -5,6 +5,8 @@ export default {
         apiKeyHint: "Your OpenAI API Key",
         oauthPassthrough: "Auto passthrough (auth only)",
         oauthPassthroughDesc: "When enabled, this OpenAI account uses automatic passthrough: the gateway forwards request/response as-is and only swaps auth, while keeping billing/concurrency/audit and necessary safety filtering.",
+        alphaSearch: "Codex alpha/search web.run",
+        alphaSearchDesc: "Allow this OpenAI OAuth/API Key account to serve native Codex web.run searches.",
         responsesWebsocketsV2: "Responses WebSocket v2",
         responsesWebsocketsV2Desc: "Disabled by default. Enable to allow responses_websockets_v2 capability (still gated by global and account-type switches).",
         wsMode: "WS mode",

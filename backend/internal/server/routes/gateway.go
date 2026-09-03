@@ -361,6 +361,7 @@ func RegisterGatewayRoutes(
 	{
 		codexBackend.POST("/responses/compact", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
 		codexBackend.POST("/responses/compact/*subpath", audit(securityaudit.ProtocolOpenAIResponses), dispatchers.OpenAIResponses)
+		codexBackend.POST("/alpha/search", openAIOnlyAudit(promptAudit, securityaudit.ProtocolOpenAIAlphaSearch, service.EndpointAlphaSearch), dispatchers.OpenAIAlphaSearch)
 		codexBackend.GET("/realtime/calls", dispatchers.OpenAILive)
 		codexBackend.POST("/realtime/calls", dispatchers.OpenAILive)
 	}

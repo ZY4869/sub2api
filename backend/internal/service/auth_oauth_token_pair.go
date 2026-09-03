@@ -16,6 +16,17 @@ import (
 // 与 LoginOrRegisterOAuth 功能相同，但返回 TokenPair 而非单个 token。
 // invitationCode 仅在邀请码注册模式下新用户注册时使用；已有账号登录时忽略。
 func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode, affCode string) (*TokenPair, *User, error) {
+	return s.loginOrRegisterOAuthWithTokenPair(ctx, email, username, invitationCode, affCode, true)
+}
+
+// RegisterOAuthWithTokenPair is the registration-only variant used by a
+// pending OAuth completion flow. Existing accounts must never be adopted by
+// this path because the caller has not proved ownership of the local account.
+func (s *AuthService) RegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode, affCode string) (*TokenPair, *User, error) {
+	return s.loginOrRegisterOAuthWithTokenPair(ctx, email, username, invitationCode, affCode, false)
+}
+
+func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode, affCode string, allowExisting bool) (*TokenPair, *User, error) {
 	// 检查 refreshTokenCache 是否可用
 	if s.refreshTokenCache == nil {
 		return nil, nil, errors.New("refresh token cache not configured")
@@ -104,6 +115,9 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 
 				if createErr := s.userRepo.Create(txCtx, newUser); createErr != nil {
 					if errors.Is(createErr, ErrEmailExists) {
+						if !allowExisting {
+							return nil, nil, ErrAuthIdentityEmailConflict
+						}
 						conflictUser, lookupErr := s.userRepo.GetByEmail(ctx, email)
 						if lookupErr != nil {
 							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after oauth create conflict: create_err=%v lookup_err=%v", createErr, lookupErr)
@@ -129,6 +143,9 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			} else {
 				if createErr := s.userRepo.Create(ctx, newUser); createErr != nil {
 					if errors.Is(createErr, ErrEmailExists) {
+						if !allowExisting {
+							return nil, nil, ErrAuthIdentityEmailConflict
+						}
 						conflictUser, lookupErr := s.userRepo.GetByEmail(ctx, email)
 						if lookupErr != nil {
 							logger.LegacyPrintf("service.auth", "[Auth] Database error getting user after oauth create conflict: create_err=%v lookup_err=%v", createErr, lookupErr)
@@ -154,6 +171,8 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			logger.LegacyPrintf("service.auth", "[Auth] Database error during oauth login: %v", err)
 			return nil, nil, ErrServiceUnavailable
 		}
+	} else if !allowExisting {
+		return nil, nil, ErrAuthIdentityEmailConflict
 	}
 
 	if !user.IsActive() {

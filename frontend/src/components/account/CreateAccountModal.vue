@@ -493,6 +493,8 @@
       <AccountGatewaySettingsEditor
         :show-open-ai-passthrough="effectivePlatform === 'openai'"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
+        :show-open-ai-alpha-search="effectivePlatform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
+        :open-ai-alpha-search-enabled="openaiAlphaSearchEnabled"
         :show-open-ai-image-protocol-mode="form.platform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         :open-ai-image-protocol-mode="openAIImageProtocolMode"
         :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
@@ -510,6 +512,7 @@
         :show-codex-image-tool-policy="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
         :codex-image-tool-policy="codexImageToolPolicy"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
+        @update:open-ai-alpha-search-enabled="openaiAlphaSearchEnabled = $event"
         @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
@@ -704,6 +707,7 @@ const {
   autoRenewPeriod,
   expiryProbeExtensionDays,
   openaiPassthroughEnabled,
+  openaiAlphaSearchEnabled,
   openAIImageProtocolMode,
   openAIImageCompatAllowed,
   codexCLIOnlyEnabled,

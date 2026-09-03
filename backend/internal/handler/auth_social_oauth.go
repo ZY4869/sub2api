@@ -325,7 +325,11 @@ func (h *AuthHandler) CompleteSocialOAuthRegistration(c *gin.Context) {
 		affCode = candidate
 	}
 
-	tokenPair, user, err := h.authService.LoginOrRegisterOAuthWithTokenPair(
+	// This endpoint completes a pending registration, not an authenticated
+	// account-binding flow. The registration-only method rejects both an
+	// already-existing email and a concurrent create conflict, preventing a
+	// third-party identity from being attached to another user's account.
+	tokenPair, user, err := h.authService.RegisterOAuthWithTokenPair(
 		c.Request.Context(),
 		strings.TrimSpace(claims.Email),
 		strings.TrimSpace(claims.Username),

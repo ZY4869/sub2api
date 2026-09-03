@@ -1,13 +1,28 @@
 package proxyutil
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type blockingProxyDialer struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (d *blockingProxyDialer) Dial(string, string) (net.Conn, error) {
+	close(d.started)
+	<-d.release
+	return nil, errors.New("released")
+}
 
 func TestConfigureTransportProxy_Nil(t *testing.T) {
 	transport := &http.Transport{}
@@ -201,4 +216,15 @@ func TestConfigureTransportProxy_SpecialCharsInPassword(t *testing.T) {
 			assert.NotNil(t, transport.DialContext, "SOCKS5 should set DialContext")
 		})
 	}
+}
+
+func TestDialWithContextDeadline_CancelsNonContextDialer(t *testing.T) {
+	dialer := &blockingProxyDialer{started: make(chan struct{}), release: make(chan struct{})}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	_, err := dialWithContextDeadline(ctx, dialer, "tcp", "example.com:443")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	<-dialer.started
+	close(dialer.release)
 }

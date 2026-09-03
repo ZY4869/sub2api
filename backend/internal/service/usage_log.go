@@ -170,6 +170,11 @@ type UsageLog struct {
 	// UpstreamModel is the actual model sent to the upstream provider after mapping.
 	// Nil means no mapping was applied (requested model was used as-is).
 	UpstreamModel *string
+	// UpstreamResponseModel is the model declared by the upstream response.
+	// It is diagnostic data and never expands the public model policy.
+	UpstreamResponseModel *string
+	// UpstreamModelMismatch is nil when no response model was observed.
+	UpstreamModelMismatch *bool
 	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
 	ServiceTier *string
 	// ReasoningEffort is the request's reasoning effort level.

@@ -1,9 +1,9 @@
 <template>
-  <div class="mx-auto flex max-w-[900px] flex-col gap-8 pb-10">
-    <div class="grid gap-6 md:grid-cols-3">
-      <div class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:border-dark-700 dark:bg-dark-900">
+  <div class="mx-auto flex max-w-[960px] flex-col gap-5 pb-8">
+    <div class="grid gap-3 md:grid-cols-3">
+      <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">{{ labels.status }}</div>
-        <div class="text-[32px] font-black leading-none tracking-tight" :class="statusClass">
+        <div class="truncate text-2xl font-black leading-none 2xl:text-[32px]" :class="statusClass">
           {{ statusLabel }}
         </div>
         <div class="mt-2 text-xs text-slate-400">{{ lastChecked }}</div>
@@ -11,15 +11,15 @@
           {{ sourceLabel }}
         </div>
       </div>
-      <div class="rounded-3xl border border-slate-200/60 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.02)] dark:border-dark-700 dark:bg-dark-900">
+      <div class="min-w-0 rounded-lg border border-slate-200/60 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-5">
         <div class="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">{{ labels.latency }}</div>
-        <div class="text-[32px] font-black leading-none tracking-tight text-slate-800 dark:text-white">
+        <div class="truncate text-2xl font-black leading-none text-slate-800 dark:text-white 2xl:text-[32px]">
           {{ hasMetrics ? formatLatency(health?.latency_ms) : '-' }}
         </div>
       </div>
-      <div class="relative overflow-hidden rounded-3xl border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-teal-50/30 p-6 shadow-[0_2px_12px_rgba(16,185,129,0.04)] dark:border-emerald-500/30 dark:from-emerald-500/10 dark:to-teal-500/10">
+      <div class="relative min-w-0 overflow-hidden rounded-lg border border-emerald-200/60 bg-emerald-50 p-4 shadow-sm dark:border-emerald-500/30 dark:bg-emerald-500/10 2xl:p-5">
         <div class="relative z-10 mb-2 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-200">{{ labels.todaySuccess }}</div>
-        <div class="relative z-10 text-[32px] font-black leading-none tracking-tight text-emerald-600 dark:text-emerald-300">
+        <div class="relative z-10 truncate text-2xl font-black leading-none text-emerald-600 dark:text-emerald-300 2xl:text-[32px]">
           {{ hasMetrics ? formatRate(health?.success_rate_today) : '-' }}
         </div>
       </div>
@@ -27,13 +27,13 @@
 
     <div
       v-if="!hasMetrics"
-      class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-5 text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-300"
+      class="rounded-lg border border-dashed border-slate-300 bg-white/80 px-5 py-5 text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-300"
     >
       {{ reasonLabel }}
     </div>
 
-    <section v-if="hasMetrics" class="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:border-dark-700 dark:bg-dark-900">
-      <div class="flex items-center justify-between border-b border-slate-100/80 bg-slate-50/30 p-6 dark:border-dark-700 dark:bg-dark-800/40">
+    <section v-if="hasMetrics" class="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-900">
+      <div class="flex items-center justify-between border-b border-slate-100/80 bg-slate-50/30 p-4 dark:border-dark-700 dark:bg-dark-800/40 2xl:p-5">
         <div>
           <h3 class="text-[15px] font-extrabold text-slate-800 dark:text-white">{{ labels.dailyMatrix }}</h3>
           <p class="mt-1 text-[11px] font-medium text-slate-400">{{ dailyMatrixCaption }}</p>
@@ -43,28 +43,28 @@
         <div
           v-for="day in daily"
           :key="day.date"
-          class="grid grid-cols-12 items-center gap-4 px-6 py-4 transition-colors hover:bg-slate-50/50 dark:hover:bg-dark-800/50"
+          class="grid grid-cols-1 gap-2 px-4 py-4 transition-colors hover:bg-slate-50/50 dark:hover:bg-dark-800/50 sm:grid-cols-12 sm:items-center sm:gap-3 2xl:px-5"
         >
-          <div class="col-span-4 text-[13px] font-bold text-slate-700 dark:text-slate-200">{{ day.date || '-' }}</div>
-          <div class="col-span-3">
+          <div class="min-w-0 text-[13px] font-bold text-slate-700 dark:text-slate-200 sm:col-span-4">{{ day.date || '-' }}</div>
+          <div class="sm:col-span-3">
             <span class="rounded-md border px-2 py-1 text-[11px] font-bold" :class="badgeClass(day.status)">
               {{ labelForStatus(day.status) }}
             </span>
           </div>
-          <div class="col-span-3 flex items-center gap-3">
+          <div class="flex items-center gap-3 sm:col-span-3">
             <PublicModelSuccessBars :rate="day.success_rate" :label="labels.successRate" />
             <span class="font-mono text-xs font-bold" :class="rateColor(day.success_rate)">
               {{ formatRate(day.success_rate) }}
             </span>
           </div>
-          <div class="col-span-2 text-right font-mono text-xs font-medium text-slate-500">
+          <div class="font-mono text-xs font-medium text-slate-500 sm:col-span-2 sm:text-right">
             {{ formatLatency(day.latency_ms) }}
           </div>
         </div>
       </div>
     </section>
 
-    <section v-if="hasMetrics" class="rounded-3xl border border-slate-200/80 bg-white p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] dark:border-dark-700 dark:bg-dark-900">
+    <section v-if="hasMetrics" class="rounded-lg border border-slate-200/80 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900 2xl:p-6">
       <div class="mb-6 flex items-center justify-between">
         <div>
           <h3 class="text-[15px] font-extrabold text-slate-800 dark:text-white">{{ labels.successTrend }}</h3>

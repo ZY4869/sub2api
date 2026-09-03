@@ -16,9 +16,12 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/net/proxy"
 )
+
+const fallbackProxyDialTimeout = 10 * time.Second
 
 // ConfigureTransportProxy 根据代理 URL 配置 Transport
 //
@@ -72,10 +75,8 @@ func configureTransportProxy(transport *http.Transport, proxyURL *url.URL, forwa
 		if contextDialer, ok := dialer.(proxy.ContextDialer); ok {
 			transport.DialContext = contextDialer.DialContext
 		} else {
-			// 回退路径：如果 dialer 不支持 ContextDialer，则包装为简单的 DialContext
-			// 注意：此回退不支持请求取消和超时控制
-			transport.DialContext = func(_ context.Context, network, addr string) (net.Conn, error) {
-				return dialer.Dial(network, addr)
+			transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return dialWithContextDeadline(ctx, dialer, network, addr)
 			}
 		}
 		return nil
@@ -89,7 +90,41 @@ func dialContextFromProxyDialer(dialer proxy.Dialer) func(context.Context, strin
 	if contextDialer, ok := dialer.(proxy.ContextDialer); ok {
 		return contextDialer.DialContext
 	}
-	return func(_ context.Context, network, addr string) (net.Conn, error) {
-		return dialer.Dial(network, addr)
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialWithContextDeadline(ctx, dialer, network, addr)
+	}
+}
+
+func dialWithContextDeadline(ctx context.Context, dialer proxy.Dialer, network, addr string) (net.Conn, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, fallbackProxyDialTimeout)
+		defer cancel()
+	}
+
+	type result struct {
+		conn net.Conn
+		err  error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		conn, err := dialer.Dial(network, addr)
+		select {
+		case resultCh <- result{conn: conn, err: err}:
+		case <-ctx.Done():
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	select {
+	case result := <-resultCh:
+		return result.conn, result.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }

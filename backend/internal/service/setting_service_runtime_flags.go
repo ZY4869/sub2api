@@ -102,6 +102,24 @@ func (s *SettingService) IsModelFallbackEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsOpenAIAlphaSearchEnabled is compatible with legacy installations: a
+// missing key means enabled, while only an explicit false disables the
+// endpoint. Repository failures are returned so callers do not silently
+// expose a partially configured gateway.
+func (s *SettingService) IsOpenAIAlphaSearchEnabled(ctx context.Context) (bool, error) {
+	if s == nil || s.settingRepo == nil {
+		return true, nil
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyOpenAIAlphaSearchEnabled)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			return true, nil
+		}
+		return false, fmt.Errorf("get %s: %w", SettingKeyOpenAIAlphaSearchEnabled, err)
+	}
+	return !isFalseSettingValue(value), nil
+}
+
 func (s *SettingService) GetFallbackModel(ctx context.Context, platform string) string {
 	var key string
 	var defaultModel string

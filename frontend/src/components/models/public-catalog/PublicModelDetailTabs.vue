@@ -1,10 +1,10 @@
 <template>
-  <nav class="flex gap-8 border-b border-slate-200/80 bg-white px-6 dark:border-dark-700 dark:bg-dark-900 md:px-10">
+  <nav class="flex gap-2 overflow-x-auto border-b border-slate-200/80 bg-white px-4 dark:border-dark-700 dark:bg-dark-900 sm:gap-6 sm:px-6 md:px-8 2xl:px-10">
     <button
       v-for="tab in tabs"
       :key="tab.id"
       type="button"
-      class="relative flex items-center gap-2 pb-4 text-[15px] font-bold transition-all"
+      class="relative flex min-h-11 shrink-0 items-center gap-2 px-1 pb-3 text-sm font-bold transition-all sm:text-[15px]"
       :class="modelValue === tab.id ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100'"
       :data-testid="`public-model-detail-tab-${tab.id}`"
       @click="emit('update:modelValue', tab.id)"

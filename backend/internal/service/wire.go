@@ -887,8 +887,9 @@ func ProvideBackupService(
 	encryptor SecretEncryptor,
 	storeFactory BackupObjectStoreFactory,
 	dumper DBDumper,
+	leaderGate PeriodicJobLeaderGate,
 ) *BackupService {
-	svc := NewBackupService(settingRepo, cfg, encryptor, storeFactory, dumper)
+	svc := NewBackupService(settingRepo, cfg, encryptor, storeFactory, dumper, leaderGate)
 	svc.Start()
 	return svc
 }
