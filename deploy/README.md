@@ -6,7 +6,7 @@ This directory contains files for deploying Sub2API on Linux servers.
 
 ## Source Build Toolchain
 
-Builds from repository source use Node.js 24, pnpm 10.31.0, and Go 1.26.5. Docker builds use the Go 1.26 Alpine image with `GOTOOLCHAIN=auto`, so `backend/go.mod` still resolves the exact Go 1.26.5 toolchain while keeping image pulls compatible with available Docker tags.
+Builds from repository source use Node.js 24, pnpm 10.31.0, and Go 1.26.6. Docker builds use the Go 1.26 Alpine image with `GOTOOLCHAIN=auto`, so `backend/go.mod` still resolves the exact Go 1.26.6 toolchain while keeping image pulls compatible with available Docker tags.
 
 | Method | Best For | Setup Wizard |
 |--------|----------|--------------|
