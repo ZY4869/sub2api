@@ -1,6 +1,10 @@
 package service
 
-import "github.com/Wei-Shaw/sub2api/internal/config"
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
+)
 
 // OpenAIUpstreamTransport 表示 OpenAI 上游传输协议。
 type OpenAIUpstreamTransport string
@@ -125,4 +129,20 @@ func openAIWSHTTPDecision(reason string) OpenAIWSProtocolDecision {
 		Transport: OpenAIUpstreamTransportHTTPSSE,
 		Reason:    reason,
 	}
+}
+
+func openAIAccountTransportCompatible(resolver OpenAIWSProtocolResolver, account *Account, requiredTransport OpenAIUpstreamTransport) bool {
+	if requiredTransport == OpenAIUpstreamTransportAny || requiredTransport == OpenAIUpstreamTransportHTTPSSE {
+		return true
+	}
+	if resolver == nil || account == nil {
+		return false
+	}
+	decision := resolver.Resolve(account)
+	if decision.Transport == requiredTransport {
+		return true
+	}
+	return requiredTransport == OpenAIUpstreamTransportResponsesWebsocketV2 &&
+		decision.Transport == OpenAIUpstreamTransportHTTPSSE &&
+		strings.TrimSpace(decision.Reason) == "ws_v2_mode_http_bridge"
 }

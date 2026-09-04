@@ -137,7 +137,7 @@ func (s *OpenAIGatewayService) SelectGroupForOpenAIEndpointCapability(
 	// composite route for this capability endpoint.
 	ctx = context.WithValue(ctx, ctxkey.Model, requestedModel)
 	candidates := candidateGroupBindingsForAllowedPlatformsWithOptions(
-		ctx, apiKey, allowedPlatforms, requestedModel, excludedGroupIDs, true,
+		ctx, apiKey, allowedPlatforms, requestedModel, excludedGroupIDs, true, true,
 	)
 	if len(candidates) == 0 {
 		return nil, ErrNoAvailableGroup
@@ -164,6 +164,72 @@ func (s *OpenAIGatewayService) SelectGroupForOpenAIEndpointCapability(
 		return nil, ErrAPIKeyGroupQuotaExceeded
 	}
 	return nil, ErrNoAvailableGroup
+}
+
+// SelectGroupForOpenAITransportCapability selects a group only when at least
+// one account can satisfy both the requested model and the required upstream
+// transport/capability. Unlike endpoint capabilities such as alpha/search,
+// Responses WebSocket requests retain normal model binding and account model
+// policy checks.
+func (s *OpenAIGatewayService) SelectGroupForOpenAITransportCapability(
+	ctx context.Context,
+	apiKey *APIKey,
+	allowedPlatforms []string,
+	requestedModel string,
+	requiredTransport OpenAIUpstreamTransport,
+	requiredCapability OpenAIEndpointCapability,
+	excludedGroupIDs map[int64]struct{},
+) (*APIKeyGroupBinding, error) {
+	if s == nil || apiKey == nil {
+		return nil, ErrNoAvailableGroup
+	}
+	requestedModel = strings.TrimSpace(requestedModel)
+	ctx = context.WithValue(ctx, ctxkey.Model, requestedModel)
+	candidates := candidateGroupBindingsForAllowedPlatformsWithOptions(
+		ctx, apiKey, allowedPlatforms, requestedModel, excludedGroupIDs, false, true,
+	)
+	if len(candidates) == 0 {
+		return nil, ErrNoAvailableGroup
+	}
+
+	allQuotaExhausted := true
+	for _, candidate := range candidates {
+		if candidate.binding.IsQuotaExhausted() {
+			continue
+		}
+		allQuotaExhausted = false
+		checkCtx := contextWithCandidateRequestPlatform(ctx, candidate.requestPlatform)
+		available, err := s.groupBindingHasSchedulableAccountsForTransport(
+			checkCtx, &candidate.binding, requestedModel, requiredTransport, requiredCapability,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if available {
+			selected := candidate.binding
+			return &selected, nil
+		}
+	}
+	if allQuotaExhausted {
+		return nil, ErrAPIKeyGroupQuotaExceeded
+	}
+	return nil, ErrNoAvailableGroup
+}
+
+// GroupSupportsOpenAITransportCapability reports whether a binding currently
+// has at least one schedulable account for the requested model, transport and
+// endpoint capability. It is intentionally read-only and is used by pinned
+// public-catalog routing before allowing a pinned account to bypass selection.
+func (s *OpenAIGatewayService) GroupSupportsOpenAITransportCapability(
+	ctx context.Context,
+	binding *APIKeyGroupBinding,
+	requestedModel string,
+	requiredTransport OpenAIUpstreamTransport,
+	requiredCapability OpenAIEndpointCapability,
+) (bool, error) {
+	return s.groupBindingHasSchedulableAccountsForTransport(
+		ctx, binding, strings.TrimSpace(requestedModel), requiredTransport, requiredCapability,
+	)
 }
 
 func selectGroupBindingForAllowedPlatforms(
@@ -216,10 +282,10 @@ func candidateGroupBindingsForRequest(ctx context.Context, apiKey *APIKey, platf
 }
 
 func candidateGroupBindingsForAllowedPlatforms(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}) []candidateBinding {
-	return candidateGroupBindingsForAllowedPlatformsWithOptions(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, false)
+	return candidateGroupBindingsForAllowedPlatformsWithOptions(ctx, apiKey, allowedPlatforms, model, excludedGroupIDs, false, false)
 }
 
-func candidateGroupBindingsForAllowedPlatformsWithOptions(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}, ignoreDirectOpenAIModelFilters bool) []candidateBinding {
+func candidateGroupBindingsForAllowedPlatformsWithOptions(ctx context.Context, apiKey *APIKey, allowedPlatforms []string, model string, excludedGroupIDs map[int64]struct{}, ignoreDirectOpenAIModelFilters bool, ignoreCompositeModelFilters bool) []candidateBinding {
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
 		return nil
@@ -262,12 +328,12 @@ func candidateGroupBindingsForAllowedPlatformsWithOptions(ctx context.Context, a
 		}
 
 		canonicalPlatform := CanonicalizePlatformValue(group.Platform)
-		isOpenAIProtocolBinding := ignoreDirectOpenAIModelFilters &&
-			(canonicalPlatform == PlatformOpenAI || canonicalPlatform == PlatformComposite ||
-				CanonicalizePlatformValue(requestPlatform) == PlatformOpenAI)
+		isOpenAIProtocolBinding := (ignoreDirectOpenAIModelFilters &&
+			(canonicalPlatform == PlatformOpenAI || CanonicalizePlatformValue(requestPlatform) == PlatformOpenAI)) ||
+			(ignoreCompositeModelFilters && canonicalPlatform == PlatformComposite)
 		if isOpenAIProtocolBinding {
-			// alpha/search is a protocol capability, not a model binding. Composite
-			// groups still need the request model solely to resolve their route.
+			// Protocol-capability selection bypasses direct model visibility filters;
+			// composite groups still use the request model solely to resolve a route.
 			if canonicalPlatform == PlatformComposite && strings.TrimSpace(model) == "" {
 				continue
 			}
@@ -621,6 +687,83 @@ func (s *OpenAIGatewayService) openAIGroupHasSchedulableCapability(ctx context.C
 			continue
 		}
 		if !SupportsOpenAIEndpointCapability(account, capability) {
+			continue
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func (s *OpenAIGatewayService) groupBindingHasSchedulableAccountsForTransport(
+	ctx context.Context,
+	binding *APIKeyGroupBinding,
+	requestedModel string,
+	requiredTransport OpenAIUpstreamTransport,
+	requiredCapability OpenAIEndpointCapability,
+) (bool, error) {
+	if s == nil || binding == nil || binding.Group == nil {
+		return false, nil
+	}
+	group := binding.Group
+	if CanonicalizePlatformValue(group.Platform) == PlatformComposite {
+		requestedModel = strings.TrimSpace(requestedModel)
+		if requestedModel == "" || s.groupRepo == nil {
+			return false, nil
+		}
+		route, err := s.groupRepo.FindCompositeRoute(ctx, group.ID, requestedModel)
+		if err != nil {
+			return false, err
+		}
+		if route == nil || route.TargetGroupID <= 0 {
+			return false, nil
+		}
+		targetGroup := route.TargetGroup
+		if targetGroup == nil || targetGroup.ID <= 0 || !targetGroup.Hydrated {
+			targetGroup, err = s.groupRepo.GetByIDLite(ctx, route.TargetGroupID)
+			if err != nil {
+				return false, err
+			}
+		}
+		if targetGroup == nil || CanonicalizePlatformValue(targetGroup.Platform) != PlatformOpenAI {
+			return false, nil
+		}
+		targetModel := strings.TrimSpace(route.TargetModelID)
+		if targetModel == "" {
+			targetModel = requestedModel
+		}
+		transportCtx := WithOpenAIPlatform(context.WithValue(ctx, ctxkey.Model, targetModel), targetGroup.Platform)
+		return s.groupBindingHasSchedulableAccountsForTransport(
+			transportCtx,
+			&APIKeyGroupBinding{APIKeyID: binding.APIKeyID, GroupID: targetGroup.ID, Group: targetGroup},
+			targetModel, requiredTransport, requiredCapability,
+		)
+	}
+	if CanonicalizePlatformValue(group.Platform) != PlatformOpenAI {
+		return false, nil
+	}
+	ctx = WithOpenAIPlatform(ctx, group.Platform)
+	accounts, err := s.listSchedulableAccounts(ctx, &binding.GroupID)
+	if err != nil {
+		return false, err
+	}
+	for i := range accounts {
+		account := &accounts[i]
+		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
+			continue
+		}
+		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
+			continue
+		}
+		if !account.IsSchedulableForModelWithContext(ctx, requestedModel) {
+			continue
+		}
+		if CanParticipateInAccountQuota(account) && account.IsQuotaExceeded() {
+			continue
+		}
+		if requiredCapability != "" && !SupportsOpenAIEndpointCapability(account, requiredCapability) {
+			continue
+		}
+		if !openAIAccountTransportCompatible(s.getOpenAIWSProtocolResolver(), account, requiredTransport) {
 			continue
 		}
 		return true, nil

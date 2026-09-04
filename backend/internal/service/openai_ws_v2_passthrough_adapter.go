@@ -253,6 +253,12 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		Duration:        relayResult.Duration,
 		FirstTokenMs:    relayResult.FirstTokenMs,
 	}
+	logOpenAIWSV2Passthrough(
+		"relay_timing account_id=%d timing_events=%d engine_families=%s",
+		account.ID,
+		relayResult.TimingEventCount,
+		strings.Join(relayResult.EngineFamilies, ","),
+	)
 
 	turnCount := int(completedTurns.Load())
 	if relayExit == nil {

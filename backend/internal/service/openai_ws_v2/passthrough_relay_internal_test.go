@@ -434,6 +434,21 @@ func TestRelayTurnTimingHelpersCoverage(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestObserveUpstreamMessage_TimingEventIsForwardedAndClassified(t *testing.T) {
+	t.Parallel()
+	state := &relayState{requestModel: "gpt-5.6-sol"}
+	now := time.Unix(0, 0)
+	message := []byte(`{"type":"responsesapi.websocket_timing","timing_metrics":{"engine_ids":["gpt56sol-codex-secret-a","gpt56lun-codex-secret-b","other-engine-secret"]}}`)
+	observed := observeUpstreamMessage(state, message, now, func() time.Time { return now }, nil)
+	require.False(t, observed.terminal)
+	require.Equal(t, "responsesapi.websocket_timing", observed.eventType)
+	require.Equal(t, 1, state.timingEventCount)
+	require.Equal(t, map[string]struct{}{"sol": {}, "luna": {}, "other": {}}, state.engineFamilies)
+	require.Equal(t, "sol", classifyEngineFamily("gpt56sol-codex-secret-a"))
+	require.Equal(t, "luna", classifyEngineFamily("gpt56lun-codex-secret-b"))
+	require.Equal(t, "other", classifyEngineFamily("internal-secret"))
+}
+
 func TestObserveUpstreamMessage_ResponseIDFallbackPolicy(t *testing.T) {
 	t.Parallel()
 

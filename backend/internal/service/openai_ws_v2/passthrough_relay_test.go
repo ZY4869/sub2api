@@ -488,6 +488,28 @@ func TestRelay_MultipleUpstreamMessages(t *testing.T) {
 	require.Len(t, clientWrites, 3)
 }
 
+func TestRelay_TimingEventIsForwardedUnchangedAndClassified(t *testing.T) {
+	t.Parallel()
+
+	clientConn := newPassthroughTestFrameConn(nil, false)
+	timingEvent := []byte(`{"type":"responsesapi.websocket_timing","timing_metrics":{"engine_ids":["gpt56sol-codex-secret-a","gpt56lun-codex-secret-b"]}}`)
+	upstreamConn := newPassthroughTestFrameConn([]passthroughTestFrame{
+		{msgType: coderws.MessageText, payload: timingEvent},
+		{msgType: coderws.MessageText, payload: []byte(`{"type":"response.completed","response":{"id":"resp_timing_forward","usage":{"input_tokens":1,"output_tokens":1}}}`)},
+	}, true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	result, relayExit := Relay(ctx, clientConn, upstreamConn, []byte(`{"type":"response.create","model":"gpt-5.6-sol","input":[]}`), RelayOptions{})
+	require.Nil(t, relayExit)
+	require.Equal(t, 1, result.TimingEventCount)
+	require.ElementsMatch(t, []string{"sol", "luna"}, result.EngineFamilies)
+
+	clientWrites := clientConn.Writes()
+	require.Len(t, clientWrites, 2)
+	require.Equal(t, timingEvent, clientWrites[0].payload, "timing event must be relayed byte-for-byte")
+}
+
 func TestRelay_OnTurnComplete_PerTerminalEvent(t *testing.T) {
 	t.Parallel()
 

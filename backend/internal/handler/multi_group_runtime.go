@@ -293,6 +293,105 @@ func resolveSelectedOpenAIEndpointCapability(
 	return selectedAPIKey, selectedSubscription, nil
 }
 
+// resolveSelectedOpenAITransportCapability selects a binding that has a
+// schedulable account supporting both the requested model and transport. It
+// is used by Responses WebSocket ingress so group selection cannot stop at a
+// group whose accounts are HTTP-only or otherwise incompatible.
+func resolveSelectedOpenAITransportCapability(
+	c *gin.Context,
+	settingService *service.SettingService,
+	gatewayService *service.OpenAIGatewayService,
+	billingCacheService *service.BillingCacheService,
+	apiKey *service.APIKey,
+	subscription *service.UserSubscription,
+	requestedModel string,
+	requiredTransport service.OpenAIUpstreamTransport,
+	requiredCapability service.OpenAIEndpointCapability,
+	excludedGroupIDs map[int64]struct{},
+) (*service.APIKey, *service.UserSubscription, error) {
+	if apiKey == nil {
+		return nil, nil, service.ErrNoAvailableGroup
+	}
+	if selectedAPIKey, handled, err := enforcePublicCatalogBindingGroup(c.Request.Context(), apiKey, excludedGroupIDs); handled {
+		if err != nil {
+			return nil, nil, err
+		}
+		if gatewayService == nil || selectedAPIKey.SelectedGroupBinding == nil {
+			return nil, nil, service.ErrNoAvailableGroup
+		}
+		available, checkErr := gatewayService.GroupSupportsOpenAITransportCapability(
+			c.Request.Context(), selectedAPIKey.SelectedGroupBinding, requestedModel, requiredTransport, requiredCapability,
+		)
+		if checkErr != nil {
+			return nil, nil, checkErr
+		}
+		if available {
+			selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+			if err != nil {
+				return nil, nil, err
+			}
+			if billingCacheService != nil {
+				if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+					return nil, nil, err
+				}
+			}
+			propagateSelectedBillingHold(apiKey, selectedAPIKey)
+			applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+			return selectedAPIKey, selectedSubscription, nil
+		}
+		if excludedGroupIDs != nil {
+			excludedGroupIDs[selectedAPIKey.SelectedGroupBinding.GroupID] = struct{}{}
+		}
+	}
+	if gatewayService == nil {
+		return nil, nil, service.ErrNoAvailableGroup
+	}
+	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
+		if isGroupExcluded(apiKey, excludedGroupIDs) {
+			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
+		bindings := service.APIKeyBindingsForSelection(apiKey)
+		if len(bindings) == 0 {
+			return nil, nil, service.ErrNoAvailableGroup
+		}
+		available, err := gatewayService.GroupSupportsOpenAITransportCapability(
+			c.Request.Context(), &bindings[0], requestedModel, requiredTransport, requiredCapability,
+		)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !available {
+			return nil, nil, service.ErrNoAvailableGroup
+		}
+		if billingCacheService != nil {
+			if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
+				return nil, nil, err
+			}
+		}
+		return apiKey, subscription, nil
+	}
+	binding, err := gatewayService.SelectGroupForOpenAITransportCapability(
+		c.Request.Context(), apiKey, openAICompatiblePlatforms, requestedModel,
+		requiredTransport, requiredCapability, excludedGroupIDs,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	selectedAPIKey := service.CloneAPIKeyWithSelectedGroup(apiKey, binding)
+	selectedSubscription, err := loadSelectedSubscription(c.Request.Context(), selectedAPIKey, gatewayService.GetActiveSubscriptionForGroup)
+	if err != nil {
+		return nil, nil, err
+	}
+	if billingCacheService != nil {
+		if err := billingCacheService.CheckBillingEligibility(c.Request.Context(), selectedAPIKey.User, selectedAPIKey, selectedAPIKey.Group, selectedSubscription); err != nil {
+			return nil, nil, err
+		}
+	}
+	propagateSelectedBillingHold(apiKey, selectedAPIKey)
+	applySelectedAPIKeyContext(c, selectedAPIKey, selectedSubscription)
+	return selectedAPIKey, selectedSubscription, nil
+}
+
 func loadSelectedSubscription(
 	ctx context.Context,
 	apiKey *service.APIKey,

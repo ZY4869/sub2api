@@ -147,6 +147,7 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointGeminiTunedModels, NormalizeInboundEndpoint("/v1beta/tunedModels/tuned_123:asyncBatchEmbedContent"))
 	require.Equal(t, EndpointGeminiTunedModels, NormalizeInboundEndpoint("/v1beta/tunedModels/tuned_123:streamGenerateContent"))
 	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses"))
+	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/backend-api/codex/responses"))
 	require.Equal(t, EndpointResponsesCompact, NormalizeInboundEndpoint("/openai/v1/responses/compact"))
 	require.Equal(t, EndpointChatCompletions, NormalizeInboundEndpoint("/openai/v1/chat/completions"))
 	require.Equal(t, EndpointAlphaSearch, NormalizeInboundEndpoint("/openai/v1/alpha/search"))

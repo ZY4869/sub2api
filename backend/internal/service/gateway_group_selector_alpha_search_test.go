@@ -115,3 +115,28 @@ func TestOpenAIGatewayServiceSelectGroupForAlphaSearchCompositeWithoutModelSkips
 	require.ErrorIs(t, err, ErrNoAvailableGroup)
 	require.Nil(t, selected)
 }
+
+func TestOpenAIGatewayServiceSelectGroupForResponsesWebSocketSkipsGroupWithoutWSAccount(t *testing.T) {
+	firstID, secondID := int64(6501), int64(6502)
+	first := alphaSearchTestGroup(firstID, PlatformOpenAI, []string{"gpt-*"})
+	second := alphaSearchTestGroup(secondID, PlatformOpenAI, []string{"gpt-*"})
+	httpOnly := openAICapabilityTestAccount(65011, nil, 1)
+	wsAccount := openAICapabilityTestAccount(65021, nil, 2)
+	wsAccount.Extra = map[string]any{"openai_apikey_responses_websockets_v2_enabled": true}
+	repo := &alphaSearchGroupAccountRepo{byGroup: map[int64][]Account{firstID: {httpOnly}, secondID: {wsAccount}}}
+	cfg := newOpenAIWSV2TestConfig()
+	svc := &OpenAIGatewayService{accountRepo: repo, cfg: cfg}
+	apiKey := alphaSearchTestAPIKey(
+		APIKeyGroupBinding{APIKeyID: 1, GroupID: firstID, Group: first, ModelPatterns: []string{"gpt-*"}},
+		APIKeyGroupBinding{APIKeyID: 1, GroupID: secondID, Group: second, ModelPatterns: []string{"gpt-*"}},
+	)
+
+	selected, err := svc.SelectGroupForOpenAITransportCapability(
+		context.Background(), apiKey, []string{PlatformOpenAI}, "gpt-5.6-sol",
+		OpenAIUpstreamTransportResponsesWebsocketV2, "", nil,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, selected)
+	require.Equal(t, secondID, selected.GroupID)
+}

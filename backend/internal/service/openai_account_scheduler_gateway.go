@@ -47,7 +47,8 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
 	decision := OpenAIAccountScheduleDecision{}
 	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
-		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) {
+		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) &&
+			openAIAccountTransportCompatible(s.getOpenAIWSProtocolResolver(), pinned, requiredTransport) {
 			decision.Layer = "public_catalog_pinned"
 			decision.SelectedAccountID = pinned.ID
 			decision.SelectedAccountType = pinned.Type
@@ -56,13 +57,13 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForCapability(
 	}
 	runtime := s.openAIAdvancedSchedulerRuntime(ctx)
 	if !runtime.Enabled {
-		selection, err := s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredCapability)
+		selection, err := s.SelectAccountWithLoadAwarenessForTransportCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability)
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		return selection, decision, err
 	}
 	scheduler := s.getOpenAIAccountScheduler()
 	if scheduler == nil {
-		selection, err := s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredCapability)
+		selection, err := s.SelectAccountWithLoadAwarenessForTransportCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability)
 		decision.Layer = openAIAccountScheduleLayerLoadBalance
 		return selection, decision, err
 	}

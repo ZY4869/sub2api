@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -39,6 +40,8 @@ type RelayResult struct {
 	ClientToUpstreamFrames  int64
 	UpstreamToClientFrames  int64
 	DroppedDownstreamFrames int64
+	TimingEventCount        int
+	EngineFamilies          []string
 }
 
 type RelayTurnResult struct {
@@ -86,6 +89,8 @@ type relayState struct {
 	terminalEventType string
 	firstTokenMs      *int
 	turnTimingByID    map[string]*relayTurnTiming
+	timingEventCount  int
+	engineFamilies    map[string]struct{}
 }
 
 type relayExitSignal struct {
@@ -657,6 +662,18 @@ func observeUpstreamMessage(
 		}
 	}
 	parsedUsage := parseUsageAndAccumulate(state, message, eventType, onUsageParseFailure)
+	if eventType == "responsesapi.websocket_timing" {
+		state.timingEventCount++
+		if state.engineFamilies == nil {
+			state.engineFamilies = make(map[string]struct{}, 3)
+		}
+		for _, raw := range gjson.GetBytes(message, "timing_metrics.engine_ids").Array() {
+			family := classifyEngineFamily(raw.String())
+			if family != "" {
+				state.engineFamilies[family] = struct{}{}
+			}
+		}
+	}
 	observed := observedUpstreamEvent{
 		eventType:  eventType,
 		responseID: responseID,
@@ -824,6 +841,28 @@ func enrichResult(result *RelayResult, state *relayState, duration time.Duration
 	result.RequestID = state.lastResponseID
 	result.TerminalEventType = state.terminalEventType
 	result.FirstTokenMs = state.firstTokenMs
+	result.TimingEventCount = state.timingEventCount
+	if len(state.engineFamilies) > 0 {
+		result.EngineFamilies = make([]string, 0, len(state.engineFamilies))
+		for family := range state.engineFamilies {
+			result.EngineFamilies = append(result.EngineFamilies, family)
+		}
+		sort.Strings(result.EngineFamilies)
+	}
+}
+
+// classifyEngineFamily intentionally keeps only the stable family prefix and
+// never returns the complete internal engine identifier.
+func classifyEngineFamily(engineID string) string {
+	engineID = strings.ToLower(strings.TrimSpace(engineID))
+	switch {
+	case strings.HasPrefix(engineID, "gpt56sol-codex-"):
+		return "sol"
+	case strings.HasPrefix(engineID, "gpt56lun-codex-"):
+		return "luna"
+	default:
+		return "other"
+	}
 }
 
 func isDisconnectError(err error) bool {

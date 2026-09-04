@@ -282,12 +282,19 @@ func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account, requ
 	return compareOpenAIAccountsForSelection(candidate, current, requestedModel, time.Now()) < 0
 }
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
-	return s.SelectAccountWithLoadAwarenessForCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, "")
+	return s.SelectAccountWithLoadAwarenessForTransportCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportAny, "")
 }
 
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requiredCapability OpenAIEndpointCapability) (*AccountSelectionResult, error) {
+	return s.SelectAccountWithLoadAwarenessForTransportCapability(ctx, groupID, sessionHash, requestedModel, excludedIDs, OpenAIUpstreamTransportAny, requiredCapability)
+}
+
+func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForTransportCapability(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requiredTransport OpenAIUpstreamTransport, requiredCapability OpenAIEndpointCapability) (*AccountSelectionResult, error) {
+	transportCompatible := func(account *Account) bool {
+		return openAIAccountTransportCompatible(s.getOpenAIWSProtocolResolver(), account, requiredTransport)
+	}
 	if pinned := s.publicCatalogPinnedAccount(ctx, groupID, requestedModel, excludedIDs); pinned != nil {
-		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) {
+		if SupportsOpenAIEndpointCapability(pinned, requiredCapability) && transportCompatible(pinned) {
 			return &AccountSelectionResult{Account: pinned}, nil
 		}
 	}
@@ -313,6 +320,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 				return nil, err
 			}
 			if !SupportsOpenAIEndpointCapability(account, requiredCapability) {
+				localExcluded[account.ID] = struct{}{}
+				continue
+			}
+			if !transportCompatible(account) {
 				localExcluded[account.ID] = struct{}{}
 				continue
 			}
@@ -368,9 +379,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 					isOpenAITextRuntimeAccount(account) &&
 					(requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) &&
 					account.IsSchedulableForModelWithContext(ctx, requestedModel) &&
-					SupportsOpenAIEndpointCapability(account, requiredCapability) {
+					SupportsOpenAIEndpointCapability(account, requiredCapability) &&
+					transportCompatible(account) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
-					if account == nil {
+					if account == nil || !transportCompatible(account) {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 					} else {
 						result, err := s.tryAcquireAccountSlot(ctx, accountID, DeepSeekEffectiveAccountConcurrency(account, requestedModel))
@@ -403,6 +415,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 			continue
 		}
 		if !SupportsOpenAIEndpointCapability(acc, requiredCapability) {
+			continue
+		}
+		if !transportCompatible(acc) {
 			continue
 		}
 		candidates = append(candidates, acc)
@@ -444,8 +459,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 			if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
 				continue
 			}
+			if !transportCompatible(fresh) {
+				continue
+			}
 			fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
-			if fresh == nil {
+			if fresh == nil || !transportCompatible(fresh) {
 				continue
 			}
 			result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
@@ -481,8 +499,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 				if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
 					continue
 				}
+				if !transportCompatible(fresh) {
+					continue
+				}
 				fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
-				if fresh == nil {
+				if fresh == nil || !transportCompatible(fresh) {
 					continue
 				}
 				result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, DeepSeekEffectiveAccountConcurrency(fresh, requestedModel))
@@ -514,8 +535,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwarenessForCapability(ctx c
 		if !SupportsOpenAIEndpointCapability(fresh, requiredCapability) {
 			continue
 		}
+		if !transportCompatible(fresh) {
+			continue
+		}
 		fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
-		if fresh == nil {
+		if fresh == nil || !transportCompatible(fresh) {
 			continue
 		}
 		if stickyWaitResult != nil {

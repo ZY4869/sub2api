@@ -192,7 +192,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		if isRequestCanceled(ctx, nil) {
 			return
 		}
-		currentAPIKey, currentSubscription, err = resolveSelectedOpenAIAPIKey(
+		currentAPIKey, currentSubscription, err = resolveSelectedOpenAITransportCapability(
 			c,
 			h.settingService,
 			h.gatewayService,
@@ -200,19 +200,25 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			apiKey,
 			subscription,
 			reqModel,
-			openAICompatiblePlatforms,
+			requiredTransport,
+			requiredCapability,
 			excludedGroupIDs,
 		)
 		if err != nil {
 			if isRequestCanceled(ctx, err) {
 				return
 			}
-			reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err))
+			reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err),
+				zap.String("selection_stage", "group_selection"),
+				zap.Bool("requested_model_present", reqModel != ""),
+				zap.String("required_transport", string(requiredTransport)),
+				zap.String("endpoint_capability", string(requiredCapability)),
+			)
 			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
 			if currentAPIKey == nil {
 				releaseHeldBillingHold(ctx, h.apiKeyService, apiKey)
 			}
-			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing or group selection failed")
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "group selection failed")
 			return
 		}
 		if currentAPIKey.Group != nil {

@@ -121,6 +121,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodPost, Pattern: "/responses/*subpath"},
 			{Method: http.MethodGet, Pattern: "/responses"},
 			{Method: http.MethodGet, Pattern: "/responses/*subpath"},
+			{Method: http.MethodGet, Pattern: "/backend-api/codex/responses"},
 			{Method: http.MethodDelete, Pattern: "/responses/*subpath"},
 			{Method: http.MethodPost, Pattern: "/grok/v1/responses"},
 			{Method: http.MethodPost, Pattern: "/grok/v1/responses/*subpath"},

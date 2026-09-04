@@ -676,6 +676,32 @@ func TestGatewayRoutesResponsesWebSocketRejectsGrokGroup(t *testing.T) {
 	require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.code").String())
 }
 
+func TestGatewayRoutesResponsesWebSocketAllPublicPathsRejectNonOpenAIGroup(t *testing.T) {
+	paths := []string{"/v1/responses", "/responses", "/backend-api/codex/responses"}
+	for _, endpoint := range paths {
+		endpoint := endpoint
+		t.Run(strings.ReplaceAll(endpoint, "/", "_"), func(t *testing.T) {
+			router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
+				groupID := int64(1)
+				c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{
+					GroupID: &groupID,
+					Group:   &service.Group{Platform: service.PlatformAnthropic},
+				})
+				c.Next()
+			})
+
+			req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+			req.Header.Set("Accept-Language", "en")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusNotFound, w.Code)
+			require.Equal(t, service.GatewayReasonPublicEndpointUnsupported, gjson.Get(w.Body.String(), "error.reason").String())
+			require.NotContains(t, w.Body.String(), "404 page not found")
+		})
+	}
+}
+
 func TestGatewayRoutesChatCompletionsRejectAnthropicGroup(t *testing.T) {
 	router := newGatewayRoutesTestRouterWithAuth(func(c *gin.Context) {
 		groupID := int64(1)
