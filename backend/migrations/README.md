@@ -34,17 +34,17 @@ Example: `017_add_gemini_tier_id.sql`
 
 ## Migration File Structure
 
-```sql
--- +goose Up
--- +goose StatementBegin
--- Your forward migration SQL here
--- +goose StatementEnd
+The local runner executes the entire SQL file. It does **not** interpret Goose
+`Up`, `Down`, or `StatementBegin` comments. Include forward SQL only; executable
+rollback SQL in the same file would run immediately and undo the migration.
 
--- +goose Down
--- +goose StatementBegin
--- Your rollback migration SQL here
--- +goose StatementEnd
+```sql
+-- Forward migration SQL only.
+ALTER TABLE example ADD COLUMN IF NOT EXISTS new_flag BOOLEAN NOT NULL DEFAULT FALSE;
 ```
+
+Document rollback separately. Correct previously applied migrations with a new
+numbered forward migration, preserving their original checksums.
 
 ## Important Rules
 
@@ -66,17 +66,14 @@ Why?
    touch migrations/018_your_change.sql
    ```
 
-2. **Write Up and Down migrations**
-   - Up: Apply the change
-   - Down: Revert the change (should be symmetric with Up)
+2. **Write forward SQL and document rollback separately**
+   - The numbered SQL file applies the change.
+   - Keep rollback SQL outside the embedded migration set.
 
 3. **Test locally**
    ```bash
-   # Apply migration
-   make migrate-up
-
-   # Test rollback
-   make migrate-down
+   # From backend/: creates isolated PostgreSQL/Redis test containers.
+   go test -tags=integration ./internal/repository -run TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate
    ```
 
 4. **Commit and deploy**
@@ -125,8 +122,8 @@ touch migrations/018_your_new_change.sql
    - Easier to review and rollback
 
 2. **Write reversible migrations**
-   - Always provide a working Down migration
-   - Test rollback before committing
+   - Document a rollback plan outside the embedded migration set
+   - Verify the plan against an isolated database when rollback is needed
 
 3. **Use transactions**
    - Wrap DDL statements in transactions when possible

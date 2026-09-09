@@ -90,6 +90,52 @@ func TestApplyGroupFastBillingExemption_DoesNotWaiveNonPriorityOrDisabledGroup(t
 	require.Equal(t, 12.5, actualCost)
 }
 
+func TestGatewayServiceRecordUsage_PreservesAdminExemptionBeforeGroupFast(t *testing.T) {
+	for _, longContext := range []bool{false, true} {
+		for _, groupFast := range []bool{false, true} {
+			name := "standard"
+			if longContext {
+				name = "long_context"
+			}
+			if groupFast {
+				name += "/group_fast"
+			}
+			t.Run(name, func(t *testing.T) {
+				usageRepo := &openAIRecordUsageLogRepoStub{}
+				userRepo := &openAIRecordUsageUserRepoStub{}
+				svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{})
+				tier := "priority"
+				result := &ForwardResult{
+					RequestID: "admin_free_" + name,
+					Usage:     ClaudeUsage{InputTokens: 100, OutputTokens: 60},
+					Model:     "claude-sonnet-4", Duration: time.Second, ServiceTier: &tier,
+				}
+				key := &APIKey{ID: 501, Group: &Group{FreeOpenAIFast: groupFast}}
+				user := &User{ID: 601, Role: RoleAdmin, AdminFreeBilling: true}
+				account := &Account{ID: 701}
+				var err error
+				if longContext {
+					err = svc.RecordUsageWithLongContext(context.Background(), &RecordUsageLongContextInput{
+						Result: result, APIKey: key, User: user, Account: account,
+						LongContextThreshold: 200000, LongContextMultiplier: 2,
+					})
+				} else {
+					err = svc.RecordUsage(context.Background(), &RecordUsageInput{
+						Result: result, APIKey: key, User: user, Account: account,
+					})
+				}
+				require.NoError(t, err)
+				require.NotNil(t, usageRepo.lastLog)
+				require.Positive(t, usageRepo.lastLog.TotalCost)
+				require.Zero(t, usageRepo.lastLog.ActualCost)
+				require.NotNil(t, usageRepo.lastLog.BillingExemptReason)
+				require.Equal(t, BillingExemptReasonAdminFree, *usageRepo.lastLog.BillingExemptReason)
+				require.Zero(t, userRepo.lastAmount)
+			})
+		}
+	}
+}
+
 func (s *openAIRecordUsageBestEffortLogRepoStub) CreateBestEffort(ctx context.Context, log *UsageLog) error {
 	s.bestEffortCalls++
 	s.lastLog = log

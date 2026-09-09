@@ -290,6 +290,40 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	).Scan(&imageProtocolMode))
 	require.Equal(t, "inherit", imageProtocolMode)
 
+	// Forward-only repair 175 must retain the runtime policy columns after 173/174.
+	requireColumn(t, tx, "groups", "max_reasoning_effort_over_limit", "character varying", 20, false)
+	requireColumn(t, tx, "groups", "force_openai_fast", "boolean", 0, false)
+	requireColumn(t, tx, "groups", "free_openai_fast", "boolean", 0, false)
+	var reasoningAction string
+	var forceFast, freeFast bool
+	require.NoError(t, tx.QueryRowContext(context.Background(),
+		`INSERT INTO groups (name) VALUES ($1)
+		 RETURNING max_reasoning_effort_over_limit, force_openai_fast, free_openai_fast`,
+		"migration-group-runtime-policy-defaults",
+	).Scan(&reasoningAction, &forceFast, &freeFast))
+	require.Equal(t, "downgrade", reasoningAction)
+	require.False(t, forceFast)
+	require.False(t, freeFast)
+	_, err := tx.ExecContext(context.Background(),
+		`UPDATE groups SET max_reasoning_effort_over_limit = 'deny', force_openai_fast = TRUE, free_openai_fast = TRUE WHERE name = $1`,
+		"migration-group-runtime-policy-defaults")
+	require.NoError(t, err)
+	require.NoError(t, tx.QueryRowContext(context.Background(),
+		`SELECT max_reasoning_effort_over_limit, force_openai_fast, free_openai_fast FROM groups WHERE name = $1`,
+		"migration-group-runtime-policy-defaults",
+	).Scan(&reasoningAction, &forceFast, &freeFast))
+	require.Equal(t, "deny", reasoningAction)
+	require.True(t, forceFast)
+	require.True(t, freeFast)
+	_, err = tx.ExecContext(context.Background(), "SAVEPOINT invalid_group_reasoning_policy")
+	require.NoError(t, err)
+	_, err = tx.ExecContext(context.Background(),
+		`UPDATE groups SET max_reasoning_effort_over_limit = 'invalid' WHERE name = $1`,
+		"migration-group-runtime-policy-defaults")
+	require.ErrorContains(t, err, "groups_max_reasoning_effort_over_limit_check")
+	_, err = tx.ExecContext(context.Background(), "ROLLBACK TO SAVEPOINT invalid_group_reasoning_policy")
+	require.NoError(t, err)
+
 	// ops_request_traces: request detail queries depend on Gemini/ billing metadata columns and indexes
 	requireColumn(t, tx, "ops_request_traces", "gemini_surface", "character varying", 64, false)
 	requireColumn(t, tx, "ops_request_traces", "billing_rule_id", "character varying", 128, false)

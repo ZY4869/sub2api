@@ -407,8 +407,9 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
-	actualCost, billingExemptReason, groupFastFree := applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
-	skipUserBilling = skipUserBilling || groupFastFree
+	if !skipUserBilling {
+		actualCost, billingExemptReason, skipUserBilling = applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
+	}
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
 	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {
@@ -581,8 +582,9 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
-	actualCost, billingExemptReason, groupFastFree := applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
-	skipUserBilling = skipUserBilling || groupFastFree
+	if !skipUserBilling {
+		actualCost, billingExemptReason, skipUserBilling = applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
+	}
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
 	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {
