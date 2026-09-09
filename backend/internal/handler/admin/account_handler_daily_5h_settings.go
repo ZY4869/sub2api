@@ -52,6 +52,7 @@ func accountDaily5HSettingsDTO(settings *service.AccountDaily5HTriggerSettings) 
 		settings = service.DefaultAccountDaily5HTriggerSettings()
 	}
 	return dto.AccountDaily5HTriggerSettings{
+		TriggerTime:               settings.TriggerTime,
 		Enabled:                   settings.Enabled,
 		SelectedAccountTypes:      append([]string(nil), settings.SelectedAccountTypes...),
 		IncludePausedAccounts:     settings.IncludePausedAccounts,
@@ -72,6 +73,7 @@ func accountDaily5HModelSettingsDTO(settings service.AccountDaily5HTriggerModelS
 
 func accountDaily5HSettingsFromDTO(req dto.AccountDaily5HTriggerSettings) *service.AccountDaily5HTriggerSettings {
 	return &service.AccountDaily5HTriggerSettings{
+		TriggerTime:               req.TriggerTime,
 		Enabled:                   req.Enabled,
 		SelectedAccountTypes:      append([]string(nil), req.SelectedAccountTypes...),
 		IncludePausedAccounts:     req.IncludePausedAccounts,

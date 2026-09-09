@@ -6,6 +6,7 @@ export default {
     openrouter: "OpenRouter",
     grok: "Grok",
     deepseek: "DeepSeek",
+    kimi: "Kimi",
     gemini: "Google",
     antigravity: "Antigravity",
     composite: "聚合分组",

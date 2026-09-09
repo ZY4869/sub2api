@@ -1,4 +1,5 @@
 export default {
+    catalogOnly: "Catalog only · protocol not integrated",
     addModel: "Add Model",
     editModel: "Edit Model",
     source: "Source",

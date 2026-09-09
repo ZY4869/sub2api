@@ -196,11 +196,14 @@ type CreateGroupRequest struct {
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes []string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch   bool                             `json:"allow_messages_dispatch"`
-	DefaultMappedModel      string                           `json:"default_mapped_model"`
-	AllowLive               bool                             `json:"allow_live"`
-	MaxReasoningEffort      string                           `json:"max_reasoning_effort"`
-	ReasoningEffortMappings []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
+	AllowMessagesDispatch       bool                             `json:"allow_messages_dispatch"`
+	DefaultMappedModel          string                           `json:"default_mapped_model"`
+	AllowLive                   bool                             `json:"allow_live"`
+	MaxReasoningEffort          string                           `json:"max_reasoning_effort"`
+	MaxReasoningEffortOverLimit string                           `json:"max_reasoning_effort_over_limit"`
+	ForceOpenAIFast             bool                             `json:"force_openai_fast"`
+	FreeOpenAIFast              bool                             `json:"free_openai_fast"`
+	ReasoningEffortMappings     []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 	// 可见模型收敛配置：只缩小 /v1/models 和可调用公共模型集合，空数组表示不额外限制。
 	VisibleModelPatterns []string `json:"visible_model_patterns"`
 	// 批量生图配置，默认关闭。
@@ -317,11 +320,14 @@ type UpdateGroupRequest struct {
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes *[]string `json:"supported_model_scopes"`
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch   *bool                             `json:"allow_messages_dispatch"`
-	DefaultMappedModel      *string                           `json:"default_mapped_model"`
-	AllowLive               *bool                             `json:"allow_live"`
-	MaxReasoningEffort      *string                           `json:"max_reasoning_effort"`
-	ReasoningEffortMappings *[]service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
+	AllowMessagesDispatch       *bool                             `json:"allow_messages_dispatch"`
+	DefaultMappedModel          *string                           `json:"default_mapped_model"`
+	AllowLive                   *bool                             `json:"allow_live"`
+	MaxReasoningEffort          *string                           `json:"max_reasoning_effort"`
+	MaxReasoningEffortOverLimit *string                           `json:"max_reasoning_effort_over_limit"`
+	ForceOpenAIFast             *bool                             `json:"force_openai_fast"`
+	FreeOpenAIFast              *bool                             `json:"free_openai_fast"`
+	ReasoningEffortMappings     *[]service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 	// 可见模型收敛配置：nil 表示不修改，空数组表示清空限制。
 	VisibleModelPatterns *[]string `json:"visible_model_patterns"`
 	// 批量生图配置；nil 表示不修改，空数组表示清空白名单。
@@ -457,6 +463,9 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		DefaultMappedModel:              req.DefaultMappedModel,
 		AllowLive:                       req.AllowLive,
 		MaxReasoningEffort:              req.MaxReasoningEffort,
+		MaxReasoningEffortOverLimit:     req.MaxReasoningEffortOverLimit,
+		ForceOpenAIFast:                 req.ForceOpenAIFast,
+		FreeOpenAIFast:                  req.FreeOpenAIFast,
 		ReasoningEffortMappings:         req.ReasoningEffortMappings,
 		VisibleModelPatterns:            req.VisibleModelPatterns,
 		ImageBatchEnabled:               req.ImageBatchEnabled,
@@ -562,6 +571,9 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		DefaultMappedModel:              req.DefaultMappedModel,
 		AllowLive:                       req.AllowLive,
 		MaxReasoningEffort:              req.MaxReasoningEffort,
+		MaxReasoningEffortOverLimit:     req.MaxReasoningEffortOverLimit,
+		ForceOpenAIFast:                 req.ForceOpenAIFast,
+		FreeOpenAIFast:                  req.FreeOpenAIFast,
 		ReasoningEffortMappings:         req.ReasoningEffortMappings,
 		VisibleModelPatterns:            req.VisibleModelPatterns,
 		ImageBatchEnabled:               req.ImageBatchEnabled,

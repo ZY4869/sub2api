@@ -8,10 +8,19 @@ import (
 )
 
 var accountListLiteExtraAllowlist = map[string]struct{}{
-	"email_address":     {},
-	"privacy_mode":      {},
-	"model_rate_limits": {},
-	"allow_overages":    {},
+	"daily_5h_trigger_task_date":        {},
+	"daily_5h_trigger_attempts":         {},
+	"daily_5h_trigger_last_checked_at":  {},
+	"daily_5h_trigger_last_status":      {},
+	"daily_5h_trigger_last_model_id":    {},
+	"daily_5h_trigger_last_summary":     {},
+	"daily_5h_trigger_last_skip_reason": {},
+	"daily_5h_trigger_next_retry_at":    {},
+	"daily_5h_trigger_retry_stopped":    {},
+	"email_address":                     {},
+	"privacy_mode":                      {},
+	"model_rate_limits":                 {},
+	"allow_overages":                    {},
 }
 
 func AccountFromServiceShallow(a *service.Account) *Account {

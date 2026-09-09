@@ -8,6 +8,7 @@ export type AccountPlatform =
   | "openrouter"
   | "grok"
   | "deepseek"
+  | "kimi"
   | "gemini"
   | "antigravity"
   | "protocol_gateway"
@@ -375,6 +376,7 @@ export interface AccountDaily5HTriggerAccountTypeSummary {
 }
 
 export interface AccountDaily5HTriggerSettings {
+  trigger_time?: string;
   enabled: boolean;
   selected_account_types: AccountDaily5HTriggerAccountType[];
   include_paused_accounts: boolean;

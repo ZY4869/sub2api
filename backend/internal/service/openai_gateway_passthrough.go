@@ -52,6 +52,13 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if normalizedBody, normalized, normalizeErr := sanitizeOpenAIEmptyThinkingBlocksInJSON(body); normalizeErr == nil && normalized {
 		body = normalizedBody
 	}
+	if group := OpenAIReasoningPolicyGroupFromContext(ctx); group != nil {
+		if next, forced, forceErr := s.applyGroupOpenAIFastPolicyToJSONBody(ctx, account, group, body); forceErr != nil {
+			return nil, forceErr
+		} else if forced {
+			body = next
+		}
+	}
 
 	// Enforce OpenAI Fast/Flex policy (service_tier) even in passthrough mode.
 	if tier := extractOpenAIServiceTierFromBody(body); tier != nil {

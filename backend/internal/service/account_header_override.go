@@ -68,7 +68,7 @@ func accountSupportsRequestHeaderOverrides(account *Account) bool {
 		return false
 	}
 	switch EffectiveProtocol(account) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformGrok, PlatformDeepSeek, PlatformOpenRouter, PlatformProtocolGateway:
+	case PlatformOpenAI, PlatformAnthropic, PlatformGrok, PlatformDeepSeek, PlatformKimi, PlatformOpenRouter, PlatformProtocolGateway:
 		return true
 	default:
 		return false

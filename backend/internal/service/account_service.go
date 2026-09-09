@@ -411,6 +411,8 @@ func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 		return nil
 	case PlatformDeepSeek:
 		return nil
+	case PlatformKimi:
+		return nil
 	case PlatformOpenRouter:
 		return nil
 	case PlatformGemini:

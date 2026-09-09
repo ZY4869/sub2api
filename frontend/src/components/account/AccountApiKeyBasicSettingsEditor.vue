@@ -76,7 +76,7 @@ const showModelScopeEditor = computed(() =>
 )
 const showRequestHeadersEditor = computed(() =>
   props.platform === 'protocol_gateway' ||
-  ['anthropic', 'openai', 'grok', 'deepseek', 'openrouter'].includes(resolvedEffectivePlatform.value)
+  ['anthropic', 'openai', 'grok', 'deepseek', 'kimi', 'openrouter'].includes(resolvedEffectivePlatform.value)
 )
 const showProtocolGatewaySuggestion = computed(() =>
   shouldSuggestProtocolGateway(props.platform, baseUrl.value)

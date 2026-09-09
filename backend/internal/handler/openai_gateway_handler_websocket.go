@@ -451,6 +451,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			zap.String("close_status", closeStatus),
 			zap.String("close_reason", closeReason),
 		)
+		if errors.Is(err, service.ErrReasoningEffortOverLimit) {
+			releaseHeldBillingHold(ctx, h.apiKeyService, currentAPIKey)
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "REASONING_EFFORT_OVER_LIMIT")
+			return
+		}
 		var closeErr *service.OpenAIWSClientCloseError
 		if errors.As(err, &closeErr) {
 			closeOpenAIClientWS(wsConn, closeErr.StatusCode(), closeErr.Reason())

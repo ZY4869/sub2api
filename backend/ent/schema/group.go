@@ -162,6 +162,16 @@ func (Group) Fields() []ent.Field {
 			MaxLen(20).
 			Default("").
 			Comment("Maximum OpenAI reasoning effort allowed for this group; empty means unlimited"),
+		field.String("max_reasoning_effort_over_limit").
+			MaxLen(20).
+			Default("downgrade").
+			Comment("Action when requested reasoning effort exceeds the group maximum: downgrade or deny"),
+		field.Bool("force_openai_fast").
+			Default(false).
+			Comment("Request OpenAI priority service tier when the global policy allows it"),
+		field.Bool("free_openai_fast").
+			Default(false).
+			Comment("Waive customer ActualCost for OpenAI fast requests without changing upstream cost"),
 		field.JSON("reasoning_effort_mappings", []map[string]string{}).
 			Default([]map[string]string{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

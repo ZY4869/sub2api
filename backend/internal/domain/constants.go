@@ -27,6 +27,7 @@ const (
 	PlatformKiro            = "kiro"
 	PlatformGrok            = "grok"
 	PlatformDeepSeek        = "deepseek"
+	PlatformKimi            = "kimi"
 	PlatformBaiduDocumentAI = "baidu_document_ai"
 	PlatformComposite       = "composite"
 )

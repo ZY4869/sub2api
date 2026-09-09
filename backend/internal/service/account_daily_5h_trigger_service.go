@@ -2,16 +2,12 @@ package service
 
 import (
 	"context"
-	"log/slog"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-
-	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 )
 
 const accountDaily5HTriggerJobName = "account_daily_5h_trigger"
@@ -25,6 +21,8 @@ type AccountDaily5HTriggerService struct {
 	modelRegistryService *ModelRegistryService
 	leaderGate           PeriodicJobLeaderGate
 	interval             time.Duration
+	pricingService       *PricingService
+	runMu                sync.Mutex
 	now                  func() time.Time
 	location             *time.Location
 	stopCh               chan struct{}
@@ -51,7 +49,7 @@ func NewAccountDaily5HTriggerService(
 		modelRegistryService: modelRegistryService,
 		interval:             interval,
 		now:                  time.Now,
-		location:             time.Local,
+		location:             accountDaily5HLocation(),
 		stopCh:               make(chan struct{}),
 	}
 }
@@ -116,136 +114,6 @@ func (s *AccountDaily5HTriggerService) ListDaily5HTriggerCandidates(ctx context.
 		return []AccountDaily5HTriggerAccountTypeSummary{}
 	}
 	return s.buildCandidates(ctx, accounts)
-}
-
-func (s *AccountDaily5HTriggerService) runOnce(ctx context.Context) {
-	settings, err := s.settingService.GetAccountDaily5HTriggerSettings(ctx)
-	if err != nil || settings == nil || !settings.Enabled {
-		return
-	}
-	now := s.now().In(s.location)
-	if now.Hour() < defaultAccountDaily5HTriggerHour {
-		return
-	}
-	localDate := now.Format("2006-01-02")
-	if settings.SkipCNHolidaysAndWeekends && accountDaily5HShouldSkipCNNonWorkday(now) {
-		requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
-		slog.Info(
-			"account_daily_5h_trigger_non_workday_skipped",
-			"request_id", requestID,
-			"local_date", localDate,
-			"holiday_region", "CN",
-			"skip_reason", "cn_holiday_or_weekend",
-		)
-		protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)
-		return
-	}
-	accounts, err := s.listManagedAccounts(ctx)
-	if err != nil {
-		slog.Warn("account_daily_5h_trigger_list_failed", "error", err)
-		return
-	}
-	for index := range accounts {
-		account := accounts[index]
-		if AccountDaily5HLastLocalDate(account.Extra) == localDate {
-			continue
-		}
-		shouldRun, skipReason, skipSummary := s.shouldRunForAccount(settings, &account, now.UTC())
-		requestID := firstNonEmptyString(requestIDFromContext(ctx), "generated:"+generateRequestID())
-		if !shouldRun {
-			consumesLocalDate := accountDaily5HSkipConsumesLocalDate(skipReason)
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerSkipExtra(localDate, skipReason, skipSummary))
-			slog.Info(
-				"account_daily_5h_trigger_skipped",
-				"request_id", requestID,
-				"account_id", account.ID,
-				"account_type", accountDaily5HAccountType(&account),
-				"local_date", localDate,
-				"skip_reason", skipReason,
-				"consumes_local_date", consumesLocalDate,
-				"summary", skipSummary,
-			)
-			protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)
-			continue
-		}
-		modelID, modelSkipReason, modelSkipSummary := s.selectModelForAccount(ctx, settings, &account)
-		if strings.TrimSpace(modelID) == "" {
-			consumesLocalDate := accountDaily5HSkipConsumesLocalDate(modelSkipReason)
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerSkipExtra(localDate, modelSkipReason, modelSkipSummary))
-			slog.Info(
-				"account_daily_5h_trigger_skipped",
-				"request_id", requestID,
-				"account_id", account.ID,
-				"account_type", accountDaily5HAccountType(&account),
-				"local_date", localDate,
-				"skip_reason", modelSkipReason,
-				"consumes_local_date", consumesLocalDate,
-				"summary", modelSkipSummary,
-			)
-			protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", AccountDaily5HTriggerStatusSkipped, 0)
-			continue
-		}
-		startedAt := time.Now()
-		triggerCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-		triggerCtx = EnsureRequestMetadata(triggerCtx)
-		SetProbeActionMetadata(triggerCtx, "daily_5h_trigger")
-		protocolruntime.RecordRecoveryProbeStarted("daily_5h_trigger")
-		requestID = firstNonEmptyString(requestIDFromContext(triggerCtx), requestID)
-		slog.Info(
-			"account_daily_5h_trigger_started",
-			"request_id", requestID,
-			"account_id", account.ID,
-			"account_type", accountDaily5HAccountType(&account),
-			"model_id", modelID,
-			"local_date", localDate,
-		)
-		result, runErr := s.accountTestRunner.RunTestBackgroundDetailed(triggerCtx, ScheduledTestExecutionInput{
-			AccountID:     account.ID,
-			ModelID:       modelID,
-			Prompt:        accountDaily5HPrompt,
-			TestMode:      "real_forward",
-			OperationType: UsageOperationTypeScheduledTest,
-		})
-		cancel()
-		status := AccountDaily5HTriggerStatusSuccess
-		summary := "Daily 5H trigger succeeded."
-		if runErr != nil || result == nil || !strings.EqualFold(strings.TrimSpace(result.Status), "success") {
-			status = AccountDaily5HTriggerStatusFailed
-			summary = firstNonEmptyString(strings.TrimSpace(runErrString(runErr)), strings.TrimSpace(resultErrorMessage(result)), "Daily 5H trigger failed.")
-		}
-		switch status {
-		case AccountDaily5HTriggerStatusSuccess:
-			protocolruntime.RecordRecoveryProbeSuccess("daily_5h_trigger")
-		default:
-			protocolruntime.RecordRecoveryProbeRetry("daily_5h_trigger")
-		}
-		protocolruntime.RecordRecoveryProbeResult("daily_5h_trigger", status, time.Since(startedAt).Milliseconds())
-		if updateErr := s.accountRepo.UpdateExtra(ctx, account.ID, BuildAccountDaily5HTriggerExtra(localDate, status, modelID, summary)); updateErr != nil {
-			slog.Warn(
-				"account_daily_5h_trigger_update_failed",
-				"request_id", requestID,
-				"account_id", account.ID,
-				"account_type", accountDaily5HAccountType(&account),
-				"model_id", modelID,
-				"local_date", localDate,
-				"error", updateErr,
-			)
-		}
-		eventName := "account_daily_5h_trigger_success"
-		if status != AccountDaily5HTriggerStatusSuccess {
-			eventName = "account_daily_5h_trigger_failed"
-		}
-		slog.Info(
-			eventName,
-			"request_id", requestID,
-			"account_id", account.ID,
-			"account_type", accountDaily5HAccountType(&account),
-			"status", status,
-			"model_id", modelID,
-			"local_date", localDate,
-			"summary", summary,
-		)
-	}
 }
 
 func (s *AccountDaily5HTriggerService) shouldRunForAccount(settings *AccountDaily5HTriggerSettings, account *Account, now time.Time) (bool, string, string) {
@@ -319,7 +187,7 @@ func (s *AccountDaily5HTriggerService) buildCandidates(ctx context.Context, acco
 		}
 		current := buckets[typeKey]
 		current.count++
-		for _, model := range filterAccountDaily5HFamilyModels(typeKey, BuildAvailableTestModels(ctx, &account, s.modelRegistryService)) {
+		for _, model := range accountDaily5HTextModels(BuildAvailableTestModels(ctx, &account, s.modelRegistryService)) {
 			item, ok := current.models[model.ID]
 			if !ok {
 				current.models[model.ID] = &AccountDaily5HTriggerModelOption{
@@ -354,9 +222,9 @@ func (s *AccountDaily5HTriggerService) buildCandidates(ctx context.Context, acco
 }
 
 func (s *AccountDaily5HTriggerService) selectModelForAccount(ctx context.Context, settings *AccountDaily5HTriggerSettings, account *Account) (string, string, string) {
-	models := filterAccountDaily5HFamilyModels(accountDaily5HAccountType(account), BuildAvailableTestModels(ctx, account, s.modelRegistryService))
+	models := accountDaily5HTextModels(BuildAvailableTestModels(ctx, account, s.modelRegistryService))
 	if len(models) == 0 {
-		return "", AccountDaily5HSkipReasonNoFamilyModel, "No visible model in the required family is available for this account."
+		return "", AccountDaily5HSkipReasonNoFamilyModel, "No callable text model is visible to this account."
 	}
 	config := accountDaily5HModelSettingsForAccount(settings, account)
 	if config.Mode == AccountDaily5HModelModeFixed {
@@ -367,7 +235,7 @@ func (s *AccountDaily5HTriggerService) selectModelForAccount(ctx context.Context
 		}
 		return "", AccountDaily5HSkipReasonFixedModelHidden, "The configured fixed model is no longer visible to this account."
 	}
-	return pickLatestAvailableTestModelID(models), "", ""
+	return s.pickDaily5HModel(accountDaily5HAccountType(account), models), "", ""
 }
 
 func accountDaily5HModelSettingsForAccount(settings *AccountDaily5HTriggerSettings, account *Account) AccountDaily5HTriggerModelSettings {
@@ -386,84 +254,6 @@ func accountDaily5HModelSettingsForAccount(settings *AccountDaily5HTriggerSettin
 	}
 }
 
-func filterAccountDaily5HFamilyModels(typeKey string, models []AvailableTestModel) []AvailableTestModel {
-	out := make([]AvailableTestModel, 0, len(models))
-	for _, model := range models {
-		id := strings.ToLower(strings.TrimSpace(model.ID))
-		switch typeKey {
-		case AccountDaily5HTypeOpenAI:
-			if strings.Contains(id, "mini") {
-				out = append(out, model)
-			}
-		case AccountDaily5HTypeAnthropic:
-			if strings.Contains(id, "haiku") {
-				out = append(out, model)
-			}
-		case AccountDaily5HTypeGemini:
-			if strings.Contains(id, "gemini") {
-				out = append(out, model)
-			}
-		}
-	}
-	return out
-}
-
-func pickLatestAvailableTestModelID(models []AvailableTestModel) string {
-	if len(models) == 0 {
-		return ""
-	}
-	best := ""
-	bestMajor := -1
-	bestMinor := -1
-	for _, model := range models {
-		id := strings.TrimSpace(model.ID)
-		if id == "" {
-			continue
-		}
-		major, minor := parseAccountDaily5HModelVersion(id)
-		if major > bestMajor || (major == bestMajor && minor > bestMinor) {
-			best = id
-			bestMajor = major
-			bestMinor = minor
-		}
-	}
-	if best != "" {
-		return best
-	}
-	return models[0].ID
-}
-
-func parseAccountDaily5HModelVersion(id string) (int, int) {
-	major := -1
-	minor := -1
-	normalized := strings.TrimSpace(strings.ToLower(id))
-	for _, token := range strings.FieldsFunc(normalized, func(r rune) bool {
-		return (r < '0' || r > '9') && r != '.'
-	}) {
-		if token == "" {
-			continue
-		}
-		parts := strings.SplitN(token, ".", 3)
-		if len(parts) == 0 || parts[0] == "" {
-			continue
-		}
-		parsedMajor, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
-		parsedMinor := 0
-		if len(parts) > 1 && parts[1] != "" {
-			if value, err := strconv.Atoi(parts[1]); err == nil {
-				parsedMinor = value
-			}
-		}
-		major = parsedMajor
-		minor = parsedMinor
-		break
-	}
-	return major, minor
-}
-
 func containsAccountDaily5HType(items []string, expected string) bool {
 	expected = strings.TrimSpace(strings.ToLower(expected))
 	for _, item := range items {
@@ -478,10 +268,26 @@ func (s *AccountDaily5HTriggerService) listManagedAccounts(ctx context.Context) 
 	if s == nil || s.accountRepo == nil {
 		return []Account{}, nil
 	}
-	params := pagination.PaginationParams{Page: 1, PageSize: 10000}
-	accounts, _, err := s.accountRepo.ListWithFilters(ctx, params, "", "", "", "", 0, AccountLifecycleNormal, "")
-	if err != nil {
-		return nil, err
+	accounts := make([]Account, 0)
+	seen := make(map[int64]bool)
+	for page := 1; ; page++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		params := pagination.PaginationParams{Page: page, PageSize: 100}
+		batch, result, err := s.accountRepo.ListWithFilters(ctx, params, "", "", "", "", 0, AccountLifecycleNormal, "")
+		if err != nil {
+			return nil, err
+		}
+		for _, account := range batch {
+			if !seen[account.ID] {
+				accounts = append(accounts, account)
+				seen[account.ID] = true
+			}
+		}
+		if len(batch) < params.PageSize || (result != nil && int64(page*params.PageSize) >= result.Total) {
+			break
+		}
 	}
 	return accounts, nil
 }

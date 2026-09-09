@@ -21,6 +21,7 @@ export function resolveAccountApiKeyDefaultBaseUrl(
   if (descriptor) return descriptor.defaultBaseUrl
   if (platform === 'grok') return 'https://api.x.ai'
   if (platform === 'deepseek') return 'https://api.deepseek.com'
+  if (platform === 'kimi') return 'https://api.moonshot.cn'
   if (platform === 'openrouter') return 'https://openrouter.ai/api/v1'
   if (platform === 'openai') return 'https://api.openai.com'
   if (platform === 'gemini') return 'https://generativelanguage.googleapis.com'
@@ -36,6 +37,7 @@ export function resolveAccountApiKeyPlaceholder(
   if (descriptor) return descriptor.apiKeyPlaceholder
   if (platform === 'grok') return 'xai-...'
   if (platform === 'deepseek') return 'sk-...'
+  if (platform === 'kimi') return 'sk-...'
   if (platform === 'openrouter') return 'sk-or-v1-...'
   if (platform === 'openai') return 'sk-proj-...'
   if (platform === 'gemini') return 'AIza...'
@@ -52,6 +54,7 @@ export function resolveAccountApiKeyBaseUrlHintKey(
   if (descriptor) return descriptor.baseUrlHintKey
   if (platform === 'grok') return 'admin.accounts.grokDedicatedRouteHint'
   if (platform === 'deepseek') return 'admin.accounts.deepseek.baseUrlHint'
+  if (platform === 'kimi') return 'admin.accounts.kimi.baseUrlHint'
   if (platform === 'openrouter') return 'admin.accounts.openrouter.baseUrlHint'
   if (platform === 'openai') return 'admin.accounts.openai.baseUrlHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.baseUrlHint'
@@ -69,6 +72,7 @@ export function resolveAccountApiKeyHintKey(
   if (descriptor) return descriptor.apiKeyHintKey
   if (platform === 'grok') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'deepseek') return 'admin.accounts.deepseek.apiKeyHint'
+  if (platform === 'kimi') return 'admin.accounts.kimi.apiKeyHint'
   if (platform === 'openrouter') return 'admin.accounts.openrouter.apiKeyHint'
   if (platform === 'openai') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.apiKeyHint'

@@ -25,6 +25,18 @@ func TestBuildOpenAITargetURLForOpenRouter(t *testing.T) {
 	require.Equal(t, "https://openrouter.ai/api/v1/models", buildOpenAIModelsURLForPlatform("https://openrouter.ai/api/v1", PlatformOpenRouter))
 }
 
+func TestBuildOpenAITargetURLForKimi(t *testing.T) {
+	require.Equal(t, "https://api.moonshot.cn/v1/chat/completions", buildOpenAIChatCompletionsURLForPlatform("", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/models", buildOpenAIModelsURLForPlatform("", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/chat/completions", buildOpenAIChatCompletionsURLForPlatform("https://api.moonshot.cn", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/models", buildOpenAIModelsURLForPlatform("https://api.moonshot.cn", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/chat/completions", buildOpenAIChatCompletionsURLForPlatform("https://api.moonshot.cn/v1", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/models", buildOpenAIModelsURLForPlatform("https://api.moonshot.cn/v1", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/responses", buildOpenAIResponsesURLForPlatform("https://api.moonshot.cn", PlatformKimi))
+	require.Equal(t, "https://api.moonshot.cn/v1/responses", buildOpenAIResponsesURLForPlatform("https://api.moonshot.cn/v1", PlatformKimi))
+	require.Equal(t, "https://api.kimi.com/coding/v1/responses", buildOpenAIResponsesURLForPlatform("https://api.kimi.com/coding", PlatformKimi))
+}
+
 func TestBuildOpenAIModelsURLForVersionedCompatibleBaseURL(t *testing.T) {
 	tests := []struct {
 		name string

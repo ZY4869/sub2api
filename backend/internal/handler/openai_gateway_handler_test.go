@@ -117,6 +117,24 @@ func TestOpenAIHandleStreamingAwareError_NonStreaming(t *testing.T) {
 	assert.Equal(t, "test error", errorObj["message"])
 }
 
+func TestAnthropicStreamingAwareErrorWithCode_NonStreaming(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	h := &OpenAIGatewayHandler{}
+	h.anthropicStreamingAwareErrorWithCode(c, http.StatusBadRequest, "invalid_request_error", "REASONING_EFFORT_OVER_LIMIT", "requested reasoning effort exceeds the group limit", false)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &parsed))
+	errorObj, ok := parsed["error"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "invalid_request_error", errorObj["type"])
+	assert.Equal(t, "REASONING_EFFORT_OVER_LIMIT", errorObj["code"])
+}
+
 func TestOpenAIHandleFailoverExhaustedPreservesInsufficientQuota(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -108,14 +108,18 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
     "ui_priority": 200,
     "exposed_in": [
       "runtime",
       "test"
     ],
     "status": "deprecated",
-    "replaced_by": "claude-haiku-4.5"
+    "replaced_by": "claude-haiku-4.5",
+    "context_window_tokens": 200000
   },
   {
     "id": "claude-opus-4-5-20251101",
@@ -278,14 +282,17 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision"
     ],
     "ui_priority": 1,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1000000
   },
   {
     "id": "claude-opus-4-8",
@@ -448,14 +455,17 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision"
     ],
     "ui_priority": 4,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1000000
   },
   {
     "id": "claude-sonnet-5",
@@ -477,14 +487,75 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision"
     ],
     "ui_priority": 5,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1000000
+  },
+  {
+    "id": "claude-fable-5-1",
+    "display_name": "Claude Fable 5.1",
+    "provider": "anthropic",
+    "platforms": [
+      "anthropic"
+    ],
+    "protocol_ids": [
+      "claude-fable-5-1"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "claude-fable-5-1"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
+    "ui_priority": 6,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ],
+    "context_window_tokens": 1000000
+  },
+  {
+    "id": "claude-mythos-5",
+    "display_name": "Claude Mythos 5",
+    "provider": "anthropic",
+    "platforms": ["anthropic"],
+    "protocol_ids": ["claude-mythos-5"],
+    "aliases": [],
+    "pricing_lookup_ids": ["claude-mythos-5"],
+    "modalities": ["text"],
+    "capabilities": ["reasoning"],
+    "ui_priority": 7,
+    "status": "unknown",
+    "exposed_in": ["runtime", "test", "whitelist"]
+  },
+  {
+    "id": "claude-mythos-5-1",
+    "display_name": "Claude Mythos 5.1",
+    "provider": "anthropic",
+    "platforms": ["anthropic"],
+    "protocol_ids": ["claude-mythos-5-1"],
+    "aliases": [],
+    "pricing_lookup_ids": ["claude-mythos-5-1"],
+    "modalities": ["text"],
+    "capabilities": ["reasoning"],
+    "ui_priority": 8,
+    "status": "unknown",
+    "exposed_in": ["runtime", "test", "whitelist"]
   },
   {
     "id": "tab_flash_lite_preview",
@@ -1668,14 +1739,16 @@
       "image"
     ],
     "capabilities": [
-      "image"
+      "image_generation"
     ],
     "ui_priority": 0,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 131072
   },
   {
     "id": "gemini-2.5-flash-image",
@@ -1699,14 +1772,16 @@
       "image"
     ],
     "capabilities": [
-      "image"
+      "image_generation"
     ],
     "ui_priority": 1,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 65536
   },
   {
     "id": "gemini-2.0-flash",
@@ -1725,14 +1800,21 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
     "ui_priority": 2,
     "exposed_in": [
       "runtime",
       "test",
       "use_key",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-2.5-flash",
@@ -1752,14 +1834,21 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
     "ui_priority": 3,
     "exposed_in": [
       "runtime",
       "test",
       "use_key",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-2.5-pro",
@@ -1779,13 +1868,20 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
     "ui_priority": 4,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-3-flash-preview",
@@ -1804,13 +1900,21 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
     "ui_priority": 5,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-3.6-flash",
@@ -1834,14 +1938,20 @@
       "video"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
     ],
     "ui_priority": 6,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-2.5-flash-lite",
@@ -1860,13 +1970,20 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
     "ui_priority": 6,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1048576
   },
   {
     "id": "gemini-3-pro-preview",
@@ -2091,14 +2208,16 @@
       "image"
     ],
     "capabilities": [
-      "image"
+      "image_generation"
     ],
     "ui_priority": 14,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 65536
   },
   {
     "id": "gemini-2.5-flash-image-preview",
@@ -2171,12 +2290,20 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
     "ui_priority": 200,
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 1048576
   },
   {
     "id": "unknown",
@@ -3182,7 +3309,7 @@
   },
   {
     "id": "gpt-3.5-turbo",
-    "display_name": "GPT-3.5-turbo",
+    "display_name": "GPT-3.5 Turbo",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3190,18 +3317,26 @@
     "protocol_ids": [
       "gpt-3.5-turbo"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-3.5-turbo-0125",
+      "gpt-3.5-turbo-1106",
+      "gpt-3.5-turbo-instruct"
+    ],
     "pricing_lookup_ids": [
       "gpt-3.5-turbo"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text"
+    ],
     "ui_priority": 0,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 16385
   },
   {
     "id": "gpt-3.5-turbo-0125",
@@ -3282,22 +3417,29 @@
     "protocol_ids": [
       "gpt-4"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4-0613",
+      "gpt-4-0314"
+    ],
     "pricing_lookup_ids": [
       "gpt-4"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text"
+    ],
     "ui_priority": 4,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 8192
   },
   {
     "id": "gpt-4-turbo",
-    "display_name": "GPT-4-turbo",
+    "display_name": "GPT-4 Turbo",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3305,22 +3447,29 @@
     "protocol_ids": [
       "gpt-4-turbo"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4-turbo-2024-04-09"
+    ],
     "pricing_lookup_ids": [
       "gpt-4-turbo"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
     "ui_priority": 5,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4-turbo-preview",
-    "display_name": "GPT-4-turbo-preview",
+    "display_name": "GPT-4 Turbo Preview",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3328,18 +3477,25 @@
     "protocol_ids": [
       "gpt-4-turbo-preview"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4-0125-preview",
+      "gpt-4-1106-vision-preview"
+    ],
     "pricing_lookup_ids": [
       "gpt-4-turbo-preview"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text"
+    ],
     "ui_priority": 6,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4o",
@@ -3351,18 +3507,28 @@
     "protocol_ids": [
       "gpt-4o"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4o-2024-11-20",
+      "gpt-4o-2024-08-06",
+      "gpt-4o-2024-05-13"
+    ],
     "pricing_lookup_ids": [
       "gpt-4o"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 7,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4o-2024-08-06",
@@ -3412,7 +3578,7 @@
   },
   {
     "id": "gpt-4o-mini",
-    "display_name": "GPT-4o-mini",
+    "display_name": "GPT-4o Mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3420,18 +3586,26 @@
     "protocol_ids": [
       "gpt-4o-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4o-mini-2024-07-18"
+    ],
     "pricing_lookup_ids": [
       "gpt-4o-mini"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 10,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4o-mini-2024-07-18",
@@ -3458,7 +3632,7 @@
   },
   {
     "id": "gpt-4.5-preview",
-    "display_name": "GPT-4.5-preview",
+    "display_name": "GPT-4.5 Preview",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3466,18 +3640,25 @@
     "protocol_ids": [
       "gpt-4.5-preview"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4.5-preview-2025-02-27"
+    ],
     "pricing_lookup_ids": [
       "gpt-4.5-preview"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
     "ui_priority": 12,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4.1",
@@ -3489,22 +3670,30 @@
     "protocol_ids": [
       "gpt-4.1"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4.1-2025-04-14"
+    ],
     "pricing_lookup_ids": [
       "gpt-4.1"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 13,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1047576
   },
   {
     "id": "gpt-4.1-mini",
-    "display_name": "GPT-4.1-mini",
+    "display_name": "GPT-4.1 Mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3512,22 +3701,30 @@
     "protocol_ids": [
       "gpt-4.1-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4.1-mini-2025-04-14"
+    ],
     "pricing_lookup_ids": [
       "gpt-4.1-mini"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 14,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1047576
   },
   {
     "id": "gpt-4.1-nano",
-    "display_name": "GPT-4.1-nano",
+    "display_name": "GPT-4.1 nano",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3535,18 +3732,25 @@
     "protocol_ids": [
       "gpt-4.1-nano"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4.1-nano-2025-04-14"
+    ],
     "pricing_lookup_ids": [
       "gpt-4.1-nano"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
     "ui_priority": 15,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1047576
   },
   {
     "id": "gpt-oss-120b-medium",
@@ -3573,7 +3777,7 @@
   },
   {
     "id": "o1",
-    "display_name": "O1",
+    "display_name": "o1",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3581,7 +3785,9 @@
     "protocol_ids": [
       "o1"
     ],
-    "aliases": [],
+    "aliases": [
+      "o1-2024-12-17"
+    ],
     "pricing_lookup_ids": [
       "o1"
     ],
@@ -3589,16 +3795,19 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision"
     ],
     "ui_priority": 16,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "o1-preview",
-    "display_name": "O1-preview",
+    "display_name": "o1 Preview",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3606,7 +3815,9 @@
     "protocol_ids": [
       "o1-preview"
     ],
-    "aliases": [],
+    "aliases": [
+      "o1-preview-2024-09-12"
+    ],
     "pricing_lookup_ids": [
       "o1-preview"
     ],
@@ -3614,16 +3825,18 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text"
     ],
     "ui_priority": 17,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 128000
   },
   {
     "id": "o1-mini",
-    "display_name": "O1-mini",
+    "display_name": "o1-mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3631,7 +3844,9 @@
     "protocol_ids": [
       "o1-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "o1-mini-2024-09-12"
+    ],
     "pricing_lookup_ids": [
       "o1-mini"
     ],
@@ -3639,16 +3854,18 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text"
     ],
     "ui_priority": 18,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 128000
   },
   {
     "id": "o1-pro",
-    "display_name": "O1-pro",
+    "display_name": "o1-pro",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3656,7 +3873,9 @@
     "protocol_ids": [
       "o1-pro"
     ],
-    "aliases": [],
+    "aliases": [
+      "o1-pro-2025-03-19"
+    ],
     "pricing_lookup_ids": [
       "o1-pro"
     ],
@@ -3664,16 +3883,19 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision"
     ],
     "ui_priority": 19,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "o3",
-    "display_name": "O3",
+    "display_name": "o3",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3681,7 +3903,9 @@
     "protocol_ids": [
       "o3"
     ],
-    "aliases": [],
+    "aliases": [
+      "o3-2025-04-16"
+    ],
     "pricing_lookup_ids": [
       "o3"
     ],
@@ -3689,16 +3913,20 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision",
+      "web_search"
     ],
     "ui_priority": 20,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "o3-mini",
-    "display_name": "O3-mini",
+    "display_name": "o3-mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3706,7 +3934,9 @@
     "protocol_ids": [
       "o3-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "o3-mini-2025-01-31"
+    ],
     "pricing_lookup_ids": [
       "o3-mini"
     ],
@@ -3714,16 +3944,18 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text"
     ],
     "ui_priority": 21,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "o3-pro",
-    "display_name": "O3-pro",
+    "display_name": "o3-pro",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3731,7 +3963,9 @@
     "protocol_ids": [
       "o3-pro"
     ],
-    "aliases": [],
+    "aliases": [
+      "o3-pro-2025-06-10"
+    ],
     "pricing_lookup_ids": [
       "o3-pro"
     ],
@@ -3739,16 +3973,20 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision",
+      "web_search"
     ],
     "ui_priority": 22,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "o4-mini",
-    "display_name": "O4-mini",
+    "display_name": "o4-mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3756,7 +3994,9 @@
     "protocol_ids": [
       "o4-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "o4-mini-2025-04-16"
+    ],
     "pricing_lookup_ids": [
       "o4-mini"
     ],
@@ -3764,12 +4004,16 @@
       "text"
     ],
     "capabilities": [
-      "reasoning"
+      "text",
+      "vision",
+      "web_search"
     ],
     "ui_priority": 23,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 200000
   },
   {
     "id": "gpt-5",
@@ -3781,20 +4025,28 @@
     "protocol_ids": [
       "gpt-5"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5-2025-08-07"
+    ],
     "pricing_lookup_ids": [
       "gpt-5"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 24,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5-2025-08-07",
@@ -3844,7 +4096,7 @@
   },
   {
     "id": "gpt-5-chat-latest",
-    "display_name": "GPT-5-chat-latest",
+    "display_name": "GPT-5 Chat",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3859,11 +4111,17 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 27,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-5.3-codex-spark",
@@ -3892,7 +4150,7 @@
   },
   {
     "id": "gpt-5-pro",
-    "display_name": "GPT-5-pro",
+    "display_name": "GPT-5 Pro",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3900,18 +4158,26 @@
     "protocol_ids": [
       "gpt-5-pro"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5-pro-2025-10-06"
+    ],
     "pricing_lookup_ids": [
       "gpt-5-pro"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 30,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5-pro-2025-10-06",
@@ -3938,7 +4204,7 @@
   },
   {
     "id": "gpt-5-mini",
-    "display_name": "GPT-5-mini",
+    "display_name": "GPT-5 Mini",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3946,18 +4212,26 @@
     "protocol_ids": [
       "gpt-5-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5-mini-2025-08-07"
+    ],
     "pricing_lookup_ids": [
       "gpt-5-mini"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 32,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5-mini-2025-08-07",
@@ -3984,7 +4258,7 @@
   },
   {
     "id": "gpt-5-nano",
-    "display_name": "GPT-5-nano",
+    "display_name": "GPT-5 nano",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -3992,18 +4266,26 @@
     "protocol_ids": [
       "gpt-5-nano"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5-nano-2025-08-07"
+    ],
     "pricing_lookup_ids": [
       "gpt-5-nano"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 34,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5-nano-2025-08-07",
@@ -4038,20 +4320,28 @@
     "protocol_ids": [
       "gpt-5.2"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.2-2025-12-11"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.2"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 42,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5.2-2025-12-11",
@@ -4078,7 +4368,7 @@
   },
   {
     "id": "gpt-5.2-chat-latest",
-    "display_name": "GPT-5.2-chat-latest",
+    "display_name": "GPT-5.2 Chat",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4093,15 +4383,21 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 44,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-5.2-pro",
-    "display_name": "GPT-5.2-pro",
+    "display_name": "GPT-5.2 Pro",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4109,18 +4405,26 @@
     "protocol_ids": [
       "gpt-5.2-pro"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.2-pro-2025-12-11"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.2-pro"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 46,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5.2-pro-2025-12-11",
@@ -4163,6 +4467,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 46,
@@ -4170,7 +4477,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.6-terra",
@@ -4190,6 +4499,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 46,
@@ -4197,7 +4509,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.6-luna",
@@ -4217,6 +4531,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 46,
@@ -4224,7 +4541,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.4",
@@ -4236,7 +4555,9 @@
     "protocol_ids": [
       "gpt-5.4"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.4-2026-03-05"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.4"
     ],
@@ -4244,6 +4565,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 48,
@@ -4251,7 +4575,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.5",
@@ -4263,7 +4589,9 @@
     "protocol_ids": [
       "gpt-5.5"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.5-2026-04-23"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.5"
     ],
@@ -4271,6 +4599,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 48,
@@ -4278,7 +4609,40 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
+  },
+  {
+    "id": "gpt-6-astra",
+    "display_name": "GPT-6 Astra",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-6-astra"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-6-astra"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 49,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ],
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.4-mini",
@@ -4290,7 +4654,9 @@
     "protocol_ids": [
       "gpt-5.4-mini"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.4-mini-2026-03-17"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.4-mini"
     ],
@@ -4298,6 +4664,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 49,
@@ -4306,11 +4675,13 @@
       "test",
       "whitelist",
       "use_key"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5.4-nano",
-    "display_name": "GPT-5.4 Nano",
+    "display_name": "GPT-5.4 nano",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4318,21 +4689,29 @@
     "protocol_ids": [
       "gpt-5.4-nano"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.4-nano-2026-03-17"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.4-nano"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
     "ui_priority": 50,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist",
       "use_key"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 400000
   },
   {
     "id": "gpt-5.4-2026-03-05",
@@ -4361,7 +4740,7 @@
   },
   {
     "id": "gpt-5.4-pro",
-    "display_name": "GPT-5.4-pro",
+    "display_name": "GPT-5.4 Pro",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4369,7 +4748,9 @@
     "protocol_ids": [
       "gpt-5.4-pro"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.4-pro-2026-03-05"
+    ],
     "pricing_lookup_ids": [
       "gpt-5.4-pro"
     ],
@@ -4377,6 +4758,9 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
+      "web_search",
       "image_generation_tool"
     ],
     "ui_priority": 50,
@@ -4384,7 +4768,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 1050000
   },
   {
     "id": "gpt-5.4-pro-2026-03-05",
@@ -4413,7 +4799,7 @@
   },
   {
     "id": "gpt-image-2",
-    "display_name": "GPT Image 2",
+    "display_name": "GPT-Image-2",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4421,7 +4807,9 @@
     "protocol_ids": [
       "gpt-image-2"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-image-2-2026-04-21"
+    ],
     "pricing_lookup_ids": [
       "gpt-image-2"
     ],
@@ -4438,11 +4826,12 @@
       "test",
       "whitelist",
       "use_key"
-    ]
+    ],
+    "status": "stable"
   },
   {
     "id": "chatgpt-4o-latest",
-    "display_name": "Chatgpt-4o-latest",
+    "display_name": "ChatGPT-4o",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4457,15 +4846,20 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
     "ui_priority": 52,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4o-audio-preview",
-    "display_name": "GPT-4o-audio-preview",
+    "display_name": "GPT-4o Audio",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4473,22 +4867,30 @@
     "protocol_ids": [
       "gpt-4o-audio-preview"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4o-audio-preview-2025-06-03",
+      "gpt-4o-audio-preview-2024-12-17",
+      "gpt-4o-audio-preview-2024-10-01"
+    ],
     "pricing_lookup_ids": [
       "gpt-4o-audio-preview"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "audio_generation"
+    ],
     "ui_priority": 53,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 128000
   },
   {
     "id": "gpt-4o-realtime-preview",
-    "display_name": "GPT-4o-realtime-preview",
+    "display_name": "GPT-4o Realtime",
     "provider": "openai",
     "platforms": [
       "openai"
@@ -4496,18 +4898,27 @@
     "protocol_ids": [
       "gpt-4o-realtime-preview"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-4o-realtime-preview-2025-06-03",
+      "gpt-4o-realtime-preview-2024-12-17",
+      "gpt-4o-realtime-preview-2024-10-01"
+    ],
     "pricing_lookup_ids": [
       "gpt-4o-realtime-preview"
     ],
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
     "ui_priority": 54,
     "exposed_in": [
       "whitelist"
-    ]
+    ],
+    "status": "beta",
+    "context_window_tokens": 32000
   },
   {
     "id": "sonar",
@@ -5392,6 +5803,8 @@
       "text"
     ],
     "capabilities": [
+      "text",
+      "vision",
       "web_search",
       "x_search"
     ],
@@ -5400,7 +5813,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "stable",
+    "context_window_tokens": 500000
   },
   {
     "id": "grok-4.5",
@@ -6884,5 +7299,2514 @@
     "exposed_in": [
       "whitelist"
     ]
+  },
+  {
+    "id": "babbage-002",
+    "display_name": "babbage-002",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "babbage-002"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "babbage-002"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 100,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "chat-latest",
+    "display_name": "Chat Latest",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "chat-latest"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "chat-latest"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 101,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "chatgpt-image-latest",
+    "display_name": "chatgpt-image-latest",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "chatgpt-image-latest"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "chatgpt-image-latest"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 102,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ]
+  },
+  {
+    "id": "codex-mini-latest",
+    "display_name": "codex-mini-latest",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "codex-mini-latest"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "codex-mini-latest"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
+    "ui_priority": 103,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 200000
+  },
+  {
+    "id": "computer-use-preview",
+    "display_name": "computer-use-preview",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "computer-use-preview"
+    ],
+    "aliases": [
+      "computer-use-preview-2025-03-11"
+    ],
+    "pricing_lookup_ids": [
+      "computer-use-preview"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
+    "ui_priority": 104,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 8192
+  },
+  {
+    "id": "davinci-002",
+    "display_name": "davinci-002",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "davinci-002"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "davinci-002"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 105,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gpt-4o-mini-audio-preview",
+    "display_name": "GPT-4o Mini Audio",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-mini-audio-preview"
+    ],
+    "aliases": [
+      "gpt-4o-mini-audio-preview-2024-12-17"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-mini-audio-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 106,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-4o-mini-realtime-preview",
+    "display_name": "GPT-4o Mini Realtime",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-mini-realtime-preview"
+    ],
+    "aliases": [
+      "gpt-4o-mini-realtime-preview-2024-12-17"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-mini-realtime-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 107,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-4o-mini-search-preview",
+    "display_name": "GPT-4o Mini Search Preview",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-mini-search-preview"
+    ],
+    "aliases": [
+      "gpt-4o-mini-search-preview-2025-03-11"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-mini-search-preview"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 108,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-4o-mini-transcribe",
+    "display_name": "GPT-4o Mini Transcribe",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-mini-transcribe"
+    ],
+    "aliases": [
+      "gpt-4o-mini-transcribe-2025-03-20",
+      "gpt-4o-mini-transcribe-2025-12-15"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-mini-transcribe"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 109,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-4o-mini-tts",
+    "display_name": "GPT-4o Mini TTS",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-mini-tts"
+    ],
+    "aliases": [
+      "gpt-4o-mini-tts-2025-03-20",
+      "gpt-4o-mini-tts-2025-12-15"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-mini-tts"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 110,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ]
+  },
+  {
+    "id": "gpt-4o-search-preview",
+    "display_name": "GPT-4o Search Preview",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-search-preview"
+    ],
+    "aliases": [
+      "gpt-4o-search-preview-2025-03-11"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-4o-search-preview"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 111,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-4o-transcribe-diarize",
+    "display_name": "GPT-4o Transcribe Diarize",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-transcribe-diarize"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-4o-transcribe-diarize"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 112,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-4o-transcribe",
+    "display_name": "GPT-4o Transcribe",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-4o-transcribe"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-4o-transcribe"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 113,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-5-codex",
+    "display_name": "GPT-5-Codex",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5-codex"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5-codex"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 114,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.1-chat-latest",
+    "display_name": "GPT-5.1 Chat",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.1-chat-latest"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.1-chat-latest"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 115,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-5.1-codex-max",
+    "display_name": "GPT-5.1-Codex-Max",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.1-codex-max"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.1-codex-max"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 116,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.1-codex-mini",
+    "display_name": "GPT-5.1-Codex Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.1-codex-mini"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.1-codex-mini"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 117,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.1-codex",
+    "display_name": "GPT-5.1-Codex",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.1-codex"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.1-codex"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 118,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.1",
+    "display_name": "GPT-5.1",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.1"
+    ],
+    "aliases": [
+      "gpt-5.1-2025-11-13"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-5.1"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 119,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.2-codex",
+    "display_name": "GPT-5.2-Codex",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.2-codex"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.2-codex"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 120,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.3-codex",
+    "display_name": "GPT-5.3-Codex",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.3-codex"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.3-codex"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 121,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 400000
+  },
+  {
+    "id": "gpt-5.5-pro",
+    "display_name": "GPT-5.5 Pro",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.5-pro"
+    ],
+    "aliases": [
+      "gpt-5.5-pro-2026-04-23"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-5.5-pro"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 122,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1050000
+  },
+  {
+    "id": "gpt-audio-1.5",
+    "display_name": "GPT-Audio-1.5",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-audio-1.5"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-audio-1.5"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 123,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-audio-mini",
+    "display_name": "GPT-Audio Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-audio-mini"
+    ],
+    "aliases": [
+      "gpt-audio-mini-2025-10-06",
+      "gpt-audio-mini-2025-12-15"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-audio-mini"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 124,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-audio",
+    "display_name": "GPT-Audio",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-audio"
+    ],
+    "aliases": [
+      "gpt-audio-2025-08-28"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-audio"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 125,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-image-1-mini",
+    "display_name": "GPT-Image-1 Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-image-1-mini"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-image-1-mini"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 126,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ]
+  },
+  {
+    "id": "gpt-image-1.5",
+    "display_name": "GPT-Image-1.5",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-image-1.5"
+    ],
+    "aliases": [
+      "gpt-image-1.5-2025-12-16"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-image-1.5"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 127,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ]
+  },
+  {
+    "id": "gpt-image-1",
+    "display_name": "GPT-Image-1",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-image-1"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-image-1"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 128,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ]
+  },
+  {
+    "id": "gpt-live-transcribe",
+    "display_name": "GPT-Live-Transcribe",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-live-transcribe"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-live-transcribe"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 129,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gpt-realtime-1.5",
+    "display_name": "GPT-Realtime-1.5",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-1.5"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-1.5"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 130,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 32000
+  },
+  {
+    "id": "gpt-realtime-2.1-mini",
+    "display_name": "GPT-Realtime-2.1 Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-2.1-mini"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-2.1-mini"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 131,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-realtime-2.1",
+    "display_name": "GPT-Realtime-2.1",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-2.1"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-2.1"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 132,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-realtime-2",
+    "display_name": "GPT-Realtime-2",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-2"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-2"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 133,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gpt-realtime-mini",
+    "display_name": "GPT-Realtime Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-mini"
+    ],
+    "aliases": [
+      "gpt-realtime-mini-2025-10-06",
+      "gpt-realtime-mini-2025-12-15"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-realtime-mini"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 134,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 32000
+  },
+  {
+    "id": "gpt-realtime-translate",
+    "display_name": "GPT-Realtime-Translate",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-translate"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-translate"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 135,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-realtime-whisper",
+    "display_name": "GPT-Realtime-Whisper",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime-whisper"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-realtime-whisper"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 136,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 16000
+  },
+  {
+    "id": "gpt-realtime",
+    "display_name": "GPT-Realtime",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-realtime"
+    ],
+    "aliases": [
+      "gpt-realtime-2025-08-28"
+    ],
+    "pricing_lookup_ids": [
+      "gpt-realtime"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 137,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 32000
+  },
+  {
+    "id": "gpt-transcribe",
+    "display_name": "GPT-Transcribe",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-transcribe"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-transcribe"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 138,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "o3-deep-research",
+    "display_name": "o3-deep-research",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "o3-deep-research"
+    ],
+    "aliases": [
+      "o3-deep-research-2025-06-26"
+    ],
+    "pricing_lookup_ids": [
+      "o3-deep-research"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 139,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 200000
+  },
+  {
+    "id": "o4-mini-deep-research",
+    "display_name": "o4-mini-deep-research",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "o4-mini-deep-research"
+    ],
+    "aliases": [
+      "o4-mini-deep-research-2025-06-26"
+    ],
+    "pricing_lookup_ids": [
+      "o4-mini-deep-research"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search"
+    ],
+    "ui_priority": 140,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 200000
+  },
+  {
+    "id": "omni-moderation-latest",
+    "display_name": "omni-moderation",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "omni-moderation-latest"
+    ],
+    "aliases": [
+      "omni-moderation-2024-09-26"
+    ],
+    "pricing_lookup_ids": [
+      "omni-moderation-latest"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "moderation"
+    ],
+    "ui_priority": 141,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "sora-2-pro",
+    "display_name": "Sora 2 Pro",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "sora-2-pro"
+    ],
+    "aliases": [
+      "sora-2-pro-2025-10-06"
+    ],
+    "pricing_lookup_ids": [
+      "sora-2-pro"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 142,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "sora-2",
+    "display_name": "Sora 2",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "sora-2"
+    ],
+    "aliases": [
+      "sora-2-2025-12-08",
+      "sora-2-2025-10-06"
+    ],
+    "pricing_lookup_ids": [
+      "sora-2"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 143,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "text-embedding-3-large",
+    "display_name": "text-embedding-3-large",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "text-embedding-3-large"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "text-embedding-3-large"
+    ],
+    "modalities": [
+      "embedding"
+    ],
+    "capabilities": [
+      "embedding"
+    ],
+    "ui_priority": 144,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "text-embedding-3-small",
+    "display_name": "text-embedding-3-small",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "text-embedding-3-small"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "text-embedding-3-small"
+    ],
+    "modalities": [
+      "embedding"
+    ],
+    "capabilities": [
+      "embedding"
+    ],
+    "ui_priority": 145,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "text-embedding-ada-002",
+    "display_name": "text-embedding-ada-002",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "text-embedding-ada-002"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "text-embedding-ada-002"
+    ],
+    "modalities": [
+      "embedding"
+    ],
+    "capabilities": [
+      "embedding"
+    ],
+    "ui_priority": 146,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "text-moderation-latest",
+    "display_name": "text-moderation",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "text-moderation-latest"
+    ],
+    "aliases": [
+      "text-moderation-007"
+    ],
+    "pricing_lookup_ids": [
+      "text-moderation-latest"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "moderation"
+    ],
+    "ui_priority": 147,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "text-moderation-stable",
+    "display_name": "text-moderation-stable",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "text-moderation-stable"
+    ],
+    "aliases": [
+      "text-moderation-007"
+    ],
+    "pricing_lookup_ids": [
+      "text-moderation-stable"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "moderation"
+    ],
+    "ui_priority": 148,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "tts-1-hd",
+    "display_name": "TTS-1 HD",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "tts-1-hd"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "tts-1-hd"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 149,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "tts-1",
+    "display_name": "TTS-1",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "tts-1"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "tts-1"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 150,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "whisper-1",
+    "display_name": "Whisper",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "whisper-1"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "whisper-1"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 151,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gemini-2.5-computer-use-preview-10-2025",
+    "display_name": "Gemini 2.5 Computer Use Preview 10 2025",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-2.5-computer-use-preview-10-2025"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-2.5-computer-use-preview-10-2025"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision"
+    ],
+    "ui_priority": 152,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 128000
+  },
+  {
+    "id": "gemini-2.5-flash-native-audio-preview-12-2025",
+    "display_name": "Gemini 2.5 Flash Native Audio Preview 12 2025",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-2.5-flash-native-audio-preview-12-2025"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-2.5-flash-native-audio-preview-12-2025"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 153,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "gemini-2.5-flash-preview-tts",
+    "display_name": "Gemini 2.5 Flash Preview TTS",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-2.5-flash-preview-tts"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-2.5-flash-preview-tts"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 154,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 8192
+  },
+  {
+    "id": "gemini-2.5-pro-preview-tts",
+    "display_name": "Gemini 2.5 Pro Preview TTS",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-2.5-pro-preview-tts"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-2.5-pro-preview-tts"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 155,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 8192
+  },
+  {
+    "id": "gemini-3.1-flash-lite-image",
+    "display_name": "Gemini 3.1 Flash Lite Image",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.1-flash-lite-image"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.1-flash-lite-image"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 156,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 65536
+  },
+  {
+    "id": "gemini-3.1-flash-lite",
+    "display_name": "Gemini 3.1 Flash Lite",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.1-flash-lite"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.1-flash-lite"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
+    "ui_priority": 157,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-3.1-flash-live-preview",
+    "display_name": "Gemini 3.1 Flash Live Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.1-flash-live-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.1-flash-live-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 158,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "gemini-3.1-flash-tts-preview",
+    "display_name": "Gemini 3.1 Flash TTS Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.1-flash-tts-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.1-flash-tts-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 159,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 8192
+  },
+  {
+    "id": "gemini-3.5-flash-lite",
+    "display_name": "Gemini 3.5 Flash Lite",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.5-flash-lite"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.5-flash-lite"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
+    "ui_priority": 160,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-3.5-flash",
+    "display_name": "Gemini 3.5 Flash",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.5-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.5-flash"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
+    "ui_priority": 161,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-3.5-live-translate-preview",
+    "display_name": "Gemini 3.5 Live Translate Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.5-live-translate-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.5-live-translate-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 162,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "gemini-3.5-transcribe",
+    "display_name": "Gemini 3.5 Transcribe",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.5-transcribe"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.5-transcribe"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 163,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gemini-3.7-flash",
+    "display_name": "Gemini 3.7 Flash",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.7-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.7-flash"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
+    "ui_priority": 164,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-3.8-flash",
+    "display_name": "Gemini 3.8 Flash",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.8-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.8-flash"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding",
+      "video_understanding"
+    ],
+    "ui_priority": 165,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-embedding-001",
+    "display_name": "Gemini Embedding 001",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-embedding-001"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-embedding-001"
+    ],
+    "modalities": [
+      "embedding"
+    ],
+    "capabilities": [
+      "embedding"
+    ],
+    "ui_priority": 166,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist"
+    ],
+    "context_window_tokens": 2048
+  },
+  {
+    "id": "gemini-embedding-2",
+    "display_name": "Gemini Embedding 2",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-embedding-2"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-embedding-2"
+    ],
+    "modalities": [
+      "embedding"
+    ],
+    "capabilities": [
+      "embedding"
+    ],
+    "ui_priority": 167,
+    "status": "stable",
+    "exposed_in": [
+      "runtime",
+      "whitelist"
+    ],
+    "context_window_tokens": 8192
+  },
+  {
+    "id": "gemini-omni-1.1-flash",
+    "display_name": "Gemini Omni 1.1 Flash",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-omni-1.1-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-omni-1.1-flash"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 168,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "gemini-robotics-er-1.6-preview",
+    "display_name": "Gemini Robotics Er 1.6 Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-robotics-er-1.6-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-robotics-er-1.6-preview"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
+    "ui_priority": 169,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "gemini-robotics-er-2-preview",
+    "display_name": "Gemini Robotics Er 2 Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-robotics-er-2-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-robotics-er-2-preview"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text",
+      "vision",
+      "web_search",
+      "audio_understanding"
+    ],
+    "ui_priority": 170,
+    "status": "beta",
+    "exposed_in": [
+      "runtime",
+      "whitelist",
+      "test"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "lyria-3-clip-preview",
+    "display_name": "Lyria 3 Clip Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "lyria-3-clip-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "lyria-3-clip-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 171,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "lyria-3.5",
+    "display_name": "Lyria 3.5",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "lyria-3.5"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "lyria-3.5"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_generation"
+    ],
+    "ui_priority": 172,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "lyria-realtime-exp",
+    "display_name": "Lyria Realtime Exp",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "lyria-realtime-exp"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "lyria-realtime-exp"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 173,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "veo-3.1-generate-preview",
+    "display_name": "Veo 3.1 Generate Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "veo-3.1-generate-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "veo-3.1-generate-preview"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 174,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "veo-3.1-fast-generate-preview",
+    "display_name": "Veo 3.1 Fast Generate Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "veo-3.1-fast-generate-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "veo-3.1-fast-generate-preview"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 175,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "veo-3.1-lite-generate-preview",
+    "display_name": "Veo 3.1 Lite Generate Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "veo-3.1-lite-generate-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "veo-3.1-lite-generate-preview"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 176,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "grok-imagine-image-2.0",
+    "display_name": "Grok Imagine Image 2.0",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-image-2.0"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-imagine-image-2.0"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 177,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "grok-imagine-video-1.5",
+    "display_name": "Grok Imagine Video 1.5",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-video-1.5"
+    ],
+    "aliases": [
+      "grok-imagine-video-1.5-preview",
+      "grok-imagine-video-1.5-2026-05-30"
+    ],
+    "pricing_lookup_ids": [
+      "grok-imagine-video-1.5"
+    ],
+    "modalities": [
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 178,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "grok-voice-latest",
+    "display_name": "Grok Voice Latest",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-voice-latest"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-voice-latest"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 179,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "grok-voice-think-fast-1.0",
+    "display_name": "Grok Voice Think Fast 1.0",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-voice-think-fast-1.0"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-voice-think-fast-1.0"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 180,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "grok-voice-think-fast-2.0",
+    "display_name": "Grok Voice Think Fast 2.0",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-voice-think-fast-2.0"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-voice-think-fast-2.0"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding",
+      "audio_generation"
+    ],
+    "ui_priority": 181,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gemini-3.5-transcribe-live",
+    "display_name": "Gemini 3.5 Transcribe Live",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-3.5-transcribe-live"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-3.5-transcribe-live"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding"
+    ],
+    "ui_priority": 300,
+    "status": "stable",
+    "exposed_in": [
+      "catalog"
+    ]
+  },
+  {
+    "id": "gemini-robotics-er-2-streaming-preview",
+    "display_name": "Gemini Robotics ER 2 Streaming Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "gemini-robotics-er-2-streaming-preview"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gemini-robotics-er-2-streaming-preview"
+    ],
+    "modalities": [
+      "audio"
+    ],
+    "capabilities": [
+      "audio_understanding"
+    ],
+    "ui_priority": 300,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 131072
+  },
+  {
+    "id": "antigravity-preview-05-2026",
+    "display_name": "Antigravity Agent Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "antigravity-preview-05-2026"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "antigravity-preview-05-2026"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 300,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "deep-research-preview-04-2026",
+    "display_name": "Deep Research Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "deep-research-preview-04-2026"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deep-research-preview-04-2026"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 300,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 1048576
+  },
+  {
+    "id": "deep-research-max-preview-04-2026",
+    "display_name": "Deep Research Max Preview",
+    "provider": "gemini",
+    "platforms": [
+      "gemini"
+    ],
+    "protocol_ids": [
+      "deep-research-max-preview-04-2026"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deep-research-max-preview-04-2026"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "text"
+    ],
+    "ui_priority": 300,
+    "status": "beta",
+    "exposed_in": [
+      "catalog"
+    ],
+    "context_window_tokens": 1048576
   }
 ]

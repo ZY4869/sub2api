@@ -12,6 +12,23 @@
           {{ t('admin.groups.openaiRuntimePolicy.allowLiveHint') }}
         </p>
       </div>
+
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+          <div>
+            <label class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.groups.openaiRuntimePolicy.forceFast') }}</label>
+            <p class="input-hint">{{ t('admin.groups.openaiRuntimePolicy.forceFastHint') }}</p>
+          </div>
+          <Toggle v-model="form.force_openai_fast" />
+        </div>
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+          <div>
+            <label class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.groups.openaiRuntimePolicy.freeFast') }}</label>
+            <p class="input-hint">{{ t('admin.groups.openaiRuntimePolicy.freeFastHint') }}</p>
+          </div>
+          <Toggle v-model="form.free_openai_fast" />
+        </div>
+      </div>
       <Toggle v-model="form.allow_live" />
     </div>
 
@@ -26,6 +43,19 @@
         />
         <p class="input-hint">
           {{ t('admin.groups.openaiRuntimePolicy.maxReasoningEffortHint') }}
+        </p>
+      </div>
+
+      <div>
+        <label class="input-label">
+          {{ t('admin.groups.openaiRuntimePolicy.overLimitAction') }}
+        </label>
+        <Select
+          v-model="form.max_reasoning_effort_over_limit"
+          :options="overLimitActionOptions"
+        />
+        <p class="input-hint">
+          {{ t('admin.groups.openaiRuntimePolicy.overLimitActionHint') }}
         </p>
       </div>
 
@@ -121,7 +151,7 @@ defineEmits<{
 const form = props.form
 const t = props.t
 const supportsRuntimePolicy = computed(() =>
-  form.platform === 'openai' || form.platform === 'composite'
+  form.platform === 'openai' || form.platform === 'kimi' || form.platform === 'composite'
 )
 
 const effortValues = ['none', 'low', 'medium', 'high', 'xhigh', 'max']
@@ -132,6 +162,10 @@ const reasoningEffortOptions = computed(() => [
 const reasoningEffortRequiredOptions = computed(() =>
   effortValues.map((value) => ({ value, label: value }))
 )
+const overLimitActionOptions = computed(() => [
+  { value: 'downgrade', label: t('admin.groups.openaiRuntimePolicy.overLimitDowngrade') },
+  { value: 'deny', label: t('admin.groups.openaiRuntimePolicy.overLimitDeny') }
+])
 const mappingFromOptions = computed(() => [
   { value: '', label: t('admin.groups.openaiRuntimePolicy.anyEffort') },
   ...effortValues.map((value) => ({ value, label: value }))

@@ -177,9 +177,12 @@ type AdminGroup struct {
 	MCPXMLInject bool `json:"mcp_xml_inject"`
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	DefaultMappedModel      string                           `json:"default_mapped_model"`
-	MaxReasoningEffort      string                           `json:"max_reasoning_effort"`
-	ReasoningEffortMappings []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
+	DefaultMappedModel          string                           `json:"default_mapped_model"`
+	MaxReasoningEffort          string                           `json:"max_reasoning_effort"`
+	MaxReasoningEffortOverLimit string                           `json:"max_reasoning_effort_over_limit"`
+	ForceOpenAIFast             bool                             `json:"force_openai_fast"`
+	FreeOpenAIFast              bool                             `json:"free_openai_fast"`
+	ReasoningEffortMappings     []service.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
 
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes    []string       `json:"supported_model_scopes"`

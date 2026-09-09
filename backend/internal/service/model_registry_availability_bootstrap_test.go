@@ -132,3 +132,27 @@ func TestModelRegistryService_AvailableBootstrapRunsAfterMigrationWhenSetMissing
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260726])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260818])
 }
+
+func TestModelRegistryService_UnknownSeedModelsRemainUnavailableUntilExplicitActivation(t *testing.T) {
+	ctx := context.Background()
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	for _, modelID := range []string{"claude-mythos-5", "claude-mythos-5-1"} {
+		detail, err := svc.GetDetail(ctx, modelID)
+		require.NoError(t, err)
+		require.Equal(t, "unknown", detail.Status)
+		require.False(t, detail.Available, modelID)
+		require.False(t, svc.IsModelAvailable(ctx, modelID), modelID)
+	}
+
+	for _, modelID := range []string{"gpt-6-astra", "claude-fable-5-1"} {
+		detail, err := svc.GetDetail(ctx, modelID)
+		require.NoError(t, err)
+		require.Equal(t, "stable", detail.Status)
+		require.True(t, detail.Available, modelID)
+	}
+	_, err := svc.ActivateModels(ctx, []string{"claude-mythos-5"})
+	require.NoError(t, err)
+	require.True(t, svc.IsModelAvailable(ctx, "claude-mythos-5"))
+}

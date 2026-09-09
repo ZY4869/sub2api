@@ -60,6 +60,10 @@ export default {
             flash: "DeepSeek V4 Flash",
         },
     },
+    kimi: {
+        baseUrlHint: "留空使用官方 Kimi API（https://api.moonshot.cn）",
+        apiKeyHint: "您的 Kimi / Moonshot API Key",
+    },
     openrouter: {
         apiKeyOnly: "通过 OpenRouter 官方 API Key 接入",
         baseUrlHint: "留空使用 OpenRouter 官方 API（https://openrouter.ai/api/v1）",

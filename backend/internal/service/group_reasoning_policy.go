@@ -16,6 +16,20 @@ var (
 	ErrCompositeRouteCycleForbidden = infraerrors.BadRequest("COMPOSITE_ROUTE_CYCLE_FORBIDDEN", "composite route cannot target itself")
 )
 
+const (
+	ReasoningEffortOverLimitDowngrade = "downgrade"
+	ReasoningEffortOverLimitDeny      = "deny"
+)
+
+func NormalizeReasoningEffortOverLimitAction(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), ReasoningEffortOverLimitDeny) {
+		return ReasoningEffortOverLimitDeny
+	}
+	return ReasoningEffortOverLimitDowngrade
+}
+
+var ErrReasoningEffortOverLimit = infraerrors.BadRequest("REASONING_EFFORT_OVER_LIMIT", "requested reasoning effort exceeds the group limit")
+
 var openAIReasoningEffortRank = map[string]int{
 	"none":   0,
 	"low":    1,
@@ -56,7 +70,7 @@ func ApplyGroupOpenAIReasoningPolicy(group *Group, resolution GatewayEffortResol
 	if group == nil {
 		return resolution
 	}
-	policyApplies := group.Platform == PlatformOpenAI || group.Platform == PlatformComposite || group.Platform == ""
+	policyApplies := group.Platform == PlatformOpenAI || group.Platform == PlatformKimi || group.Platform == PlatformComposite || group.Platform == ""
 	if !policyApplies {
 		return resolution
 	}
@@ -94,6 +108,10 @@ func ApplyGroupOpenAIReasoningPolicy(group *Group, resolution GatewayEffortResol
 	}
 	maxEffort := NormalizeOpenAIReasoningEffortSetting(group.MaxReasoningEffort)
 	if maxEffort != "" && effective != "" && compareOpenAIReasoningEffort(effective, maxEffort) > 0 {
+		if NormalizeReasoningEffortOverLimitAction(group.MaxReasoningEffortOverLimit) == ReasoningEffortOverLimitDeny {
+			resolution.Source = "group_policy_deny"
+			return resolution
+		}
 		resolution.Effective = reasoningStringPtr(maxEffort)
 		if resolution.Raw == nil {
 			resolution.Raw = reasoningStringPtr(maxEffort)

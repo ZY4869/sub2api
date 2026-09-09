@@ -88,6 +88,9 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	mappedModel := normalizeOpenAIModelForUpstream(account, resolveOpenAIForwardModel(account, anthropicReq.Model, defaultMappedModel))
 	responsesReq.Model = mappedModel
 	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalModel, anthropicReq.Model, mappedModel)
+	if entryEffortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 
 	logger.L().Debug("openai messages: model mapping applied",
 		zap.Int64("account_id", account.ID),
@@ -157,6 +160,14 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 		}
 	}
 	serviceTier := strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+	if group := OpenAIReasoningPolicyGroupFromContext(ctx); group != nil {
+		if next, forced, forceErr := s.applyGroupOpenAIFastPolicyToJSONBody(ctx, account, group, responsesBody); forceErr != nil {
+			return nil, forceErr
+		} else if forced {
+			responsesBody = next
+			serviceTier = strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+		}
+	}
 	if serviceTier != "" {
 		updatedBody, decision, policyErr := s.applyOpenAIFastPolicyToJSONBody(ctx, account, responsesBody, serviceTier, effectiveModel)
 		if policyErr != nil {

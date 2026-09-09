@@ -35,6 +35,21 @@ func TestApplyGroupOpenAIReasoningPolicy_MapsAndClampsEffectiveEffort(t *testing
 	require.Equal(t, effortSourceOpenAIField, got.Source)
 }
 
+func TestApplyGroupOpenAIReasoningPolicy_DenyPreservesRawAndMarksPolicy(t *testing.T) {
+	raw := "high"
+	group := &Group{Platform: PlatformOpenAI, MaxReasoningEffort: "medium", MaxReasoningEffortOverLimit: ReasoningEffortOverLimitDeny}
+	got := ApplyGroupOpenAIReasoningPolicy(group, GatewayEffortResolution{Raw: &raw, Effective: &raw}, "gpt-5.4")
+	require.Equal(t, "high", *got.Raw)
+	require.Equal(t, "high", *got.Effective)
+	require.Equal(t, "group_policy_deny", got.Source)
+}
+
+func TestNormalizeReasoningEffortOverLimitActionDefaultsToDowngrade(t *testing.T) {
+	require.Equal(t, ReasoningEffortOverLimitDowngrade, NormalizeReasoningEffortOverLimitAction(""))
+	require.Equal(t, ReasoningEffortOverLimitDowngrade, NormalizeReasoningEffortOverLimitAction("invalid"))
+	require.Equal(t, ReasoningEffortOverLimitDeny, NormalizeReasoningEffortOverLimitAction("deny"))
+}
+
 func TestApplyGroupOpenAIReasoningPolicy_AppliesContextGroupForWebSocketAndHTTPCallers(t *testing.T) {
 	raw := "high"
 	group := &Group{

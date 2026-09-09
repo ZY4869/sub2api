@@ -436,7 +436,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					continue
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
-				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				wroteFallback := h.handleOpenAIForwardError(c, err, streamStarted)
 				h.submitFailedUsageRecordTask(
 					"handler.openai_gateway.chat_completions",
 					c,

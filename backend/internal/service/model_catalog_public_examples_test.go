@@ -71,6 +71,27 @@ func TestSelectPublicModelCatalogExampleSpec_UsesGrokMessagesExample(t *testing.
 	require.NotContains(t, markdown, "/grok/v1/responses")
 }
 
+func TestSelectPublicModelCatalogExampleSpec_UsesKimiExample(t *testing.T) {
+	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
+		Model:            "kimi-k3",
+		Provider:         PlatformKimi,
+		RequestProtocols: []string{PlatformKimi},
+		ProtocolEndpoints: []PublicModelProtocolEndpoint{{
+			Key:      "openai.responses",
+			Protocol: PlatformKimi,
+			Endpoint: "/v1/responses",
+			Support:  PublicModelSupportSupported,
+		}},
+	}, "")
+
+	require.True(t, ok)
+	require.Equal(t, "kimi", spec.PageID)
+	require.Equal(t, PlatformKimi, spec.Protocol)
+	markdown := publicModelCatalogExampleTemplateMarkdown(spec.PageID, spec.Keywords)
+	require.Contains(t, markdown, "kimi-k3")
+	require.Contains(t, markdown, "/v1/responses")
+}
+
 func TestPublicModelCatalogGrokExampleDocumentsWebAndXSearchTools(t *testing.T) {
 	spec, ok := selectPublicModelCatalogExampleSpec(PublicModelCatalogItem{
 		Model:            "grok-4.6",

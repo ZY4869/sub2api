@@ -22,6 +22,7 @@
         :limited-accounts-count="limitedAccountsCount"
         :actual-usage-refresh-summary="actualUsageRefreshSummary"
         :daily-5-h-trigger-enabled="daily5HTriggerSettingsView.settings.enabled"
+        :daily-5-h-trigger-time="daily5HTriggerSettingsView.settings.trigger_time || '07:00'"
         :daily-5-h-trigger-busy="daily5HTriggerSettingsLoading || daily5HTriggerSettingsSaving"
         :account-realtime-countdown-enabled="authStore.user?.account_realtime_countdown_enabled !== false"
         :account-visual-preset-override="accountVisualPresetOverride"

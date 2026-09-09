@@ -84,6 +84,13 @@ func (s *OpenAIGatewayService) parseOpenAIWSClientPayload(ctx context.Context, c
 		}
 		normalized = next
 	}
+	if group := OpenAIReasoningPolicyGroupFromContext(ctx); group != nil {
+		if next, forced, forceErr := s.applyGroupOpenAIFastPolicyToJSONBody(ctx, account, group, normalized); forceErr != nil {
+			return openAIWSClientPayload{}, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", forceErr)
+		} else if forced {
+			normalized = next
+		}
+	}
 
 	// Enforce OpenAI Fast/Flex policy for WS ingress (response.create only).
 	serviceTier := strings.TrimSpace(gjson.GetBytes(normalized, "service_tier").String())

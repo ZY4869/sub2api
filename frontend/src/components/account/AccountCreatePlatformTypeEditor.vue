@@ -156,6 +156,17 @@ const deepSeekOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const kimiOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.types.kimiApiKey'),
+    icon: 'key',
+    accent: 'purple',
+    active: true
+  }
+])
+
 const openRouterOptions = computed<TypeOption[]>(() => [
   {
     key: 'apikey',
@@ -253,6 +264,13 @@ function handleAntigravitySelect(key: string) {
       v-else-if="platform === 'deepseek'"
       :label="t('admin.accounts.accountType')"
       :options="deepSeekOptions"
+      tour="account-form-type"
+    />
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'kimi'"
+      :label="t('admin.accounts.accountType')"
+      :options="kimiOptions"
       tour="account-form-type"
     />
 

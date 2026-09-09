@@ -43,6 +43,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformKimi, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenRouter, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointChatCompletions, RequestFormat: EndpointChatCompletions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 		},
@@ -130,6 +131,8 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformKimi, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointResponses, RequestFormat: EndpointResponses, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityReject},
@@ -264,6 +267,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformDeepSeek, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformKimi, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenRouter, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},

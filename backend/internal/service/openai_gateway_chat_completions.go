@@ -77,6 +77,9 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	}
 	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
 	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalRequestedModel, normalizedRequestedModel, mappedModel)
+	if entryEffortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 
 	promptCacheKey = strings.TrimSpace(promptCacheKey)
 	compatPromptCacheInjected := false
@@ -180,6 +183,14 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		}
 	}
 	serviceTier := strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+	if group := OpenAIReasoningPolicyGroupFromContext(ctx); group != nil {
+		if next, forced, forceErr := s.applyGroupOpenAIFastPolicyToJSONBody(ctx, account, group, responsesBody); forceErr != nil {
+			return nil, forceErr
+		} else if forced {
+			responsesBody = next
+			serviceTier = strings.TrimSpace(gjson.GetBytes(responsesBody, "service_tier").String())
+		}
+	}
 	if serviceTier != "" {
 		updatedBody, decision, policyErr := s.applyOpenAIFastPolicyToJSONBody(ctx, account, responsesBody, serviceTier, effectiveModel)
 		if policyErr != nil {

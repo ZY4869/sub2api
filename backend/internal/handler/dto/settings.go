@@ -363,6 +363,7 @@ type AccountDaily5HTriggerModelSettings struct {
 }
 
 type AccountDaily5HTriggerSettings struct {
+	TriggerTime               string                             `json:"trigger_time"`
 	Enabled                   bool                               `json:"enabled"`
 	SelectedAccountTypes      []string                           `json:"selected_account_types"`
 	IncludePausedAccounts     bool                               `json:"include_paused_accounts"`

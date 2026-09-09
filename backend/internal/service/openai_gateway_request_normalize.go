@@ -73,6 +73,48 @@ func extractOpenAIRequestMetaFromBody(body []byte) (model string, stream bool, p
 	promptCacheKey = strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
 	return model, stream, promptCacheKey
 }
+
+// NormalizeStatelessNativeResponsesBody enforces the stateless contract used by
+// native DeepSeek/Kimi Responses endpoints. It deliberately preserves caller
+// instructions, but removes conversation state and persistence flags that the
+// native endpoints do not support.
+func NormalizeStatelessNativeResponsesBody(body []byte, platform string) ([]byte, bool, error) {
+	if len(body) == 0 || (platform != PlatformDeepSeek && platform != PlatformKimi) {
+		return body, false, nil
+	}
+	normalized := body
+	changed := false
+	store := gjson.GetBytes(normalized, "store")
+	if !store.Exists() || store.Type != gjson.False {
+		next, err := sjson.SetBytes(normalized, "store", false)
+		if err != nil {
+			return body, false, fmt.Errorf("normalize stateless responses store=false: %w", err)
+		}
+		normalized = next
+		changed = true
+	}
+	if gjson.GetBytes(normalized, "previous_response_id").Exists() {
+		next, err := sjson.DeleteBytes(normalized, "previous_response_id")
+		if err != nil {
+			return body, false, fmt.Errorf("normalize stateless responses previous_response_id: %w", err)
+		}
+		normalized = next
+		changed = true
+	}
+	return normalized, changed, nil
+}
+
+func shouldNormalizeStatelessNativeResponses(c *gin.Context, account *Account) bool {
+	if account == nil || (RoutingPlatformForAccount(account) != PlatformDeepSeek && RoutingPlatformForAccount(account) != PlatformKimi) {
+		return false
+	}
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	path := strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
+	return strings.Contains(path, "/responses")
+}
+
 func normalizeOpenAIPassthroughOAuthBody(body []byte, compact bool) ([]byte, bool, error) {
 	if len(body) == 0 {
 		return body, false, nil

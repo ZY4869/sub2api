@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	pkgerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -166,6 +168,14 @@ func (h *OpenAIGatewayHandler) ensureForwardErrorResponse(c *gin.Context, stream
 	}
 	h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", streamStarted)
 	return true
+}
+
+func (h *OpenAIGatewayHandler) handleOpenAIForwardError(c *gin.Context, err error, streamStarted bool) bool {
+	if errors.Is(err, service.ErrReasoningEffortOverLimit) {
+		h.handleStreamingAwareErrorWithCode(c, http.StatusBadRequest, "invalid_request_error", "REASONING_EFFORT_OVER_LIMIT", pkgerrors.Message(err), streamStarted)
+		return true
+	}
+	return h.ensureForwardErrorResponse(c, streamStarted)
 }
 
 func shouldLogOpenAIForwardFailureAsWarn(c *gin.Context, wroteFallback bool) bool {

@@ -39,12 +39,16 @@ func (a *Account) IsDeepSeek() bool {
 	return EffectiveProtocol(a) == PlatformDeepSeek
 }
 
+func (a *Account) IsKimi() bool {
+	return a != nil && EffectiveProtocol(a) == PlatformKimi
+}
+
 func (a *Account) IsOpenRouter() bool {
 	return EffectiveProtocol(a) == PlatformOpenRouter
 }
 
 func (a *Account) IsOpenAITextCompatible() bool {
-	return a.IsOpenAI() || a.IsDeepSeek() || a.IsOpenRouter()
+	return a.IsOpenAI() || a.IsDeepSeek() || a.IsKimi() || a.IsOpenRouter()
 }
 
 func (a *Account) IsAnthropic() bool {
@@ -82,12 +86,15 @@ func (a *Account) IsOpenAIApiKey() bool {
 }
 
 func (a *Account) GetOpenAIBaseURL() string {
-	if !a.IsOpenAI() {
+	if a == nil || (!a.IsOpenAI() && !a.IsKimi()) {
 		return ""
 	}
 	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
 	if baseURL != "" {
 		return baseURL
+	}
+	if a.IsKimi() {
+		return "https://api.moonshot.cn"
 	}
 	return "https://api.openai.com"
 }

@@ -24,15 +24,19 @@ func TestGatewayService_ResolvePublicImageRoute_OpenAINativeImageModel(t *testin
 }
 
 func TestGatewayService_ResolvePublicImageRoute_ToolOnlyModelRejectsNativeImages(t *testing.T) {
-	svc, apiKey := newPublicImageRoutingGatewayServiceForTest(t, []publicImageRoutingProviderConfig{
-		{platform: PlatformOpenAI, groupID: 102, models: []string{"gpt-5.4-mini"}},
-	}, "gpt-5.4-mini")
+	for _, model := range []string{"gpt-5.4-mini", "gpt-5.4", "gpt-5.4-pro", "gpt-5.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"} {
+		t.Run(model, func(t *testing.T) {
+			svc, apiKey := newPublicImageRoutingGatewayServiceForTest(t, []publicImageRoutingProviderConfig{
+				{platform: PlatformOpenAI, groupID: 102, models: []string{model}},
+			}, model)
 
-	decision, err := svc.ResolvePublicImageRoute(context.Background(), apiKey, EndpointImagesGen, "gpt-5.4-mini")
-	require.NoError(t, err)
-	require.False(t, decision.Supported)
-	require.Equal(t, PublicImageRouteReasonToolOnlyModel, decision.RouteReason)
-	require.Contains(t, decision.ErrorMessage, "/v1/responses")
+			decision, err := svc.ResolvePublicImageRoute(context.Background(), apiKey, EndpointImagesGen, model)
+			require.NoError(t, err)
+			require.False(t, decision.Supported)
+			require.Equal(t, PublicImageRouteReasonToolOnlyModel, decision.RouteReason)
+			require.Contains(t, decision.ErrorMessage, "/v1/responses")
+		})
+	}
 }
 
 func TestGatewayService_ResolvePublicImageRoute_GeminiEditsRejected(t *testing.T) {

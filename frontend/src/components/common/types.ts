@@ -8,6 +8,8 @@ export interface Column {
   label: string
   sortable?: boolean
   class?: string
+  /** Optional preferred desktop width in CSS pixels. */
+  width?: number
   formatter?: (value: any, row: any) => string
 }
 

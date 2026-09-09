@@ -270,7 +270,7 @@ func orderDefaultGrokBuildProjectionEntries(account *Account, projection *Accoun
 
 func supportsDefaultAccountModelLibrary(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformKiro, PlatformDeepSeek, PlatformOpenRouter, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformBaiduDocumentAI:
+	case PlatformOpenAI, PlatformAnthropic, PlatformKiro, PlatformDeepSeek, PlatformKimi, PlatformOpenRouter, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

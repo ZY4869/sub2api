@@ -158,6 +158,9 @@ type CreateGroupInput struct {
 	DefaultMappedModel              string
 	AllowLive                       bool
 	MaxReasoningEffort              string
+	MaxReasoningEffortOverLimit     string
+	ForceOpenAIFast                 bool
+	FreeOpenAIFast                  bool
 	ReasoningEffortMappings         []ReasoningEffortMapping
 	VisibleModelPatterns            []string
 	ImageBatchEnabled               bool
@@ -211,6 +214,9 @@ type UpdateGroupInput struct {
 	DefaultMappedModel              *string
 	AllowLive                       *bool
 	MaxReasoningEffort              *string
+	MaxReasoningEffortOverLimit     *string
+	ForceOpenAIFast                 *bool
+	FreeOpenAIFast                  *bool
 	ReasoningEffortMappings         *[]ReasoningEffortMapping
 	VisibleModelPatterns            *[]string
 	ImageBatchEnabled               *bool

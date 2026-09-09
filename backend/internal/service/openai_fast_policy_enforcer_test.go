@@ -141,6 +141,48 @@ func TestApplyOpenAIFastPolicyToRequestBodyMap_Filters(t *testing.T) {
 	require.Equal(t, 1, unsupported["a"])
 }
 
+func TestApplyGroupOpenAIFastPolicy_GlobalPassForcesPriority(t *testing.T) {
+	t.Parallel()
+	repo := &fastPolicySettingRepoStub{values: map[string]string{
+		SettingKeyOpenAIFastPolicySettings: `{"rules":[{"service_tier":"priority","action":"pass","scope":"all"}]}`,
+	}}
+	svc := &OpenAIGatewayService{settingService: &SettingService{settingRepo: repo}}
+	reqBody := map[string]any{"model": "gpt-5.2", "input": "hello"}
+
+	forced, err := svc.ApplyGroupOpenAIFastPolicy(context.Background(), &Account{Platform: PlatformOpenAI}, &Group{Platform: PlatformOpenAI, ForceOpenAIFast: true}, reqBody)
+
+	require.NoError(t, err)
+	require.True(t, forced)
+	require.Equal(t, "priority", reqBody["service_tier"])
+}
+
+func TestApplyGroupOpenAIFastPolicy_GlobalFilterDoesNotForce(t *testing.T) {
+	t.Parallel()
+	svc := &OpenAIGatewayService{} // default priority rule is filter
+	reqBody := map[string]any{"model": "gpt-5.2", "input": "hello"}
+
+	forced, err := svc.ApplyGroupOpenAIFastPolicy(context.Background(), &Account{Platform: PlatformOpenAI}, &Group{Platform: PlatformOpenAI, ForceOpenAIFast: true}, reqBody)
+
+	require.NoError(t, err)
+	require.False(t, forced)
+	require.NotContains(t, reqBody, "service_tier")
+}
+
+func TestApplyGroupOpenAIFastPolicy_DisabledLeavesRequestUnchanged(t *testing.T) {
+	t.Parallel()
+	repo := &fastPolicySettingRepoStub{values: map[string]string{
+		SettingKeyOpenAIFastPolicySettings: `{"rules":[{"service_tier":"priority","action":"pass","scope":"all"}]}`,
+	}}
+	svc := &OpenAIGatewayService{settingService: &SettingService{settingRepo: repo}}
+	reqBody := map[string]any{"model": "gpt-5.2", "input": "hello"}
+
+	forced, err := svc.ApplyGroupOpenAIFastPolicy(context.Background(), &Account{Platform: PlatformOpenAI}, &Group{Platform: PlatformOpenAI}, reqBody)
+
+	require.NoError(t, err)
+	require.False(t, forced)
+	require.NotContains(t, reqBody, "service_tier")
+}
+
 func TestOpenAIFastPolicy_UserScopedRuleTakesPriority(t *testing.T) {
 	t.Parallel()
 

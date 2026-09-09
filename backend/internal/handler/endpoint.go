@@ -172,6 +172,9 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		}
 		return inbound
 
+	case service.PlatformKimi:
+		return inbound
+
 	case service.PlatformAntigravity:
 		// Antigravity accounts serve both Claude and Gemini.
 		if inbound == EndpointGeminiOpenAICompat {

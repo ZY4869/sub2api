@@ -1,6 +1,7 @@
 <template>
+  <div ref="tableShell" class="account-table-shell min-w-0 max-w-full">
   <DataTable
-    :columns="columns"
+    :columns="responsiveColumns"
     :data="accounts"
     :loading="loading"
     row-key="id"
@@ -44,6 +45,7 @@
     </template>
 
     <template #cell-name="{ row }">
+      <div class="min-w-0">
       <AccountNameVisualCell
         v-if="visualStyle === 'airy'"
         :account="row"
@@ -80,6 +82,8 @@
           :summary="row.auto_recovery_probe"
           :lifecycle-state="row.lifecycle_state"
         />
+      </div>
+        <div v-if="visualStyle !== 'airy' && columns.some(column => column.key === 'id')" class="mt-1 font-mono text-[11px] text-gray-500">#{{ row.id }}</div>
       </div>
     </template>
 
@@ -233,7 +237,7 @@
     </template>
 
     <template #cell-usage="{ row }">
-      <div class="flex h-full min-h-full items-center">
+      <div class="flex h-full min-h-full min-w-0 flex-col items-stretch gap-2">
         <AccountUsageVisualCell
           v-if="visualStyle === 'airy'"
           :account="row"
@@ -251,6 +255,7 @@
           :manual-refresh-token="usageManualRefreshToken"
           visual-variant="default"
         />
+        <AccountUsageResetCell v-if="columns.some(column => column.key === 'usage_reset_dates')" :account="row" />
       </div>
     </template>
 
@@ -351,6 +356,7 @@
     </template>
 
     <template #cell-actions="{ row }">
+      <div class="flex min-w-0 flex-col items-start gap-1.5">
       <slot name="row-actions" :row="row">
         <AccountsViewAiryRowActions
           v-if="visualStyle === 'airy'"
@@ -368,6 +374,8 @@
           @more="emit('open-menu', { account: row, event: $event })"
         />
       </slot>
+        <button type="button" class="rounded px-1 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400" data-account-details @click="detailsAccountId = row.id">{{ t('admin.accounts.daily5h.details') }}</button>
+      </div>
     </template>
   </DataTable>
 
@@ -379,10 +387,15 @@
     @update:page="emit('page-change', $event)"
     @update:page-size="emit('page-size-change', $event)"
   />
+  <AccountDetailsDialog :account="detailsAccount" :today-stats="detailsAccount ? todayStatsByAccountId[String(detailsAccount.id)] : null" @close="detailsAccountId = null" />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useElementSize } from '@vueuse/core'
+import { fitAccountColumns } from './accountResponsiveColumns'
+import AccountDetailsDialog from './AccountDetailsDialog.vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import type {
@@ -460,6 +473,11 @@ const emit = defineEmits<{
   'page-size-change': [size: number]
 }>()
 
+const tableShell = ref<HTMLElement | null>(null)
+const { width: tableWidth } = useElementSize(tableShell)
+const responsiveColumns = computed(() => fitAccountColumns(props.columns, tableWidth.value || 1600))
+const detailsAccountId = ref<number | null>(null)
+const detailsAccount = computed(() => props.accounts.find(account => account.id === detailsAccountId.value) || null)
 const { t, locale } = useI18n()
 const { accountUsageDisplayMode, toggleAccountUsageDisplayMode } = useAccountUsageDisplayMode()
 
@@ -592,3 +610,9 @@ const isExpired = (value: number | null) => {
   return value * 1000 <= Date.now()
 }
 </script>
+
+<style scoped>
+.account-table-shell :deep(.table-wrapper table) { min-width: 0; }
+.account-table-shell :deep(.table-wrapper th),
+.account-table-shell :deep(.table-wrapper td) { padding-left: 8px; padding-right: 8px; }
+</style>

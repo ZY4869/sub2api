@@ -50,6 +50,9 @@ func (s *OpenAIGatewayService) forwardDeepSeekNativeChatCompletions(
 	}
 	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(prepared.body, prepared.originalModel, runtimeRequestedModel, prepared.mappedModel)
 	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, prepared.originalModel, runtimeRequestedModel, prepared.mappedModel)
+	if effortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 	if normalizedBody, normalizeErr := applyOpenAIEffortResolutionToBodyBytes(prepared.body, effortResolution); normalizeErr == nil {
 		prepared.body = normalizedBody
 	}

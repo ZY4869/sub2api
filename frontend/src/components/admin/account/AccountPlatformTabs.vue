@@ -1,6 +1,6 @@
 <template>
-  <div class="overflow-x-auto">
-    <div class="inline-flex min-w-full items-center gap-1 border-b border-gray-200 pb-0 dark:border-dark-700">
+  <div class="min-w-0 max-w-full">
+    <div class="flex min-w-0 flex-wrap items-center gap-1 border-b border-gray-200 pb-0 dark:border-dark-700">
       <button
         v-for="tab in tabs"
         :key="tab.value"

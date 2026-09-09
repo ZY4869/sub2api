@@ -26,6 +26,9 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 	}
 	effortResolution := extractOpenAIReasoningEffortResolution(reqBody, originalModel, mappedModel)
 	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, mappedModel)
+	if effortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
 	wsURL, err := s.buildOpenAIResponsesWSURL(account)
 	if err != nil {
@@ -205,6 +208,7 @@ openAIWSAcquired:
 	eventCount := 0
 	tokenEventCount := 0
 	terminalEventCount := 0
+	activeTurnStarted := false
 	bufferedEventCount := 0
 	flushedBufferedEventCount := 0
 	firstEventType := ""
@@ -283,6 +287,9 @@ openAIWSAcquired:
 			lease.MarkBroken()
 			closeStatus, closeReason := summarizeOpenAIWSReadCloseError(readErr)
 			logOpenAIWSModeInfo("read_fail account_id=%d conn_id=%s wrote_downstream=%v close_status=%s close_reason=%s cause=%s events=%d token_events=%d terminal_events=%d buffered_pending=%d buffered_flushed=%d first_event=%s last_event=%s", account.ID, connID, wroteDownstream, closeStatus, closeReason, truncateOpenAIWSLogValue(readErr.Error(), openAIWSLogValueMaxLen), eventCount, tokenEventCount, terminalEventCount, len(bufferedStreamEvents), flushedBufferedEventCount, truncateOpenAIWSLogValue(firstEventType, openAIWSLogValueMaxLen), truncateOpenAIWSLogValue(lastEventType, openAIWSLogValueMaxLen))
+			if activeTurnStarted && terminalEventCount == 0 && !clientDisconnected {
+				return nil, wrapOpenAIWSFallback("relay_failure", errors.New("upstream websocket closed before a terminal response event"))
+			}
 			if !wroteDownstream {
 				return nil, wrapOpenAIWSFallback(classifyOpenAIWSReadFallbackReason(readErr), readErr)
 			}
@@ -295,6 +302,9 @@ openAIWSAcquired:
 		eventType, eventResponseID, responseField := parseOpenAIWSEventEnvelope(message)
 		if eventType == "" {
 			continue
+		}
+		if eventType == "response.created" || eventType == "response.in_progress" {
+			activeTurnStarted = true
 		}
 		eventCount++
 		if firstEventType == "" {

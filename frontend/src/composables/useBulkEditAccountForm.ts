@@ -16,6 +16,7 @@ import {
 const supportedModelPlatforms: AccountPlatform[] = [
   'anthropic',
   'antigravity',
+  'kimi',
   'openai',
   'gemini'
 ]

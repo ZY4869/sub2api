@@ -27,6 +27,15 @@ func TestGatewayEffortResolutionDefaultSuite(t *testing.T) {
 		require.Equal(t, effortSourceOpenAIAlias, resolution.Source)
 	})
 
+	t.Run("gpt 6 astra does not receive unsupported none reasoning", func(t *testing.T) {
+		resolution := ResolveOpenAIEffortForModels("none", "", effortSourceOpenAIAlias, "gpt-6-astra")
+
+		require.NotNil(t, resolution.Raw)
+		require.NotNil(t, resolution.Effective)
+		require.Equal(t, "none", *resolution.Raw)
+		require.Equal(t, "low", *resolution.Effective)
+	})
+
 	t.Run("anthropic output_config wins over top-level fallback", func(t *testing.T) {
 		resolution := ResolveAnthropicEffort("high", "max")
 

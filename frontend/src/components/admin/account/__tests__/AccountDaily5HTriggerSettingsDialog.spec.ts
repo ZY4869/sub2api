@@ -111,6 +111,19 @@ function mountDialog() {
 }
 
 describe("AccountDaily5HTriggerSettingsDialog", () => {
+  it("defaults old settings to 07:00 and saves a custom time", async () => {
+    const wrapper = mountDialog();
+    const input = wrapper.get('input[type="time"]');
+    expect((input.element as HTMLInputElement).value).toBe('07:00');
+    await input.setValue('08:35');
+    await wrapper.findAll('button').find(button => button.text() === 'save')!.trigger('click');
+    expect(wrapper.emitted('save')?.[0]?.[0]).toMatchObject({ trigger_time: '08:35' });
+    await input.setValue('');
+    const save = wrapper.findAll('button').find(button => button.text() === 'save')!;
+    expect((save.element as HTMLButtonElement).disabled).toBe(true);
+    await save.trigger('click');
+    expect(wrapper.emitted('save')).toHaveLength(1);
+  });
   it("renders candidate summaries and default selection", () => {
     const wrapper = mountDialog();
 
@@ -151,6 +164,7 @@ describe("AccountDaily5HTriggerSettingsDialog", () => {
     expect(wrapper.emitted("save")).toEqual([
       [
         {
+          trigger_time: "07:00",
           enabled: true,
           selected_account_types: [
             "chatgpt_oauth",

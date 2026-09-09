@@ -14,6 +14,7 @@ const PLATFORM_ACTIVE_CLASSES: Record<AccountPlatform, string> = {
   antigravity: 'text-purple-600 dark:text-purple-400',
   baidu_document_ai: 'text-rose-600 dark:text-rose-400',
   deepseek: 'text-indigo-600 dark:text-indigo-400',
+  kimi: 'text-purple-600 dark:text-purple-400',
   gemini: 'text-blue-600 dark:text-blue-400',
   grok: 'text-slate-700 dark:text-slate-200',
   kiro: 'text-orange-600 dark:text-orange-400',

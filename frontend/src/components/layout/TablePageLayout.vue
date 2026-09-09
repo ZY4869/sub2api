@@ -56,8 +56,12 @@ withDefaults(defineProps<{
 
 .table-scroll-container :deep(table) {
   @apply w-full;
-  min-width: max-content;
+  min-width: 0;
   display: table;
+}
+
+.table-scroll-container :deep(table.table-auto) {
+  min-width: 100%;
 }
 
 .table-scroll-container :deep(thead) {

@@ -171,7 +171,7 @@ watch(
       }
       return
     }
-    if (form.platform === 'deepseek') {
+    if (form.platform === 'deepseek' || form.platform === 'kimi') {
       form.type = 'apikey'
       return
     }

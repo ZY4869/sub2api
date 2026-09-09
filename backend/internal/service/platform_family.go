@@ -22,6 +22,8 @@ func NormalizePlatformFamily(platform string) string {
 		return PlatformAnthropic
 	case PlatformOpenAI:
 		return PlatformOpenAI
+	case PlatformKimi:
+		return PlatformKimi
 	case "baidu", PlatformBaiduDocumentAI:
 		return PlatformBaiduDocumentAI
 	default:
@@ -60,6 +62,8 @@ func DisplayPlatformName(platform string) string {
 		return "Grok"
 	case PlatformDeepSeek:
 		return "DeepSeek"
+	case PlatformKimi:
+		return "Kimi"
 	case PlatformOpenRouter:
 		return "OpenRouter"
 	case PlatformBaiduDocumentAI:
@@ -91,6 +95,8 @@ func PlatformDisplayEnglishName(platform string) string {
 		return "Composite"
 	case PlatformDeepSeek:
 		return "DeepSeek"
+	case PlatformKimi:
+		return "Kimi"
 	case PlatformGemini:
 		return "Google"
 	case PlatformGrok:

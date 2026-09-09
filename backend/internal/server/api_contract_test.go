@@ -1675,6 +1675,7 @@ func TestAPIContracts(t *testing.T) {
 				"data": {
 					"settings": {
 						"enabled": true,
+						"trigger_time": "07:00",
 						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
 						"include_paused_accounts": true,
 						"ignore_free_accounts": true,
@@ -1701,6 +1702,7 @@ func TestAPIContracts(t *testing.T) {
 			path:   "/api/v1/admin/accounts/daily-5h-trigger-settings",
 			body: `{
 				"enabled": true,
+				"trigger_time": "08:30",
 				"selected_account_types": ["chatgpt_oauth", "google_oauth", "unknown", "chatgpt_oauth"],
 				"include_paused_accounts": false,
 				"ignore_free_accounts": true,
@@ -1719,6 +1721,7 @@ func TestAPIContracts(t *testing.T) {
 				"data": {
 					"settings": {
 						"enabled": true,
+						"trigger_time": "08:30",
 						"selected_account_types": ["chatgpt_oauth", "google_oauth"],
 						"include_paused_accounts": false,
 						"ignore_free_accounts": true,

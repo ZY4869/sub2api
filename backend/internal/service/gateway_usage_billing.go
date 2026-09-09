@@ -97,6 +97,14 @@ func applyBillingExemption(cost *CostBreakdown, user *User) (actualCost float64,
 	return cost.ActualCost, nil, false
 }
 
+func applyGroupFastBillingExemption(cost *CostBreakdown, group *Group, serviceTier *string, currentReason *string) (float64, *string, bool) {
+	if cost == nil || group == nil || !group.FreeOpenAIFast || serviceTier == nil || normalizeOpenAIFastPolicyServiceTier(*serviceTier) != "priority" {
+		return cost.ActualCost, currentReason, false
+	}
+	reason := BillingExemptReasonPtr("group_openai_fast")
+	return 0, reason, true
+}
+
 func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
 	billingCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
@@ -399,6 +407,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	actualCost, billingExemptReason, groupFastFree := applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
+	skipUserBilling = skipUserBilling || groupFastFree
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
 	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {
@@ -571,6 +581,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	actualCost, billingExemptReason, groupFastFree := applyGroupFastBillingExemption(cost, group, result.ServiceTier, billingExemptReason)
+	skipUserBilling = skipUserBilling || groupFastFree
 	billingCurrency := normalizeBillingCurrency(cost.Currency)
 	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
 	if actualCostUSDEquivalent == 0 && actualCost != 0 {

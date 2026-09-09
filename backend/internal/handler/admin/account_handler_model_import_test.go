@@ -16,11 +16,28 @@ import (
 )
 
 func TestDefaultAvailableModels_PrefersTestExposure(t *testing.T) {
+	ctx := context.Background()
 	h := &AccountHandler{
 		modelRegistryService: service.NewModelRegistryService(newTestSettingRepo()),
 	}
 
-	models := h.defaultAvailableModels(context.Background(), &service.Account{Platform: service.PlatformOpenAI})
+	// Keep a runtime-only fixture even when a catalog refresh adds test exposure.
+	result, err := h.modelRegistryService.BatchSyncExposures(ctx, service.BatchSyncModelRegistryExposuresInput{
+		Models:    []string{"gpt-5-codex"},
+		Exposures: []string{"test"},
+		Mode:      "remove",
+	})
+	require.NoError(t, err)
+	require.Empty(t, result.FailedModels)
+	runtimeModels, err := h.modelRegistryService.GetModelsByPlatform(ctx, service.PlatformOpenAI, "runtime")
+	require.NoError(t, err)
+	runtimeIDs := make([]string, 0, len(runtimeModels))
+	for _, model := range runtimeModels {
+		runtimeIDs = append(runtimeIDs, model.ID)
+	}
+	require.Contains(t, runtimeIDs, "gpt-5-codex")
+
+	models := h.defaultAvailableModels(ctx, &service.Account{Platform: service.PlatformOpenAI})
 	ids := make([]string, 0, len(models))
 	for _, model := range models {
 		ids = append(ids, model.ID)

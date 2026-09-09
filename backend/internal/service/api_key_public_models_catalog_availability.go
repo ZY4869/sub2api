@@ -35,7 +35,7 @@ func publishedCatalogAccountUsableForBinding(
 
 func isOpenAIGroupPlatform(platform string) bool {
 	switch strings.TrimSpace(strings.ToLower(platform)) {
-	case PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter:
+	case PlatformOpenAI, PlatformDeepSeek, PlatformKimi, PlatformOpenRouter:
 		return true
 	default:
 		return false

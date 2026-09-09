@@ -19,6 +19,11 @@ func HasExposure(entry ModelEntry, exposures ...string) bool {
 	return false
 }
 
+// IsCatalogOnly marks models documented by a vendor whose API is not wired here.
+func IsCatalogOnly(entry ModelEntry) bool {
+	return HasExposure(entry, "catalog") && !HasExposure(entry, "runtime", "whitelist", "use_key", "test")
+}
+
 func SupportsPlatform(entry ModelEntry, platform string) bool {
 	platform = NormalizePlatformFamily(platform)
 	for _, current := range entry.Platforms {

@@ -11,7 +11,7 @@
           {{ t('admin.accounts.daily5h.dialogSummaryTitle') }}
         </div>
         <p class="mt-1 leading-6">
-          {{ t('admin.accounts.daily5h.dialogSummaryBody') }}
+          {{ t('admin.accounts.daily5h.dialogSummaryBody', { time: localSettings.trigger_time || '07:00' }) }}
         </p>
       </div>
 
@@ -83,6 +83,9 @@
 
       <div class="space-y-3">
         <div>
+          <label for="daily5h-trigger-time" class="input-label">{{ t('admin.accounts.daily5h.triggerTimeLabel') }}</label>
+          <input id="daily5h-trigger-time" v-model="localSettings.trigger_time" type="time" required step="60" class="input max-w-xs" :aria-invalid="!validTriggerTime" />
+          <p class="input-hint mb-5">{{ t('admin.accounts.daily5h.triggerTimeHint') }}</p>
           <label class="input-label">{{ t('admin.accounts.daily5h.accountTypesLabel') }}</label>
           <p class="input-hint">{{ t('admin.accounts.daily5h.accountTypesHint') }}</p>
         </div>
@@ -225,7 +228,7 @@
         <button type="button" class="btn btn-secondary" :disabled="saving" @click="emit('close')">
           {{ t('common.cancel') }}
         </button>
-        <button type="button" class="btn btn-primary" :disabled="saving" @click="handleSave">
+        <button type="button" class="btn btn-primary" :disabled="saving || !validTriggerTime" @click="handleSave">
           <Icon v-if="saving" name="refresh" size="sm" class="mr-1 animate-spin" />
           {{ saving ? t('common.saving') : t('common.save') }}
         </button>
@@ -333,6 +336,7 @@ const modelSections = computed(() => [
 function createLocalSettings(settings: AccountDaily5HTriggerSettings): AccountDaily5HTriggerSettings {
   return {
     enabled: settings?.enabled === true,
+    trigger_time: settings?.trigger_time || "07:00",
     selected_account_types: [...(settings?.selected_account_types || ['chatgpt_oauth'])],
     include_paused_accounts: settings?.include_paused_accounts === true,
     ignore_free_accounts: settings?.ignore_free_accounts === true,
@@ -421,7 +425,10 @@ function modelOptionAccountCount(option: unknown): number {
   return typeof value === 'number' ? value : 0
 }
 
+const validTriggerTime = computed(() => /^([01]\d|2[0-3]):[0-5]\d$/.test(localSettings.trigger_time || ''))
+
 function handleSave() {
+  if (!validTriggerTime.value) return
   emit('save', createLocalSettings(localSettings))
 }
 </script>

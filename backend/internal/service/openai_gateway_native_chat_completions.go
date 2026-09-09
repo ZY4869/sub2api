@@ -52,6 +52,9 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 	}
 	entryEffortResolution = extractOpenAIReasoningEffortResolutionFromBody(body, originalRequestedModel, normalizedRequestedModel, mappedModel)
 	entryEffortResolution = ApplyContextOpenAIReasoningPolicy(ctx, entryEffortResolution, originalRequestedModel, normalizedRequestedModel, mappedModel)
+	if entryEffortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 	chatReq.Model = mappedModel
 	if chatReq.Stream && !clientRequestedUsage {
 		if chatReq.StreamOptions == nil {

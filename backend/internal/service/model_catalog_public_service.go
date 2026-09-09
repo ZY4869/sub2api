@@ -689,6 +689,8 @@ func publicModelCatalogProtocolFamily(value string) string {
 		return PlatformGemini
 	case normalized == PlatformGrok || strings.HasPrefix(normalized, "grok"):
 		return PlatformGrok
+	case normalized == PlatformKimi || strings.HasPrefix(normalized, "kimi") || strings.HasPrefix(normalized, "moonshot"):
+		return PlatformKimi
 	case normalized == PlatformAntigravity || strings.Contains(normalized, "antigravity"):
 		return PlatformAntigravity
 	case normalized == "vertex" || strings.Contains(normalized, "vertex") || strings.Contains(normalized, "batch"):

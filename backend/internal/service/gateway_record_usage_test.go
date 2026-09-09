@@ -60,6 +60,36 @@ type openAIRecordUsageBestEffortLogRepoStub struct {
 	lastCtxErr      error
 }
 
+func TestApplyGroupFastBillingExemption_OnlyWaivesCustomerActualCost(t *testing.T) {
+	tier := "priority"
+	cost := &CostBreakdown{ActualCost: 12.5, TotalCost: 9.75, TotalCostUSDEquivalent: 9.75}
+
+	actualCost, reason, exempt := applyGroupFastBillingExemption(cost, &Group{FreeOpenAIFast: true}, &tier, nil)
+
+	require.True(t, exempt)
+	require.Zero(t, actualCost)
+	require.NotNil(t, reason)
+	require.Equal(t, "group_openai_fast", *reason)
+	require.Equal(t, 12.5, cost.ActualCost)
+	require.Equal(t, 9.75, cost.TotalCost)
+}
+
+func TestApplyGroupFastBillingExemption_DoesNotWaiveNonPriorityOrDisabledGroup(t *testing.T) {
+	cost := &CostBreakdown{ActualCost: 12.5, TotalCost: 9.75}
+	flex := "flex"
+	priority := "priority"
+
+	actualCost, reason, exempt := applyGroupFastBillingExemption(cost, &Group{FreeOpenAIFast: true}, &flex, nil)
+	require.False(t, exempt)
+	require.Nil(t, reason)
+	require.Equal(t, 12.5, actualCost)
+
+	actualCost, reason, exempt = applyGroupFastBillingExemption(cost, &Group{}, &priority, nil)
+	require.False(t, exempt)
+	require.Nil(t, reason)
+	require.Equal(t, 12.5, actualCost)
+}
+
 func (s *openAIRecordUsageBestEffortLogRepoStub) CreateBestEffort(ctx context.Context, log *UsageLog) error {
 	s.bestEffortCalls++
 	s.lastLog = log

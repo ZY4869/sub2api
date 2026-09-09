@@ -170,8 +170,9 @@ func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
 	require.True(t, hasOpus5)
 	require.False(t, hasOldAnthropic)
 	require.True(t, hasCurrentCodex)
-	require.False(t, hasLegacyCodex)
-	require.False(t, hasOldCodex)
+	// These public API models are now included in the expanded vendor catalog.
+	require.True(t, hasLegacyCodex)
+	require.True(t, hasOldCodex)
 }
 
 func TestModelCatalogService_PricingBackedSyntheticEntriesAppearInCatalogAndBillingCenter(t *testing.T) {

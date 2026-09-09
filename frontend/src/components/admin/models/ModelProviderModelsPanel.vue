@@ -168,9 +168,12 @@
 
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-medium text-gray-900 dark:text-white">
+                    <p class="min-w-0 font-medium text-gray-900 [overflow-wrap:anywhere] dark:text-white">
                       {{ model.display_name || model.id }}
                     </p>
+                    <span v-if="model.exposed_in?.includes('catalog')" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      {{ t('admin.models.registry.catalogOnly') }}
+                    </span>
                     <span
                       class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"
                       :class="model.available ? availableBadgeClass : unavailableBadgeClass"
@@ -197,7 +200,7 @@
                       {{ scheduleStatusLabel(model.schedule_status) }}
                     </span>
                   </div>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ model.id }}</p>
+                  <p class="mt-1 text-xs text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">{{ model.id }}</p>
                   <p
                     v-if="model.replaced_by"
                     class="mt-1 text-xs text-amber-600 dark:text-amber-300"
@@ -215,7 +218,7 @@
               <button
                 type="button"
                 class="btn btn-primary btn-sm"
-                :disabled="isModelMutating(model.id)"
+                :disabled="isModelMutating(model.id) || model.exposed_in?.includes('catalog')"
                 @click="handleRowTestExposure(model)"
               >
                 {{
@@ -228,7 +231,7 @@
                 v-if="!model.available"
                 type="button"
                 class="btn btn-primary btn-sm"
-                :disabled="isModelMutating(model.id)"
+                :disabled="isModelMutating(model.id) || model.exposed_in?.includes('catalog')"
                 @click="emit('activate', model.id)"
               >
                 {{ t('admin.models.registry.actions.activate') }}

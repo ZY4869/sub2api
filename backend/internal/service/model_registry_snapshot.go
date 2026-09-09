@@ -61,6 +61,9 @@ func (s *ModelRegistryService) visibleSnapshotData(ctx context.Context) ([]model
 	models := make([]modelregistry.ModelEntry, 0, len(entries))
 	now := time.Now()
 	for id, entry := range entries {
+		if modelregistry.IsCatalogOnly(entry) {
+			continue
+		}
 		if _, isHidden := hidden[id]; isHidden {
 			continue
 		}

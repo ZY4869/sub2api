@@ -40,11 +40,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-08-07T05:37:52Z"
+export const generatedModelRegistryBuiltAt = "2026-09-09T02:48:07Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"cd74f3f5c5fa1224a2a50655ddb10b3803a7af6ae5426931d9375dbd4caab607\"",
-  "updated_at": "2026-08-07T05:37:52Z",
+  "etag": "W/\"8149d0175a383fffea325165a4f49970fbbdb52dbf30f8c86cbb505b2052b217\"",
+  "updated_at": "2026-09-09T02:48:07Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -52,6 +52,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     "deepseek": "DeepSeek",
     "gemini": "Google-Gemini",
     "grok": "xAI-Grok",
+    "kimi": "Kimi",
     "kiro": "Kiro",
     "openai": "OpenAI-GPT",
     "openrouter": "OpenRouter"
@@ -243,14 +244,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "image"
       ],
       "capabilities": [
-        "image"
+        "image_generation"
       ],
       "ui_priority": 0,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "glm-4",
@@ -277,7 +279,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-3.5-turbo",
-      "display_name": "GPT-3.5-turbo",
+      "display_name": "GPT-3.5 Turbo",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -285,7 +287,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-3.5-turbo"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-3.5-turbo-0125",
+        "gpt-3.5-turbo-1106",
+        "gpt-3.5-turbo-instruct"
+      ],
       "pricing_lookup_ids": [
         "gpt-3.5-turbo"
       ],
@@ -293,11 +299,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text"
+      ],
       "ui_priority": 0,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "grok-auto",
@@ -559,14 +568,16 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision"
       ],
       "ui_priority": 1,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "claude-sonnet-4.5",
@@ -732,14 +743,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "image"
       ],
       "capabilities": [
-        "image"
+        "image_generation"
       ],
       "ui_priority": 1,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "glm-4v",
@@ -821,41 +833,48 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-4.5",
-      "display_name": "Grok 4.5",
+      "id": "grok-4.6",
+      "display_name": "Grok 4.6",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4.5",
+        "grok-4.6",
         "grok",
         "grok-latest",
-        "grok-4.5-latest",
+        "grok-4.6-latest",
         "grok-build-latest"
       ],
       "aliases": [
         "grok",
         "grok-latest",
-        "grok-4.5-latest",
+        "grok-4.6-latest",
         "grok-build-latest"
       ],
       "pricing_lookup_ids": [
-        "grok-4.5"
+        "grok-4.6"
       ],
+      "context_window_tokens": 500000,
       "preferred_protocol_ids": {
-        "grok": "grok-4.5"
+        "grok": "grok-4.6"
       },
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "x_search"
+      ],
       "ui_priority": 1,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "hunyuan-standard",
@@ -1218,14 +1237,20 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
       "ui_priority": 2,
       "exposed_in": [
         "runtime",
         "test",
         "use_key",
         "whitelist"
-      ]
+      ],
+      "status": "deprecated"
     },
     {
       "id": "glm-4-plus",
@@ -1308,19 +1333,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-4.3",
-      "display_name": "Grok 4.3",
+      "id": "grok-4.5",
+      "display_name": "Grok 4.5",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4.3"
+        "grok-4.5",
+        "grok-4.5-latest"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-4.5-latest"
+      ],
       "pricing_lookup_ids": [
-        "grok-4.3"
+        "grok-4.5"
       ],
+      "context_window_tokens": 256000,
+      "preferred_protocol_ids": {
+        "grok": "grok-4.5"
+      },
       "modalities": [
         "text"
       ],
@@ -1663,18 +1695,24 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-flash"
       ],
-      "context_window_tokens": 1000000,
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
       "ui_priority": 3,
       "exposed_in": [
         "runtime",
         "test",
         "use_key",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "glm-4-0520",
@@ -1749,25 +1787,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-build-0.1",
-      "display_name": "Grok Build 0.1",
+      "id": "grok-4.3",
+      "display_name": "Grok 4.3",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-build-0.1",
-        "grok-build"
+        "grok-4.3"
       ],
-      "aliases": [
-        "grok-build"
-      ],
+      "aliases": [],
       "pricing_lookup_ids": [
-        "grok-build-0.1"
+        "grok-4.3"
       ],
-      "preferred_protocol_ids": {
-        "grok": "grok-build-0.1"
-      },
       "modalities": [
         "text"
       ],
@@ -2004,18 +2036,21 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-fable-5"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision"
       ],
       "ui_priority": 4,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "command-r-plus-08-2024",
@@ -2102,17 +2137,23 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gemini-2.5-pro"
       ],
-      "context_window_tokens": 1000000,
+      "context_window_tokens": 1048576,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
       "ui_priority": 4,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "glm-4-air",
@@ -2147,7 +2188,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4-0613",
+        "gpt-4-0314"
+      ],
       "pricing_lookup_ids": [
         "gpt-4"
       ],
@@ -2155,33 +2199,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text"
+      ],
       "ui_priority": 4,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
-      "id": "grok-composer-2.5-fast",
-      "display_name": "Grok Composer 2.5 Fast",
+      "id": "grok-build-0.1",
+      "display_name": "Grok Build 0.1",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-composer-2.5-fast",
-        "grok-composer",
-        "composer-2.5"
+        "grok-build-0.1",
+        "grok-build"
       ],
       "aliases": [
-        "grok-composer",
-        "composer-2.5"
+        "grok-build"
       ],
       "pricing_lookup_ids": [
-        "grok-composer-2.5-fast"
+        "grok-build-0.1"
       ],
       "preferred_protocol_ids": {
-        "grok": "grok-composer-2.5-fast"
+        "grok": "grok-build-0.1"
       },
       "modalities": [
         "text"
@@ -2474,18 +2519,21 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "claude-sonnet-5"
       ],
+      "context_window_tokens": 1000000,
       "modalities": [
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision"
       ],
       "ui_priority": 5,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "doubao-lite-32k",
@@ -2551,13 +2599,20 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
       "ui_priority": 5,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "beta"
     },
     {
       "id": "glm-4-airx",
@@ -2584,7 +2639,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4-turbo",
-      "display_name": "GPT-4-turbo",
+      "display_name": "GPT-4 Turbo",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -2592,7 +2647,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4-turbo"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4-turbo-2024-04-09"
+      ],
       "pricing_lookup_ids": [
         "gpt-4-turbo"
       ],
@@ -2600,32 +2657,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
       "ui_priority": 5,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
-      "id": "grok-4.20-0309-reasoning",
-      "display_name": "Grok 4.20 Reasoning",
+      "id": "grok-composer-2.5-fast",
+      "display_name": "Grok Composer 2.5 Fast",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4.20-0309-reasoning",
-        "grok-4.20-reasoning"
+        "grok-composer-2.5-fast",
+        "grok-composer",
+        "composer-2.5"
       ],
       "aliases": [
-        "grok-4.20-reasoning"
+        "grok-composer",
+        "composer-2.5"
       ],
       "pricing_lookup_ids": [
-        "grok-4.20-0309-reasoning"
+        "grok-composer-2.5-fast"
       ],
-      "context_window_tokens": 2000000,
       "preferred_protocol_ids": {
-        "grok": "grok-4.20-0309-reasoning"
+        "grok": "grok-composer-2.5-fast"
       },
       "modalities": [
         "text"
@@ -2860,6 +2922,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "claude-fable-5-1",
+      "display_name": "Claude Fable 5.1",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic"
+      ],
+      "protocol_ids": [
+        "claude-fable-5-1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "claude-fable-5-1"
+      ],
+      "context_window_tokens": 1000000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
+      "ui_priority": 6,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "stable"
+    },
+    {
       "id": "codestral-latest",
       "display_name": "Codestral-latest",
       "provider": "mistral",
@@ -2947,13 +3039,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
       "ui_priority": 6,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gemini-3-pro-preview",
@@ -3005,14 +3103,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "video"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
       ],
       "ui_priority": 6,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "glm-4-long",
@@ -3039,7 +3142,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4-turbo-preview",
-      "display_name": "GPT-4-turbo-preview",
+      "display_name": "GPT-4 Turbo Preview",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -3047,7 +3150,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4-turbo-preview"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4-0125-preview",
+        "gpt-4-1106-vision-preview"
+      ],
       "pricing_lookup_ids": [
         "gpt-4-turbo-preview"
       ],
@@ -3055,31 +3161,35 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text"
+      ],
       "ui_priority": 6,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "beta"
     },
     {
-      "id": "grok-4.20-0309-non-reasoning",
-      "display_name": "Grok 4.20 Non Reasoning",
+      "id": "grok-4.20-0309-reasoning",
+      "display_name": "Grok 4.20 Reasoning",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4.20-0309-non-reasoning",
-        "grok-4.20-non-reasoning"
+        "grok-4.20-0309-reasoning",
+        "grok-4.20-reasoning"
       ],
       "aliases": [
-        "grok-4.20-non-reasoning"
+        "grok-4.20-reasoning"
       ],
       "pricing_lookup_ids": [
-        "grok-4.20-0309-non-reasoning"
+        "grok-4.20-0309-reasoning"
       ],
+      "context_window_tokens": 1000000,
       "preferred_protocol_ids": {
-        "grok": "grok-4.20-0309-non-reasoning"
+        "grok": "grok-4.20-0309-reasoning"
       },
       "modalities": [
         "text"
@@ -3266,6 +3376,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "claude-mythos-5",
+      "display_name": "Claude Mythos 5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic"
+      ],
+      "protocol_ids": [
+        "claude-mythos-5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "claude-mythos-5"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 7,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "unknown"
+    },
+    {
       "id": "codestral-mamba",
       "display_name": "Codestral-mamba",
       "provider": "mistral",
@@ -3422,7 +3560,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4o"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4o-2024-11-20",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-05-13"
+      ],
       "pricing_lookup_ids": [
         "gpt-4o"
       ],
@@ -3430,26 +3572,38 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 7,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
-      "id": "grok-4.20-multi-agent-0309",
-      "display_name": "Grok 4.20 Multi Agent",
+      "id": "grok-4.20-0309-non-reasoning",
+      "display_name": "Grok 4.20 Non Reasoning",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4.20-multi-agent-0309"
+        "grok-4.20-0309-non-reasoning",
+        "grok-4.20-non-reasoning"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-4.20-non-reasoning"
+      ],
       "pricing_lookup_ids": [
-        "grok-4.20-multi-agent-0309"
+        "grok-4.20-0309-non-reasoning"
       ],
+      "context_window_tokens": 1000000,
+      "preferred_protocol_ids": {
+        "grok": "grok-4.20-0309-non-reasoning"
+      },
       "modalities": [
         "text"
       ],
@@ -3612,6 +3766,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "claude-mythos-5-1",
+      "display_name": "Claude Mythos 5.1",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic"
+      ],
+      "protocol_ids": [
+        "claude-mythos-5-1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "claude-mythos-5-1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 8,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "unknown"
+    },
+    {
       "id": "command-light",
       "display_name": "Command-light",
       "provider": "cohere",
@@ -3728,6 +3910,32 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 8,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-4.20-multi-agent-0309",
+      "display_name": "Grok 4.20 Multi Agent",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4.20-multi-agent-0309"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4.20-multi-agent-0309"
+      ],
+      "context_window_tokens": 1000000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -4205,7 +4413,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4o-mini",
-      "display_name": "GPT-4o-mini",
+      "display_name": "GPT-4o Mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -4213,7 +4421,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4o-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4o-mini-2024-07-18"
+      ],
       "pricing_lookup_ids": [
         "gpt-4o-mini"
       ],
@@ -4221,11 +4431,16 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 10,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwen2.5-14b-instruct",
@@ -4518,7 +4733,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4.5-preview",
-      "display_name": "GPT-4.5-preview",
+      "display_name": "GPT-4.5 Preview",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -4526,7 +4741,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4.5-preview"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4.5-preview-2025-02-27"
+      ],
       "pricing_lookup_ids": [
         "gpt-4.5-preview"
       ],
@@ -4534,11 +4751,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
       "ui_priority": 12,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "deprecated"
     },
     {
       "id": "qwen2.5-3b-instruct",
@@ -4647,7 +4868,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4.1"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4.1-2025-04-14"
+      ],
       "pricing_lookup_ids": [
         "gpt-4.1"
       ],
@@ -4655,11 +4878,16 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 13,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwen2.5-1.5b-instruct",
@@ -4728,14 +4956,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "image"
       ],
       "capabilities": [
-        "image"
+        "image_generation"
       ],
       "ui_priority": 14,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gemini-3.1-pro-low",
@@ -4765,7 +4994,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4.1-mini",
-      "display_name": "GPT-4.1-mini",
+      "display_name": "GPT-4.1 Mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -4773,7 +5002,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4.1-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4.1-mini-2025-04-14"
+      ],
       "pricing_lookup_ids": [
         "gpt-4.1-mini"
       ],
@@ -4781,11 +5012,16 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 14,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwen2.5-coder-32b-instruct",
@@ -4835,7 +5071,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-4.1-nano",
-      "display_name": "GPT-4.1-nano",
+      "display_name": "GPT-4.1 nano",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -4843,7 +5079,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4.1-nano"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4.1-nano-2025-04-14"
+      ],
       "pricing_lookup_ids": [
         "gpt-4.1-nano"
       ],
@@ -4851,11 +5089,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
       "ui_priority": 15,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-oss-120b-medium",
@@ -4928,7 +5170,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o1",
-      "display_name": "O1",
+      "display_name": "o1",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -4936,20 +5178,25 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o1"
       ],
-      "aliases": [],
+      "aliases": [
+        "o1-2024-12-17"
+      ],
       "pricing_lookup_ids": [
         "o1"
       ],
+      "context_window_tokens": 200000,
       "modalities": [
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision"
       ],
       "ui_priority": 16,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwen2.5-coder-7b-instruct",
@@ -5022,7 +5269,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o1-preview",
-      "display_name": "O1-preview",
+      "display_name": "o1 Preview",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5030,7 +5277,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o1-preview"
       ],
-      "aliases": [],
+      "aliases": [
+        "o1-preview-2024-09-12"
+      ],
       "pricing_lookup_ids": [
         "o1-preview"
       ],
@@ -5039,12 +5288,13 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text"
       ],
       "ui_priority": 17,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "beta"
     },
     {
       "id": "qwen3-235b-a22b",
@@ -5094,7 +5344,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o1-mini",
-      "display_name": "O1-mini",
+      "display_name": "o1-mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5102,7 +5352,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o1-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "o1-mini-2024-09-12"
+      ],
       "pricing_lookup_ids": [
         "o1-mini"
       ],
@@ -5111,12 +5363,13 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text"
       ],
       "ui_priority": 18,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwq-32b",
@@ -5143,7 +5396,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o1-pro",
-      "display_name": "O1-pro",
+      "display_name": "o1-pro",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5151,7 +5404,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o1-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "o1-pro-2025-03-19"
+      ],
       "pricing_lookup_ids": [
         "o1-pro"
       ],
@@ -5160,12 +5415,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision"
       ],
       "ui_priority": 19,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "qwq-32b-preview",
@@ -5222,7 +5479,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o3",
-      "display_name": "O3",
+      "display_name": "o3",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5230,7 +5487,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o3"
       ],
-      "aliases": [],
+      "aliases": [
+        "o3-2025-04-16"
+      ],
       "pricing_lookup_ids": [
         "o3"
       ],
@@ -5239,12 +5498,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision",
+        "web_search"
       ],
       "ui_priority": 20,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "deepseek-reasoner",
@@ -5280,7 +5542,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "o3-mini",
-      "display_name": "O3-mini",
+      "display_name": "o3-mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5288,7 +5550,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o3-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "o3-mini-2025-01-31"
+      ],
       "pricing_lookup_ids": [
         "o3-mini"
       ],
@@ -5297,16 +5561,17 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text"
       ],
       "ui_priority": 21,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "o3-pro",
-      "display_name": "O3-pro",
+      "display_name": "o3-pro",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5314,7 +5579,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o3-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "o3-pro-2025-06-10"
+      ],
       "pricing_lookup_ids": [
         "o3-pro"
       ],
@@ -5323,16 +5590,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision",
+        "web_search"
       ],
       "ui_priority": 22,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "o4-mini",
-      "display_name": "O4-mini",
+      "display_name": "o4-mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5340,7 +5610,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "o4-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "o4-mini-2025-04-16"
+      ],
       "pricing_lookup_ids": [
         "o4-mini"
       ],
@@ -5349,12 +5621,15 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
-        "reasoning"
+        "text",
+        "vision",
+        "web_search"
       ],
       "ui_priority": 23,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5",
@@ -5366,21 +5641,28 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5-2025-08-07"
+      ],
       "pricing_lookup_ids": [
         "gpt-5"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 24,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5-2025-08-07",
@@ -5396,7 +5678,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-2025-08-07"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -5432,7 +5714,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-5-chat-latest",
-      "display_name": "GPT-5-chat-latest",
+      "display_name": "GPT-5 Chat",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5448,11 +5730,16 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 27,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.3-codex-spark",
@@ -5481,7 +5768,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-5-pro",
-      "display_name": "GPT-5-pro",
+      "display_name": "GPT-5 Pro",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5489,19 +5776,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5-pro-2025-10-06"
+      ],
       "pricing_lookup_ids": [
         "gpt-5-pro"
       ],
-      "context_window_tokens": 128000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 30,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "grok-4",
@@ -5544,7 +5838,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-pro-2025-10-06"
       ],
-      "context_window_tokens": 128000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -5583,7 +5877,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-5-mini",
-      "display_name": "GPT-5-mini",
+      "display_name": "GPT-5 Mini",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5591,19 +5885,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5-mini-2025-08-07"
+      ],
       "pricing_lookup_ids": [
         "gpt-5-mini"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 32,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "grok-3-beta",
@@ -5646,7 +5947,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-mini-2025-08-07"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -5685,7 +5986,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-5-nano",
-      "display_name": "GPT-5-nano",
+      "display_name": "GPT-5 nano",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -5693,19 +5994,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5-nano"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5-nano-2025-08-07"
+      ],
       "pricing_lookup_ids": [
         "gpt-5-nano"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 34,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "grok-3-fast-beta",
@@ -5748,7 +6056,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5-nano-2025-08-07"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -5972,21 +6280,28 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.2"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.2-2025-12-11"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.2"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 42,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.2-2025-12-11",
@@ -6002,7 +6317,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-2025-12-11"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -6014,7 +6329,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "gpt-5.2-chat-latest",
-      "display_name": "GPT-5.2-chat-latest",
+      "display_name": "GPT-5.2 Chat",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6030,15 +6345,20 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 44,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "deprecated"
     },
     {
       "id": "gpt-5.2-pro",
-      "display_name": "GPT-5.2-pro",
+      "display_name": "GPT-5.2 Pro",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6046,19 +6366,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.2-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.2-pro-2025-12-11"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.2-pro"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 46,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.6-luna",
@@ -6079,6 +6406,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 46,
@@ -6086,7 +6416,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.6-sol",
@@ -6107,6 +6438,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 46,
@@ -6114,7 +6448,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.6-terra",
@@ -6135,6 +6470,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 46,
@@ -6142,7 +6480,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.2-pro-2025-12-11",
@@ -6158,7 +6497,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "pricing_lookup_ids": [
         "gpt-5.2-pro-2025-12-11"
       ],
-      "context_window_tokens": 272000,
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
@@ -6178,7 +6517,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.4"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.4-2026-03-05"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.4"
       ],
@@ -6187,6 +6528,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 48,
@@ -6194,7 +6538,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.5",
@@ -6206,7 +6551,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.5"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.5-2026-04-23"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.5"
       ],
@@ -6215,6 +6562,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 48,
@@ -6222,7 +6572,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.4-2026-03-05",
@@ -6260,14 +6611,20 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.4-mini"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.4-mini"
       ],
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 49,
@@ -6276,11 +6633,43 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "test",
         "whitelist",
         "use_key"
-      ]
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-6-astra",
+      "display_name": "GPT-6 Astra",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-6-astra"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-6-astra"
+      ],
+      "context_window_tokens": 1050000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 49,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.4-nano",
-      "display_name": "GPT-5.4 Nano",
+      "display_name": "GPT-5.4 nano",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6288,25 +6677,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.4-nano"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.4-nano-2026-03-17"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.4-nano"
       ],
+      "context_window_tokens": 400000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
       "ui_priority": 50,
       "exposed_in": [
         "runtime",
         "test",
         "whitelist",
         "use_key"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.4-pro",
-      "display_name": "GPT-5.4-pro",
+      "display_name": "GPT-5.4 Pro",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6314,7 +6711,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5.4-pro"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.4-pro-2026-03-05"
+      ],
       "pricing_lookup_ids": [
         "gpt-5.4-pro"
       ],
@@ -6323,6 +6722,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [
+        "text",
+        "vision",
+        "web_search",
         "image_generation_tool"
       ],
       "ui_priority": 50,
@@ -6330,7 +6732,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-5.4-pro-2026-03-05",
@@ -6360,7 +6763,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "id": "chatgpt-4o-latest",
-      "display_name": "Chatgpt-4o-latest",
+      "display_name": "ChatGPT-4o",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6376,15 +6779,19 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
       "ui_priority": 52,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "deprecated"
     },
     {
       "id": "gpt-image-2",
-      "display_name": "GPT Image 2",
+      "display_name": "GPT-Image-2",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6392,7 +6799,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-image-2"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-image-2-2026-04-21"
+      ],
       "pricing_lookup_ids": [
         "gpt-image-2"
       ],
@@ -6409,11 +6818,12 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "test",
         "whitelist",
         "use_key"
-      ]
+      ],
+      "status": "stable"
     },
     {
       "id": "gpt-4o-audio-preview",
-      "display_name": "GPT-4o-audio-preview",
+      "display_name": "GPT-4o Audio",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6421,7 +6831,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4o-audio-preview"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4o-audio-preview-2025-06-03",
+        "gpt-4o-audio-preview-2024-12-17",
+        "gpt-4o-audio-preview-2024-10-01"
+      ],
       "pricing_lookup_ids": [
         "gpt-4o-audio-preview"
       ],
@@ -6429,15 +6843,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "audio_generation"
+      ],
       "ui_priority": 53,
       "exposed_in": [
         "whitelist"
-      ]
+      ],
+      "status": "beta"
     },
     {
       "id": "gpt-4o-realtime-preview",
-      "display_name": "GPT-4o-realtime-preview",
+      "display_name": "GPT-4o Realtime",
       "provider": "openai",
       "platforms": [
         "openai"
@@ -6445,19 +6862,2393 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-4o-realtime-preview"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-4o-realtime-preview-2025-06-03",
+        "gpt-4o-realtime-preview-2024-12-17",
+        "gpt-4o-realtime-preview-2024-10-01"
+      ],
       "pricing_lookup_ids": [
         "gpt-4o-realtime-preview"
+      ],
+      "context_window_tokens": 32000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 54,
+      "exposed_in": [
+        "whitelist"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "babbage-002",
+      "display_name": "babbage-002",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "babbage-002"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "babbage-002"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 100,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "chat-latest",
+      "display_name": "Chat Latest",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "chat-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chat-latest"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 101,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "chatgpt-image-latest",
+      "display_name": "chatgpt-image-latest",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "chatgpt-image-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chatgpt-image-latest"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 102,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "codex-mini-latest",
+      "display_name": "codex-mini-latest",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "codex-mini-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codex-mini-latest"
+      ],
+      "context_window_tokens": 200000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
+      "ui_priority": 103,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "computer-use-preview",
+      "display_name": "computer-use-preview",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "computer-use-preview"
+      ],
+      "aliases": [
+        "computer-use-preview-2025-03-11"
+      ],
+      "pricing_lookup_ids": [
+        "computer-use-preview"
+      ],
+      "context_window_tokens": 8192,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
+      "ui_priority": 104,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "davinci-002",
+      "display_name": "davinci-002",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "davinci-002"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "davinci-002"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 105,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-4o-mini-audio-preview",
+      "display_name": "GPT-4o Mini Audio",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-mini-audio-preview"
+      ],
+      "aliases": [
+        "gpt-4o-mini-audio-preview-2024-12-17"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-mini-audio-preview"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 106,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gpt-4o-mini-realtime-preview",
+      "display_name": "GPT-4o Mini Realtime",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-mini-realtime-preview"
+      ],
+      "aliases": [
+        "gpt-4o-mini-realtime-preview-2024-12-17"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-mini-realtime-preview"
+      ],
+      "context_window_tokens": 16000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 107,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gpt-4o-mini-search-preview",
+      "display_name": "GPT-4o Mini Search Preview",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-mini-search-preview"
+      ],
+      "aliases": [
+        "gpt-4o-mini-search-preview-2025-03-11"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-mini-search-preview"
       ],
       "context_window_tokens": 128000,
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 54,
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 108,
       "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gpt-4o-mini-transcribe",
+      "display_name": "GPT-4o Mini Transcribe",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-mini-transcribe"
+      ],
+      "aliases": [
+        "gpt-4o-mini-transcribe-2025-03-20",
+        "gpt-4o-mini-transcribe-2025-12-15"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-mini-transcribe"
+      ],
+      "context_window_tokens": 16000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 109,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-4o-mini-tts",
+      "display_name": "GPT-4o Mini TTS",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-mini-tts"
+      ],
+      "aliases": [
+        "gpt-4o-mini-tts-2025-03-20",
+        "gpt-4o-mini-tts-2025-12-15"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-mini-tts"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 110,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-4o-search-preview",
+      "display_name": "GPT-4o Search Preview",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-search-preview"
+      ],
+      "aliases": [
+        "gpt-4o-search-preview-2025-03-11"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-4o-search-preview"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 111,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gpt-4o-transcribe-diarize",
+      "display_name": "GPT-4o Transcribe Diarize",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-transcribe-diarize"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-4o-transcribe-diarize"
+      ],
+      "context_window_tokens": 16000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 112,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-4o-transcribe",
+      "display_name": "GPT-4o Transcribe",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4o-transcribe"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-4o-transcribe"
+      ],
+      "context_window_tokens": 16000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 113,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5-codex",
+      "display_name": "GPT-5-Codex",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5-codex"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5-codex"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 114,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.1-chat-latest",
+      "display_name": "GPT-5.1 Chat",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.1-chat-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.1-chat-latest"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 115,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.1-codex-max",
+      "display_name": "GPT-5.1-Codex-Max",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.1-codex-max"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.1-codex-max"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 116,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.1-codex-mini",
+      "display_name": "GPT-5.1-Codex Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.1-codex-mini"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.1-codex-mini"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 117,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.1-codex",
+      "display_name": "GPT-5.1-Codex",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.1-codex"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.1-codex"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 118,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.1",
+      "display_name": "GPT-5.1",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.1"
+      ],
+      "aliases": [
+        "gpt-5.1-2025-11-13"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-5.1"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 119,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.2-codex",
+      "display_name": "GPT-5.2-Codex",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.2-codex"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.2-codex"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 120,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "display_name": "GPT-5.3-Codex",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.3-codex"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.3-codex"
+      ],
+      "context_window_tokens": 400000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 121,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-5.5-pro",
+      "display_name": "GPT-5.5 Pro",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.5-pro"
+      ],
+      "aliases": [
+        "gpt-5.5-pro-2026-04-23"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-5.5-pro"
+      ],
+      "context_window_tokens": 1050000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 122,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-audio-1.5",
+      "display_name": "GPT-Audio-1.5",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-audio-1.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-audio-1.5"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 123,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-audio-mini",
+      "display_name": "GPT-Audio Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-audio-mini"
+      ],
+      "aliases": [
+        "gpt-audio-mini-2025-10-06",
+        "gpt-audio-mini-2025-12-15"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-audio-mini"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 124,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-audio",
+      "display_name": "GPT-Audio",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-audio"
+      ],
+      "aliases": [
+        "gpt-audio-2025-08-28"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-audio"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 125,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-image-1-mini",
+      "display_name": "GPT-Image-1 Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-image-1-mini"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image-1-mini"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 126,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-image-1.5",
+      "display_name": "GPT-Image-1.5",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-image-1.5"
+      ],
+      "aliases": [
+        "gpt-image-1.5-2025-12-16"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-image-1.5"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 127,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-image-1",
+      "display_name": "GPT-Image-1",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-image-1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image-1"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 128,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-live-transcribe",
+      "display_name": "GPT-Live-Transcribe",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-live-transcribe"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-live-transcribe"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 129,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-1.5",
+      "display_name": "GPT-Realtime-1.5",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-1.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-1.5"
+      ],
+      "context_window_tokens": 32000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 130,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-2.1-mini",
+      "display_name": "GPT-Realtime-2.1 Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-2.1-mini"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-2.1-mini"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 131,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-2.1",
+      "display_name": "GPT-Realtime-2.1",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-2.1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-2.1"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 132,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-2",
+      "display_name": "GPT-Realtime-2",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-2"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 133,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-mini",
+      "display_name": "GPT-Realtime Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-mini"
+      ],
+      "aliases": [
+        "gpt-realtime-mini-2025-10-06",
+        "gpt-realtime-mini-2025-12-15"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-realtime-mini"
+      ],
+      "context_window_tokens": 32000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 134,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-translate",
+      "display_name": "GPT-Realtime-Translate",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-translate"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-translate"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 135,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime-whisper",
+      "display_name": "GPT-Realtime-Whisper",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime-whisper"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-realtime-whisper"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 136,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-realtime",
+      "display_name": "GPT-Realtime",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-realtime"
+      ],
+      "aliases": [
+        "gpt-realtime-2025-08-28"
+      ],
+      "pricing_lookup_ids": [
+        "gpt-realtime"
+      ],
+      "context_window_tokens": 32000,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 137,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gpt-transcribe",
+      "display_name": "GPT-Transcribe",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-transcribe"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-transcribe"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 138,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "o3-deep-research",
+      "display_name": "o3-deep-research",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "o3-deep-research"
+      ],
+      "aliases": [
+        "o3-deep-research-2025-06-26"
+      ],
+      "pricing_lookup_ids": [
+        "o3-deep-research"
+      ],
+      "context_window_tokens": 200000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 139,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "o4-mini-deep-research",
+      "display_name": "o4-mini-deep-research",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "o4-mini-deep-research"
+      ],
+      "aliases": [
+        "o4-mini-deep-research-2025-06-26"
+      ],
+      "pricing_lookup_ids": [
+        "o4-mini-deep-research"
+      ],
+      "context_window_tokens": 200000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search"
+      ],
+      "ui_priority": 140,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "omni-moderation-latest",
+      "display_name": "omni-moderation",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "omni-moderation-latest"
+      ],
+      "aliases": [
+        "omni-moderation-2024-09-26"
+      ],
+      "pricing_lookup_ids": [
+        "omni-moderation-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "moderation"
+      ],
+      "ui_priority": 141,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "sora-2-pro",
+      "display_name": "Sora 2 Pro",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "sora-2-pro"
+      ],
+      "aliases": [
+        "sora-2-pro-2025-10-06"
+      ],
+      "pricing_lookup_ids": [
+        "sora-2-pro"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 142,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "sora-2",
+      "display_name": "Sora 2",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "sora-2"
+      ],
+      "aliases": [
+        "sora-2-2025-12-08",
+        "sora-2-2025-10-06"
+      ],
+      "pricing_lookup_ids": [
+        "sora-2"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 143,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "text-embedding-3-large",
+      "display_name": "text-embedding-3-large",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "text-embedding-3-large"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "text-embedding-3-large"
+      ],
+      "modalities": [
+        "embedding"
+      ],
+      "capabilities": [
+        "embedding"
+      ],
+      "ui_priority": 144,
+      "exposed_in": [
+        "runtime",
         "whitelist"
-      ]
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "text-embedding-3-small",
+      "display_name": "text-embedding-3-small",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "text-embedding-3-small"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "text-embedding-3-small"
+      ],
+      "modalities": [
+        "embedding"
+      ],
+      "capabilities": [
+        "embedding"
+      ],
+      "ui_priority": 145,
+      "exposed_in": [
+        "runtime",
+        "whitelist"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "text-embedding-ada-002",
+      "display_name": "text-embedding-ada-002",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "text-embedding-ada-002"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "text-embedding-ada-002"
+      ],
+      "modalities": [
+        "embedding"
+      ],
+      "capabilities": [
+        "embedding"
+      ],
+      "ui_priority": 146,
+      "exposed_in": [
+        "runtime",
+        "whitelist"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "text-moderation-latest",
+      "display_name": "text-moderation",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "text-moderation-latest"
+      ],
+      "aliases": [
+        "text-moderation-007"
+      ],
+      "pricing_lookup_ids": [
+        "text-moderation-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "moderation"
+      ],
+      "ui_priority": 147,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "text-moderation-stable",
+      "display_name": "text-moderation-stable",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "text-moderation-stable"
+      ],
+      "aliases": [
+        "text-moderation-007"
+      ],
+      "pricing_lookup_ids": [
+        "text-moderation-stable"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "moderation"
+      ],
+      "ui_priority": 148,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "tts-1-hd",
+      "display_name": "TTS-1 HD",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "tts-1-hd"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "tts-1-hd"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 149,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "tts-1",
+      "display_name": "TTS-1",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "tts-1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "tts-1"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 150,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "whisper-1",
+      "display_name": "Whisper",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "whisper-1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "whisper-1"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 151,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-2.5-computer-use-preview-10-2025",
+      "display_name": "Gemini 2.5 Computer Use Preview 10 2025",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-2.5-computer-use-preview-10-2025"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-2.5-computer-use-preview-10-2025"
+      ],
+      "context_window_tokens": 128000,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
+      "ui_priority": 152,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-2.5-flash-native-audio-preview-12-2025",
+      "display_name": "Gemini 2.5 Flash Native Audio Preview 12 2025",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-2.5-flash-native-audio-preview-12-2025"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-2.5-flash-native-audio-preview-12-2025"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 153,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-2.5-flash-preview-tts",
+      "display_name": "Gemini 2.5 Flash Preview TTS",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-2.5-flash-preview-tts"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-2.5-flash-preview-tts"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 154,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-2.5-pro-preview-tts",
+      "display_name": "Gemini 2.5 Pro Preview TTS",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-2.5-pro-preview-tts"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-2.5-pro-preview-tts"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 155,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-3.1-flash-lite-image",
+      "display_name": "Gemini 3.1 Flash Lite Image",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-flash-lite-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-flash-lite-image"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 156,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "display_name": "Gemini 3.1 Flash Lite",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-flash-lite"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-flash-lite"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
+      "ui_priority": 157,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.1-flash-live-preview",
+      "display_name": "Gemini 3.1 Flash Live Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-flash-live-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-flash-live-preview"
+      ],
+      "context_window_tokens": 131072,
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 158,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-3.1-flash-tts-preview",
+      "display_name": "Gemini 3.1 Flash TTS Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-flash-tts-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-flash-tts-preview"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 159,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-3.5-flash-lite",
+      "display_name": "Gemini 3.5 Flash Lite",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.5-flash-lite"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.5-flash-lite"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
+      "ui_priority": 160,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "display_name": "Gemini 3.5 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.5-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.5-flash"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
+      "ui_priority": 161,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.5-live-translate-preview",
+      "display_name": "Gemini 3.5 Live Translate Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.5-live-translate-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.5-live-translate-preview"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 162,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-3.5-transcribe",
+      "display_name": "Gemini 3.5 Transcribe",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.5-transcribe"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.5-transcribe"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 163,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "display_name": "Gemini 3.7 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.7-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.7-flash"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
+      "ui_priority": 164,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "display_name": "Gemini 3.8 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.8-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.8-flash"
+      ],
+      "context_window_tokens": 1048576,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
+      "ui_priority": 165,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-embedding-001",
+      "display_name": "Gemini Embedding 001",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-embedding-001"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-embedding-001"
+      ],
+      "context_window_tokens": 2048,
+      "modalities": [
+        "embedding"
+      ],
+      "capabilities": [
+        "embedding"
+      ],
+      "ui_priority": 166,
+      "exposed_in": [
+        "runtime",
+        "whitelist"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-embedding-2",
+      "display_name": "Gemini Embedding 2",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-embedding-2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-embedding-2"
+      ],
+      "context_window_tokens": 8192,
+      "modalities": [
+        "embedding"
+      ],
+      "capabilities": [
+        "embedding"
+      ],
+      "ui_priority": 167,
+      "exposed_in": [
+        "runtime",
+        "whitelist"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-omni-1.1-flash",
+      "display_name": "Gemini Omni 1.1 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-omni-1.1-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-omni-1.1-flash"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 168,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-robotics-er-1.6-preview",
+      "display_name": "Gemini Robotics Er 1.6 Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-robotics-er-1.6-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-robotics-er-1.6-preview"
+      ],
+      "context_window_tokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
+      "ui_priority": 169,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-robotics-er-2-preview",
+      "display_name": "Gemini Robotics Er 2 Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-robotics-er-2-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-robotics-er-2-preview"
+      ],
+      "context_window_tokens": 131072,
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding"
+      ],
+      "ui_priority": 170,
+      "exposed_in": [
+        "runtime",
+        "whitelist",
+        "test"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "lyria-3-clip-preview",
+      "display_name": "Lyria 3 Clip Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "lyria-3-clip-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "lyria-3-clip-preview"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 171,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "lyria-3.5",
+      "display_name": "Lyria 3.5",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "lyria-3.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "lyria-3.5"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_generation"
+      ],
+      "ui_priority": 172,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "lyria-realtime-exp",
+      "display_name": "Lyria Realtime Exp",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "lyria-realtime-exp"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "lyria-realtime-exp"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 173,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "veo-3.1-generate-preview",
+      "display_name": "Veo 3.1 Generate Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "veo-3.1-generate-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "veo-3.1-generate-preview"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 174,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "veo-3.1-fast-generate-preview",
+      "display_name": "Veo 3.1 Fast Generate Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "veo-3.1-fast-generate-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "veo-3.1-fast-generate-preview"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 175,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "veo-3.1-lite-generate-preview",
+      "display_name": "Veo 3.1 Lite Generate Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "veo-3.1-lite-generate-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "veo-3.1-lite-generate-preview"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 176,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "grok-imagine-image-2.0",
+      "display_name": "Grok Imagine Image 2.0",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-imagine-image-2.0"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-imagine-image-2.0"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 177,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "grok-imagine-video-1.5",
+      "display_name": "Grok Imagine Video 1.5",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-imagine-video-1.5"
+      ],
+      "aliases": [
+        "grok-imagine-video-1.5-preview",
+        "grok-imagine-video-1.5-2026-05-30"
+      ],
+      "pricing_lookup_ids": [
+        "grok-imagine-video-1.5"
+      ],
+      "modalities": [
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 178,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "grok-voice-latest",
+      "display_name": "Grok Voice Latest",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-voice-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-voice-latest"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 179,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "grok-voice-think-fast-1.0",
+      "display_name": "Grok Voice Think Fast 1.0",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-voice-think-fast-1.0"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-voice-think-fast-1.0"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 180,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "grok-voice-think-fast-2.0",
+      "display_name": "Grok Voice Think Fast 2.0",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-voice-think-fast-2.0"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-voice-think-fast-2.0"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding",
+        "audio_generation"
+      ],
+      "ui_priority": 181,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
     },
     {
       "id": "claude-haiku-4-5-20251001",
@@ -6477,7 +9268,10 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision"
+      ],
       "ui_priority": 200,
       "exposed_in": [
         "runtime",
@@ -7005,12 +9799,149 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "text",
+        "vision",
+        "web_search",
+        "audio_understanding",
+        "video_understanding"
+      ],
       "ui_priority": 200,
       "exposed_in": [
         "runtime",
         "test"
-      ]
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "antigravity-preview-05-2026",
+      "display_name": "Antigravity Agent Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "antigravity-preview-05-2026"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "antigravity-preview-05-2026"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 300,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "deep-research-max-preview-04-2026",
+      "display_name": "Deep Research Max Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "deep-research-max-preview-04-2026"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deep-research-max-preview-04-2026"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 300,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "deep-research-preview-04-2026",
+      "display_name": "Deep Research Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "deep-research-preview-04-2026"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deep-research-preview-04-2026"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "text"
+      ],
+      "ui_priority": 300,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
+    },
+    {
+      "id": "gemini-3.5-transcribe-live",
+      "display_name": "Gemini 3.5 Transcribe Live",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-3.5-transcribe-live"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.5-transcribe-live"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding"
+      ],
+      "ui_priority": 300,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "stable"
+    },
+    {
+      "id": "gemini-robotics-er-2-streaming-preview",
+      "display_name": "Gemini Robotics ER 2 Streaming Preview",
+      "provider": "gemini",
+      "platforms": [
+        "gemini"
+      ],
+      "protocol_ids": [
+        "gemini-robotics-er-2-streaming-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-robotics-er-2-streaming-preview"
+      ],
+      "modalities": [
+        "audio"
+      ],
+      "capabilities": [
+        "audio_understanding"
+      ],
+      "ui_priority": 300,
+      "exposed_in": [
+        "catalog"
+      ],
+      "status": "beta"
     },
     {
       "id": "unknown",

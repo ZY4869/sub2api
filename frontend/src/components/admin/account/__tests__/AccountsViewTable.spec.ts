@@ -342,7 +342,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
     expect(wrapper.find('.cell-usage').exists()).toBe(false)
     expect(wrapper.find('.cell-usage-reset').exists()).toBe(false)
-    expect(wrapper.get('.cell-today-stats').attributes('data-colspan')).toBe('3')
+    expect(wrapper.get('.cell-today-stats').attributes('data-colspan')).toBe('2')
     expect(wrapper.get('.groups-stub').attributes('data-visual-variant')).toBe('airy')
     expect(wrapper.get('.groups-stub').attributes('data-display-mode')).toBe('full')
     expect(wrapper.get('.key-usage-summary-stub').attributes('data-account-id')).toBe('1')
@@ -479,7 +479,7 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(false)
   })
 
-  it('keeps non-Key accounts in separate today, usage and reset cells', () => {
+  it('keeps non-Key today stats separate and folds reset dates into the usage cell', () => {
     const wrapper = mountTable({ type: 'oauth' })
 
     expect(wrapper.get('.cell-today-stats').attributes('data-colspan')).toBe('1')
@@ -487,7 +487,8 @@ describe('AccountsViewTable', () => {
     expect(wrapper.find('.key-usage-summary-stub').exists()).toBe(false)
     expect(wrapper.find('.cell-usage').exists()).toBe(true)
     expect(wrapper.find('.usage-visual-stub').exists()).toBe(true)
-    expect(wrapper.find('.cell-usage-reset').exists()).toBe(true)
+    expect(wrapper.find('.cell-usage-reset').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage account-usage-reset-cell-stub').exists()).toBe(true)
   })
 
   it('does not skip usage cells for Key rows when today stats is hidden', () => {
@@ -510,6 +511,7 @@ describe('AccountsViewTable', () => {
 
     expect(wrapper.find('.cell-today-stats').exists()).toBe(false)
     expect(wrapper.find('.cell-usage').exists()).toBe(true)
-    expect(wrapper.find('.cell-usage-reset').exists()).toBe(true)
+    expect(wrapper.find('.cell-usage-reset').exists()).toBe(false)
+    expect(wrapper.find('.cell-usage account-usage-reset-cell-stub').exists()).toBe(true)
   })
 })

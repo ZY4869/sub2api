@@ -7,6 +7,7 @@ export type GroupPlatform =
   | "openrouter"
   | "grok"
   | "deepseek"
+  | "kimi"
   | "gemini"
   | "antigravity"
   | "composite"
@@ -109,6 +110,9 @@ export interface Group {
   allow_messages_dispatch?: boolean;
   allow_live?: boolean;
   max_reasoning_effort?: OpenAIReasoningEffort | "";
+  max_reasoning_effort_over_limit?: "downgrade" | "deny";
+  force_openai_fast?: boolean;
+  free_openai_fast?: boolean;
   reasoning_effort_mappings?: ReasoningEffortMapping[];
   gemini_mixed_protocol_enabled?: boolean;
   visible_model_patterns?: string[];
@@ -299,6 +303,9 @@ export interface CreateGroupRequest {
   allow_messages_dispatch?: boolean;
   allow_live?: boolean;
   max_reasoning_effort?: OpenAIReasoningEffort | "";
+  max_reasoning_effort_over_limit?: "downgrade" | "deny";
+  force_openai_fast?: boolean;
+  free_openai_fast?: boolean;
   reasoning_effort_mappings?: ReasoningEffortMapping[];
   default_mapped_model?: string;
   visible_model_patterns?: string[];
@@ -348,6 +355,9 @@ export interface UpdateGroupRequest {
   allow_messages_dispatch?: boolean;
   allow_live?: boolean;
   max_reasoning_effort?: OpenAIReasoningEffort | "";
+  max_reasoning_effort_over_limit?: "downgrade" | "deny";
+  force_openai_fast?: boolean;
+  free_openai_fast?: boolean;
   reasoning_effort_mappings?: ReasoningEffortMapping[];
   default_mapped_model?: string;
   visible_model_patterns?: string[];

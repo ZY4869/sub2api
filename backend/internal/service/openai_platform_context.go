@@ -9,7 +9,7 @@ func WithOpenAIPlatform(ctx context.Context, platform string) context.Context {
 		ctx = context.Background()
 	}
 	switch platform {
-	case PlatformDeepSeek, PlatformOpenRouter:
+	case PlatformDeepSeek, PlatformKimi, PlatformOpenRouter:
 		return context.WithValue(ctx, openAIPlatformContextKey{}, platform)
 	default:
 		return context.WithValue(ctx, openAIPlatformContextKey{}, PlatformOpenAI)

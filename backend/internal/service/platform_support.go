@@ -14,6 +14,7 @@ var supportedPrimaryGroupPlatforms = map[string]struct{}{
 	PlatformBaiduDocumentAI: {},
 	PlatformComposite:       {},
 	PlatformDeepSeek:        {},
+	PlatformKimi:            {},
 	PlatformGemini:          {},
 	PlatformGrok:            {},
 	PlatformKiro:            {},

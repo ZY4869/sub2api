@@ -133,12 +133,16 @@ describe("useModelWhitelist", () => {
     expect(geminiModels).not.toContain("gemini-3.1-flash-image");
   });
 
-  it("test exposure includes runtime test models without leaking use_key-only curation", () => {
+  it("test exposure includes test models without leaking runtime-only or catalog models", () => {
     const openAIModels = getModelsByPlatform("openai", "test");
 
     expect(openAIModels).toContain("gpt-5.4");
     expect(openAIModels).toContain("gpt-5.4-pro");
-    expect(openAIModels).not.toContain("gpt-5-codex");
+    expect(openAIModels).toContain("gpt-5-codex");
+    expect(getModelsByPlatform("openai", "runtime")).toContain("text-embedding-3-small");
+    expect(openAIModels).not.toContain("text-embedding-3-small");
+    expect(openAIModels).not.toContain("gpt-5.4-2026-03-05");
+    expect(openAIModels).not.toContain("gpt-realtime-2.1");
   });
 
   it("keeps antigravity presets available without hard-filtering 4.6 ids", () => {

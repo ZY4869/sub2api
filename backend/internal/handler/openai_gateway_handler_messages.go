@@ -439,6 +439,31 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					continue
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+				if errors.Is(err, service.ErrReasoningEffortOverLimit) {
+					// Keep the deny action stable across the Anthropic Messages compatibility
+					// path instead of degrading it to a generic 502 fallback.
+					h.anthropicStreamingAwareErrorWithCode(
+						c,
+						http.StatusBadRequest,
+						"invalid_request_error",
+						"REASONING_EFFORT_OVER_LIMIT",
+						"requested reasoning effort exceeds the group limit",
+						streamStarted,
+					)
+					h.submitFailedUsageRecordTask(
+						"handler.openai_gateway.messages",
+						c,
+						currentAPIKey,
+						currentSubscription,
+						account,
+						reqModel,
+						reqStream,
+						time.Duration(forwardDurationMs)*time.Millisecond,
+						nil,
+						err,
+					)
+					return
+				}
 				wroteFallback := h.ensureAnthropicErrorResponse(c, streamStarted)
 				h.submitFailedUsageRecordTask(
 					"handler.openai_gateway.messages",
@@ -506,12 +531,20 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 // anthropicErrorResponse writes an error in Anthropic Messages API format.
 func (h *OpenAIGatewayHandler) anthropicErrorResponse(c *gin.Context, status int, errType, message string) {
+	h.anthropicErrorResponseWithCode(c, status, errType, "", message)
+}
+
+func (h *OpenAIGatewayHandler) anthropicErrorResponseWithCode(c *gin.Context, status int, errType, code, message string) {
+	errorPayload := gin.H{
+		"type":    errType,
+		"message": message,
+	}
+	if strings.TrimSpace(code) != "" {
+		errorPayload["code"] = strings.TrimSpace(code)
+	}
 	c.JSON(status, gin.H{
-		"type": "error",
-		"error": gin.H{
-			"type":    errType,
-			"message": message,
-		},
+		"type":  "error",
+		"error": errorPayload,
 	})
 }
 
@@ -525,22 +558,30 @@ func (h *OpenAIGatewayHandler) anthropicPublicCatalogUnavailableResponse(c *gin.
 
 // anthropicStreamingAwareError handles errors that may occur during streaming.
 func (h *OpenAIGatewayHandler) anthropicStreamingAwareError(c *gin.Context, status int, errType, message string, streamStarted bool) {
+	h.anthropicStreamingAwareErrorWithCode(c, status, errType, "", message, streamStarted)
+}
+
+func (h *OpenAIGatewayHandler) anthropicStreamingAwareErrorWithCode(c *gin.Context, status int, errType, code, message string, streamStarted bool) {
 	if streamStarted {
 		flusher, ok := c.Writer.(http.Flusher)
 		if ok {
+			errorPayload := gin.H{
+				"type":    errType,
+				"message": message,
+			}
+			if strings.TrimSpace(code) != "" {
+				errorPayload["code"] = strings.TrimSpace(code)
+			}
 			errPayload, _ := json.Marshal(gin.H{
-				"type": "error",
-				"error": gin.H{
-					"type":    errType,
-					"message": message,
-				},
+				"type":  "error",
+				"error": errorPayload,
 			})
 			fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", errPayload) //nolint:errcheck
 			flusher.Flush()
 		}
 		return
 	}
-	h.anthropicErrorResponse(c, status, errType, message)
+	h.anthropicErrorResponseWithCode(c, status, errType, code, message)
 }
 
 // handleAnthropicFailoverExhausted maps upstream failover errors to Anthropic format.

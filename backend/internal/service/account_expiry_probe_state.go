@@ -35,7 +35,6 @@ const (
 	AccountDaily5HTriggerStatusSkipped  = "skipped"
 	AccountDaily5HTriggerStatusFailed   = "failed"
 	defaultExpiryProbeExtensionDays     = 1
-	defaultAccountDaily5HTriggerHour    = 7
 	AccountDaily5HTypeOpenAI            = "chatgpt_oauth"
 	AccountDaily5HTypeAnthropic         = "claude_code_oauth_setup_token"
 	AccountDaily5HTypeGemini            = "google_oauth"
@@ -70,6 +69,7 @@ type AccountDaily5HTriggerModelSettings struct {
 }
 
 type AccountDaily5HTriggerSettings struct {
+	TriggerTime               string                             `json:"trigger_time"`
 	Enabled                   bool                               `json:"enabled"`
 	SelectedAccountTypes      []string                           `json:"selected_account_types"`
 	IncludePausedAccounts     bool                               `json:"include_paused_accounts"`
@@ -101,6 +101,7 @@ type AccountDaily5HTriggerSettingsView struct {
 
 func DefaultAccountDaily5HTriggerSettings() *AccountDaily5HTriggerSettings {
 	return &AccountDaily5HTriggerSettings{
+		TriggerTime:           "07:00",
 		Enabled:               false,
 		SelectedAccountTypes:  []string{AccountDaily5HTypeOpenAI},
 		IncludePausedAccounts: false,
@@ -121,6 +122,9 @@ func NormalizeAccountDaily5HTriggerSettings(settings *AccountDaily5HTriggerSetti
 		return DefaultAccountDaily5HTriggerSettings()
 	}
 	normalized := *settings
+	if strings.TrimSpace(normalized.TriggerTime) == "" {
+		normalized.TriggerTime = "07:00"
+	}
 	normalized.SelectedAccountTypes = normalizeAccountDaily5HSelectedTypes(settings.SelectedAccountTypes)
 	normalized.OpenAIModel = normalizeAccountDaily5HModelSettings(settings.OpenAIModel)
 	normalized.AnthropicModel = normalizeAccountDaily5HModelSettings(settings.AnthropicModel)
@@ -244,7 +248,7 @@ func BuildAccountDaily5HTriggerExtra(localDate string, status string, modelID st
 		accountDaily5HLastSummaryKey:    strings.TrimSpace(summary),
 		accountDaily5HLastSkipReasonKey: nil,
 	}
-	if strings.TrimSpace(localDate) != "" {
+	if status == AccountDaily5HTriggerStatusSuccess && strings.TrimSpace(localDate) != "" {
 		out[accountDaily5HLastLocalDateKey] = strings.TrimSpace(localDate)
 	}
 	return out
@@ -262,21 +266,8 @@ func BuildAccountDaily5HTriggerSkipExtra(localDate string, skipReason string, su
 }
 
 func accountDaily5HSkipConsumesLocalDate(reason string) bool {
-	switch strings.TrimSpace(reason) {
-	case AccountDaily5HSkipReasonLifecycleExcluded,
-		AccountDaily5HSkipReasonAccountType,
-		AccountDaily5HSkipReasonPausedExcluded,
-		AccountDaily5HSkipReasonFreeExcluded,
-		AccountDaily5HSkipReasonRateLimited,
-		AccountDaily5HSkipReasonTempUnsched,
-		AccountDaily5HSkipReasonOverloaded,
-		AccountDaily5HSkipReasonSessionWindow,
-		AccountDaily5HSkipReasonFixedModelHidden,
-		AccountDaily5HSkipReasonNoFamilyModel:
-		return true
-	default:
-		return false
-	}
+	// A skip is not a successful request. Configuration and runtime state may change today.
+	return false
 }
 
 func AccountDaily5HLastLocalDate(extra map[string]any) string {

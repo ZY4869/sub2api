@@ -61,7 +61,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		}
 		record.displayName = entry.DisplayName
 		record.provider = entry.Provider
-		record.mode = inferModelMode(entry.ID, "")
+		record.mode = inferModelMode(entry.ID, bundledModelCatalogMode(entry.ID))
 		record.defaultAvailable = detail.Available
 		record.defaultPlatforms = append([]string(nil), entry.Platforms...)
 		if pricing, ok := s.resolveDynamicPricing(record); ok {

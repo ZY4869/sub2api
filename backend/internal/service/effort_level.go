@@ -80,10 +80,31 @@ func NormalizeOpenAIReasoningEffortEffectiveForModels(raw string, models ...stri
 	if normalized == nil {
 		return nil
 	}
+	// GPT-6 Astra does not accept reasoning=none. Keep the caller's raw
+	// request for usage/diagnostics, but choose the safest supported effort so
+	// the model is never released a syntactically valid yet unsupported value.
+	if *normalized == "none" && !openAIModelSupportsNoneReasoning(models...) {
+		effective := "low"
+		return &effective
+	}
 	if *normalized == "max" && openAIModelSupportsMaxReasoningEffort(models...) {
 		return normalized
 	}
 	return NormalizeOpenAIReasoningEffortEffective(*normalized)
+}
+
+func openAIModelSupportsNoneReasoning(models ...string) bool {
+	for _, model := range models {
+		modelID := strings.ToLower(strings.TrimSpace(model))
+		if idx := strings.LastIndex(modelID, "/"); idx >= 0 {
+			modelID = strings.TrimSpace(modelID[idx+1:])
+		}
+		modelID = strings.NewReplacer("_", "-", " ", "-").Replace(modelID)
+		if modelID == "gpt-6-astra" {
+			return false
+		}
+	}
+	return true
 }
 
 func openAIModelSupportsMaxReasoningEffort(models ...string) bool {

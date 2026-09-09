@@ -129,6 +129,8 @@ type ModelRegistryService struct {
 }
 
 var modelRegistryCapabilityOrder = []string{
+	"embedding",
+	"moderation",
 	"text",
 	"vision",
 	"image_generation",

@@ -68,6 +68,9 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetAllowLive(groupIn.AllowLive).
 		SetMaxReasoningEffort(service.NormalizeOpenAIReasoningEffortSetting(groupIn.MaxReasoningEffort)).
+		SetMaxReasoningEffortOverLimit(service.NormalizeReasoningEffortOverLimitAction(groupIn.MaxReasoningEffortOverLimit)).
+		SetForceOpenaiFast(groupIn.ForceOpenAIFast).
+		SetFreeOpenaiFast(groupIn.FreeOpenAIFast).
 		SetReasoningEffortMappings(reasoningEffortMappingsToDB(groupIn.ReasoningEffortMappings)).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel)
 
@@ -173,6 +176,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetAllowLive(groupIn.AllowLive).
 		SetMaxReasoningEffort(service.NormalizeOpenAIReasoningEffortSetting(groupIn.MaxReasoningEffort)).
+		SetMaxReasoningEffortOverLimit(service.NormalizeReasoningEffortOverLimitAction(groupIn.MaxReasoningEffortOverLimit)).
+		SetForceOpenaiFast(groupIn.ForceOpenAIFast).
+		SetFreeOpenaiFast(groupIn.FreeOpenAIFast).
 		SetReasoningEffortMappings(reasoningEffortMappingsToDB(groupIn.ReasoningEffortMappings)).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel)
 

@@ -158,7 +158,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		return nil, err
 	}
 	profitEnabled, profitMinMargin, profitSafetyBuffer := NormalizeGroupProfitConfig(input.ProfitControlEnabled, input.ProfitMinMargin, input.ProfitSafetyBuffer)
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, ProfitControlEnabled: profitEnabled, ProfitMinMargin: profitMinMargin, ProfitSafetyBuffer: profitSafetyBuffer, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, WebSearchPricePerCall: webSearchPricePerCall, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, AllowLive: input.AllowLive, MaxReasoningEffort: NormalizeOpenAIReasoningEffortSetting(input.MaxReasoningEffort), ReasoningEffortMappings: NormalizeReasoningEffortMappings(input.ReasoningEffortMappings), VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, ProfitControlEnabled: profitEnabled, ProfitMinMargin: profitMinMargin, ProfitSafetyBuffer: profitSafetyBuffer, PeakRateEnabled: peakEnabled, PeakStart: peakStart, PeakEnd: peakEnd, PeakRateMultiplier: peakRateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, WebSearchPricePerCall: webSearchPricePerCall, ImageProtocolMode: imageProtocolMode, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel, AllowLive: input.AllowLive, MaxReasoningEffort: NormalizeOpenAIReasoningEffortSetting(input.MaxReasoningEffort), MaxReasoningEffortOverLimit: NormalizeReasoningEffortOverLimitAction(input.MaxReasoningEffortOverLimit), ForceOpenAIFast: input.ForceOpenAIFast, FreeOpenAIFast: input.FreeOpenAIFast, ReasoningEffortMappings: NormalizeReasoningEffortMappings(input.ReasoningEffortMappings), VisibleModelPatterns: NormalizeGroupVisibleModelPatterns(input.VisibleModelPatterns), ImageBatchEnabled: input.ImageBatchEnabled, ImageBatchAllowedProviders: NormalizeImageBatchAllowList(input.ImageBatchAllowedProviders), ImageBatchAllowedModels: NormalizeImageBatchAllowList(input.ImageBatchAllowedModels), ImageBatchMaxItems: NormalizeImageBatchMaxItems(input.ImageBatchMaxItems), ImageBatchMaxDownloadBytes: NormalizeImageBatchMaxDownloadBytes(input.ImageBatchMaxDownloadBytes), ImageBatchDownloadConcurrency: NormalizeImageBatchDownloadConcurrency(input.ImageBatchDownloadConcurrency)}
 	sanitizeGroupPlatformFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
@@ -239,6 +239,9 @@ func (s *adminServiceImpl) DuplicateGroup(ctx context.Context, id int64, input *
 		DefaultMappedModel:              source.DefaultMappedModel,
 		AllowLive:                       source.AllowLive,
 		MaxReasoningEffort:              source.MaxReasoningEffort,
+		MaxReasoningEffortOverLimit:     source.MaxReasoningEffortOverLimit,
+		ForceOpenAIFast:                 source.ForceOpenAIFast,
+		FreeOpenAIFast:                  source.FreeOpenAIFast,
 		ReasoningEffortMappings:         append([]ReasoningEffortMapping(nil), source.ReasoningEffortMappings...),
 		VisibleModelPatterns:            append([]string(nil), source.VisibleModelPatterns...),
 		ImageBatchEnabled:               source.ImageBatchEnabled,
@@ -618,6 +621,15 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.MaxReasoningEffort != nil {
 		group.MaxReasoningEffort = NormalizeOpenAIReasoningEffortSetting(*input.MaxReasoningEffort)
+	}
+	if input.MaxReasoningEffortOverLimit != nil {
+		group.MaxReasoningEffortOverLimit = NormalizeReasoningEffortOverLimitAction(*input.MaxReasoningEffortOverLimit)
+	}
+	if input.ForceOpenAIFast != nil {
+		group.ForceOpenAIFast = *input.ForceOpenAIFast
+	}
+	if input.FreeOpenAIFast != nil {
+		group.FreeOpenAIFast = *input.FreeOpenAIFast
 	}
 	if input.ReasoningEffortMappings != nil {
 		group.ReasoningEffortMappings = NormalizeReasoningEffortMappings(*input.ReasoningEffortMappings)

@@ -29,7 +29,7 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		return s.detectMixedProtocolGatewayModels(ctx, account)
 	}
 	switch RoutingPlatformForAccount(account) {
-	case PlatformOpenAI, PlatformDeepSeek, PlatformOpenRouter:
+	case PlatformOpenAI, PlatformDeepSeek, PlatformKimi, PlatformOpenRouter:
 		models, err := s.detectOpenAIModels(ctx, account)
 		if err != nil {
 			return nil, err

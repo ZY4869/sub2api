@@ -16,7 +16,7 @@
       />
       <div
         :class="[
-          'overflow-x-auto pb-1',
+          'min-w-0 pb-1',
           actionsViewportClass
         ]"
       >
@@ -107,11 +107,11 @@
 
             <div
               :class="daily5HToggleClass"
-              :title="t('admin.accounts.daily5h.toolbarHint')"
+              :title="t('admin.accounts.daily5h.toolbarHint', { time: daily5HTriggerTime || '07:00' })"
             >
               <div class="hidden md:block">
                 <div class="text-xs font-medium text-gray-900 dark:text-white">
-                  {{ t("admin.accounts.daily5h.toolbarLabel") }}
+                  {{ t("admin.accounts.daily5h.toolbarLabel") }} {{ daily5HTriggerTime || '07:00' }}
                 </div>
               </div>
               <button
@@ -635,6 +635,7 @@ const props = defineProps<{
   limitedAccountsCount?: number;
   actualUsageRefreshSummary: ActualUsageRefreshSummary;
   daily5HTriggerEnabled?: boolean;
+  daily5HTriggerTime?: string;
   daily5HTriggerBusy?: boolean;
   accountRealtimeCountdownEnabled?: boolean;
   accountVisualPresetOverride?: VisualPresetPreference;

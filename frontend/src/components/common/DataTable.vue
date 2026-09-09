@@ -77,6 +77,7 @@
             v-for="(column, index) in columns"
             :key="column.key"
             scope="col"
+            :style="column.width ? { width: `${column.width}px` } : undefined"
             :class="[
               'sticky-header-cell py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
               getAdaptivePaddingClass(),
@@ -946,6 +947,8 @@ defineExpose({
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
   isolation: isolate;
 }
 

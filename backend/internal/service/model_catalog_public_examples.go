@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
 const (
@@ -46,6 +48,11 @@ func (s *ModelCatalogService) buildPublicModelCatalogDetailExample(
 }
 
 func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem, capability string) (publicModelCatalogExampleSpec, bool) {
+	for _, id := range []string{item.BaseModel, item.SourceModelID, item.Model} {
+		if entry, ok := modelregistry.SeedModelByID(id); ok && modelregistry.IsCatalogOnly(entry) {
+			return publicModelCatalogExampleSpec{}, false
+		}
+	}
 	endpoint, ok := pickPublicModelCatalogExampleEndpoint(item, capability)
 	if !ok {
 		return publicModelCatalogExampleSpec{}, false
@@ -126,6 +133,13 @@ func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem, capability
 			PageID:      "grok",
 			Protocol:    protocol,
 			Keywords:    keywords,
+			EndpointKey: endpoint.Key,
+		}, true
+	case PlatformKimi:
+		return publicModelCatalogExampleSpec{
+			PageID:      "kimi",
+			Protocol:    protocol,
+			Keywords:    []string{"kimi-k3", "/v1/responses"},
 			EndpointKey: endpoint.Key,
 		}, true
 	case PlatformAntigravity:

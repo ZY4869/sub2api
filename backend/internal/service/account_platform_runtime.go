@@ -20,6 +20,9 @@ func (a *Account) GetBaseURL() string {
 		if a.Platform == PlatformDeepSeek {
 			return deepSeekAnthropicBaseURL("")
 		}
+		if a.Platform == PlatformKimi {
+			return "https://api.moonshot.cn"
+		}
 		return "https://api.anthropic.com"
 	}
 	if a.Platform == PlatformAntigravity {

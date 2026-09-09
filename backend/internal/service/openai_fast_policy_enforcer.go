@@ -23,6 +23,46 @@ type openAIFastPolicyDecision struct {
 	rule             OpenAIFastPolicyRule
 }
 
+// ApplyGroupOpenAIFastPolicy applies the group-level force flag only when the
+// global policy explicitly allows the request. Global filter/block remains the
+// final gate and is never bypassed by a group setting.
+func (s *OpenAIGatewayService) ApplyGroupOpenAIFastPolicy(ctx context.Context, account *Account, group *Group, reqBody map[string]any) (bool, error) {
+	if reqBody == nil || group == nil || !group.ForceOpenAIFast {
+		return false, nil
+	}
+	if _, exists := reqBody["service_tier"]; exists {
+		return false, nil
+	}
+	model, _ := reqBody["model"].(string)
+	settings := s.getOpenAIFastPolicySettings(ctx)
+	decision := resolveOpenAIFastPolicyDecision(settings, account, "priority", strings.TrimSpace(model), contextOpenAIFastPolicyUserID(ctx))
+	if !decision.matched || decision.action != OpenAIFastPolicyActionPass {
+		return false, nil
+	}
+	reqBody["service_tier"] = "priority"
+	s.logOpenAIFastPolicyDecision(ctx, account, model, "priority", decision, "group_force")
+	return true, nil
+}
+
+func (s *OpenAIGatewayService) applyGroupOpenAIFastPolicyToJSONBody(ctx context.Context, account *Account, group *Group, body []byte) ([]byte, bool, error) {
+	if len(body) == 0 || group == nil || !group.ForceOpenAIFast {
+		return body, false, nil
+	}
+	var reqBody map[string]any
+	if err := json.Unmarshal(body, &reqBody); err != nil {
+		return body, false, err
+	}
+	forced, err := s.ApplyGroupOpenAIFastPolicy(ctx, account, group, reqBody)
+	if err != nil || !forced {
+		return body, false, err
+	}
+	next, err := json.Marshal(reqBody)
+	if err != nil {
+		return body, false, err
+	}
+	return next, true, nil
+}
+
 type openAIFastPolicyBlockedError struct {
 	ServiceTier string
 	Model       string

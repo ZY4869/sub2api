@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"go.uber.org/zap"
@@ -186,7 +187,10 @@ func (s *ModelRegistryService) ensureAvailableModelsInitialized(ctx context.Cont
 	if err := s.ensureAvailableModelsBootstrapV20260726(ctx); err != nil {
 		return err
 	}
-	return s.ensureAvailableModelsBootstrapV20260818(ctx)
+	if err := s.ensureAvailableModelsBootstrapV20260818(ctx); err != nil {
+		return err
+	}
+	return s.ensureAvailableModelsBootstrap(ctx, "20260908", "model_registry_available_models_bootstrap_v20260908", modelRegistryAvailableBootstrapInputsV20260908)
 }
 
 func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error {
@@ -197,6 +201,14 @@ func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error
 	availableSet := make(map[string]struct{}, len(entries))
 	for id := range entries {
 		if _, tombstoned := tombstones[id]; tombstoned {
+			continue
+		}
+		// Registry entries marked unknown/unavailable are catalog metadata only.
+		// They must not become callable merely because the availability set is
+		// initialized or migrated. An administrator may still explicitly activate
+		// one later through ActivateModels/EnsureModelsAvailable.
+		status := strings.ToLower(strings.TrimSpace(entries[id].Status))
+		if status == "unknown" || status == "unavailable" || modelregistry.IsCatalogOnly(entries[id]) {
 			continue
 		}
 		availableSet[id] = struct{}{}
@@ -462,6 +474,13 @@ func (s *ModelRegistryService) updateAvailableModels(ctx context.Context, modelI
 			continue
 		}
 		if activate {
+			detail, err := s.GetDetail(ctx, canonicalID)
+			if err != nil {
+				return nil, err
+			}
+			if detail != nil && modelregistry.IsCatalogOnly(detail.ModelEntry) {
+				return nil, infraerrors.BadRequest("MODEL_CATALOG_ONLY", "This model is catalog metadata only; its protocol is not integrated")
+			}
 			if _, exists := availableSet[canonicalID]; exists {
 				continue
 			}
@@ -632,4 +651,46 @@ func mergeLegacyMappedRuntimeEntry(current modelregistry.ModelEntry, discovered 
 		return current
 	}
 	return normalized
+}
+
+var modelRegistryAvailableBootstrapInputsV20260908 = []string{
+	"text-embedding-3-large",
+	"text-embedding-3-small",
+	"text-embedding-ada-002",
+	"gemini-embedding-001",
+	"gemini-embedding-2",
+
+	"claude-haiku-4-5-20251001",
+	"chat-latest",
+	"chatgpt-image-latest",
+	"claude-fable-5-1",
+	"codex-mini-latest",
+	"computer-use-preview",
+	"gemini-2.5-computer-use-preview-10-2025",
+	"gemini-3.1-flash-lite",
+	"gemini-3.1-flash-lite-image",
+	"gemini-3.5-flash",
+	"gemini-3.5-flash-lite",
+	"gemini-3.7-flash",
+	"gemini-3.8-flash",
+	"gemini-robotics-er-1.6-preview",
+	"gemini-robotics-er-2-preview",
+	"gpt-4o-mini-search-preview",
+	"gpt-4o-mini-tts",
+	"gpt-4o-search-preview",
+	"gpt-5-codex",
+	"gpt-5.1",
+	"gpt-5.1-chat-latest",
+	"gpt-5.1-codex",
+	"gpt-5.1-codex-max",
+	"gpt-5.1-codex-mini",
+	"gpt-5.2-codex",
+	"gpt-5.3-codex",
+	"gpt-5.5-pro",
+	"gpt-6-astra",
+	"gpt-image-1",
+	"gpt-image-1-mini",
+	"gpt-image-1.5",
+	"o3-deep-research",
+	"o4-mini-deep-research",
 }

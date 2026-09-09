@@ -29,6 +29,7 @@ const (
 	PlatformKiro            = domain.PlatformKiro
 	PlatformGrok            = domain.PlatformGrok
 	PlatformDeepSeek        = domain.PlatformDeepSeek
+	PlatformKimi            = domain.PlatformKimi
 	PlatformBaiduDocumentAI = domain.PlatformBaiduDocumentAI
 	PlatformComposite       = domain.PlatformComposite
 )

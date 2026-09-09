@@ -293,8 +293,10 @@ func ProvideAccountDaily5HTriggerService(
 	settingService *SettingService,
 	modelRegistryService *ModelRegistryService,
 	leaderGate PeriodicJobLeaderGate,
+	pricingService *PricingService,
 ) *AccountDaily5HTriggerService {
 	svc := NewAccountDaily5HTriggerService(accountRepo, accountTestService, settingService, modelRegistryService, time.Minute)
+	svc.pricingService = pricingService
 	svc.SetLeaderGate(leaderGate)
 	svc.Start()
 	return svc

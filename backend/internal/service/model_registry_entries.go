@@ -397,6 +397,10 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 			result.SkippedModels = append(result.SkippedModels, modelID)
 			continue
 		}
+		if modelregistry.IsCatalogOnly(entry) {
+			result.FailedModels = append(result.FailedModels, ModelRegistryExposureSyncFailure{Model: modelID, Error: "This model is catalog metadata only; its protocol is not integrated"})
+			continue
+		}
 		nextExposures := syncModelRegistryExposures(entry.ExposedIn, exposures, mode)
 		if sameStringSlice(entry.ExposedIn, nextExposures) {
 			result.SkippedCount++
@@ -653,7 +657,7 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 			Source:         sources[id],
 			Hidden:         isHidden,
 			Tombstoned:     isTombstoned,
-			Available:      isAvailable && !isTombstoned && scheduleStatus == ModelRegistryScheduleActive,
+			Available:      isAvailable && !isTombstoned && !modelregistry.IsCatalogOnly(entry) && scheduleStatus == ModelRegistryScheduleActive,
 			ScheduleStatus: scheduleStatus,
 		})
 	}

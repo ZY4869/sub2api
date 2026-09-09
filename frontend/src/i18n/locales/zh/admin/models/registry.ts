@@ -1,4 +1,5 @@
 export default {
+    catalogOnly: "仅收录 · 当前协议未接入",
     addModel: "新增模型",
     editModel: "编辑模型",
     source: "来源",

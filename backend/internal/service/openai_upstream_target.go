@@ -211,6 +211,9 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		if platform == PlatformDeepSeek {
 			return buildDeepSeekOpenAITextURL("", "/chat/completions", false)
 		}
+		if platform == PlatformKimi {
+			return "https://api.moonshot.cn/v1/chat/completions"
+		}
 		if platform == PlatformOpenRouter {
 			return openRouterDefaultAPIBaseURL + "/chat/completions"
 		}
@@ -227,6 +230,12 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 			return normalized + "/chat/completions"
 		}
 		return normalized + "/chat/completions"
+	}
+	if platform == PlatformKimi {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/chat/completions"
+		}
+		return normalized + "/v1/chat/completions"
 	}
 	if strings.HasSuffix(normalized, "/v1") {
 		return normalized + "/chat/completions"
@@ -305,6 +314,9 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 		if platform == PlatformDeepSeek {
 			return deepseekDefaultAPIBaseURL + "/models"
 		}
+		if platform == PlatformKimi {
+			return "https://api.moonshot.cn/v1/models"
+		}
 		if platform == PlatformOpenRouter {
 			return openRouterDefaultAPIBaseURL + "/models"
 		}
@@ -321,6 +333,12 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 			return normalized + "/models"
 		}
 		return normalized + "/models"
+	}
+	if platform == PlatformKimi {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/models"
+		}
+		return normalized + "/v1/models"
 	}
 	if strings.HasSuffix(normalized, "/v1") {
 		return normalized + "/models"
@@ -357,6 +375,9 @@ func resolveOpenAICompatibleBaseURL(account *Account) string {
 	}
 	if account.Platform == PlatformDeepSeek {
 		return account.GetDeepSeekBaseURL()
+	}
+	if account.Platform == PlatformKimi {
+		return account.GetOpenAIBaseURL()
 	}
 	if account.Platform == PlatformOpenRouter {
 		return account.GetOpenRouterBaseURL()

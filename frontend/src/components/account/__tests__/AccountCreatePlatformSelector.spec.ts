@@ -11,6 +11,7 @@ vi.mock('vue-i18n', async () => {
     'admin.accounts.platforms.deepseek': 'DeepSeek',
     'admin.accounts.platforms.gemini': 'Google',
     'admin.accounts.platforms.grok': 'Grok',
+    'admin.accounts.platforms.kimi': 'Kimi',
     'admin.accounts.platforms.kiro': 'Kiro',
     'admin.accounts.platforms.openai': 'OpenAI',
     'admin.accounts.platforms.openrouter': 'OpenRouter',
@@ -53,6 +54,7 @@ describe('AccountCreatePlatformSelector', () => {
       'DeepSeek',
       'Google',
       'Grok',
+      'Kimi',
       'Kiro',
       'OpenAI',
       'OpenRouter',
@@ -63,6 +65,8 @@ describe('AccountCreatePlatformSelector', () => {
 
     await wrapper.findAll('button')[5].trigger('click')
     expect(wrapper.emitted('update:platform')).toEqual([['grok']])
+    await wrapper.findAll('button')[6].trigger('click')
+    expect(wrapper.emitted('update:platform')).toEqual([['grok'], ['kimi']])
   })
 
   it('does not render copilot anywhere in the selector text', () => {

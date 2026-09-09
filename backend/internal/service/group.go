@@ -64,11 +64,14 @@ type Group struct {
 	SortOrder int
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）
-	AllowMessagesDispatch   bool
-	DefaultMappedModel      string
-	AllowLive               bool
-	MaxReasoningEffort      string
-	ReasoningEffortMappings []ReasoningEffortMapping
+	AllowMessagesDispatch       bool
+	DefaultMappedModel          string
+	AllowLive                   bool
+	MaxReasoningEffort          string
+	MaxReasoningEffortOverLimit string
+	ForceOpenAIFast             bool
+	FreeOpenAIFast              bool
+	ReasoningEffortMappings     []ReasoningEffortMapping
 
 	// VisibleModelPatterns narrows the public /v1/models projection for this group.
 	// Empty means no additional group-level visibility filter.

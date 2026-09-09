@@ -42,3 +42,11 @@
 - 后端：`go test` 覆盖 auth/passkey/captcha/settings/model plaza/group profit/payment/gateway/release guard；本轮新增/修正 `TestPasskeyRepositoryUserHandleIsIdempotent`、`TestPasskeyRepositoryListRenameAndDeleteEnforceOwnership`、`TestPasskeyRepositoryUpdateCredentialStoresLastUsedAt`、`TestPasskeySettingsRequireWebAuthnConfigAndStoredSetting`、`TestPasskeySettingsInjectionIncludesEffectiveFlag`、`TestSettingHandlerUpdateSettings_PasskeyEnabledRoundTrip`、`TestPasskeyHandlerDisabledGateRejectsBeginLogin`、`TestCaptchaServiceVerifyTencentFailClosedAndPassesProof`、`TestCaptchaServiceVerifyAliyunFailClosedAndPassesProof`、`TestModelPlazaBuildGroupsVisibilityFilteringAndDTOPrivacy`。
 - 前端：`pnpm typecheck` 与 targeted vitest 覆盖认证页、设置页、模型广场、支付退款、分组利润控制和 token refresh；本轮新增 `tokenRefresh.spec.ts`、`ProfilePasskeyCard.spec.ts` 与 `ModelPlazaContent.spec.ts`。
 - 收尾：`git diff --check`；搜索 `/api-docs`、`LGPL|GPL|CLA`、公开 `target_model_id`；确认 `LICENSE`、README 许可段和 `backend/cmd/server/VERSION` 仍为本地版本线。
+
+## 本轮实施记录（2026-09-05）
+
+- 当前基线：分支 `sync/upstream-v0.1.136-selective-cleanroom`，版本 `0.1.418`。未执行 `fetch/pull/merge/rebase/cherry-pick`，未提交 Git、未发布、未修改正式版本号或 Changelog；工作区中原有用户修改均予以保留。
+- 已实现：Kimi 平台的 HTTP Chat/Responses/Models 最小闭环、自定义 Base URL、账号平台识别与 scheduler 快照接入；Kimi/DeepSeek Responses 无状态规范化（`store=false`、清除 `previous_response_id`、不注入不适用 instructions）；分组 reasoning 超限动作 `downgrade/deny` 及 migration `173_add_group_reasoning_over_limit_action.sql`；Chat、Responses、Messages、DeepSeek native 与 OpenAI WS 的统一策略；Kimi 管理端账号/分组表单、图标与文案；Kimi 公共模型示例及模型目录协议归一化。
+- 已验证：`go test ./...` 通过；后端目标包 `internal/service`、`internal/handler`、`internal/repository` 通过；`pnpm typecheck` 通过；Groups/Accounts/CreateAccount/EditAccount 四个定向 Vitest 文件共 104 项通过；`git diff --check` 通过（仅有 Git 对 CRLF/LF 的提示）。
+- 未实现或未充分验证：分组 Fast 策略及 usage/billing 全链路；新增模型 registry/pricing 与 availability snapshot gating；Anthropic fallback beta 清理、model-not-found/429 分类、WS 无 terminal EOF relay failure、passthrough scheduler 回归、automation/delegation `call_id` bootstrap；Kimi 专用探测/真实上游调用/failover/WebSocket；图片 UI 浏览器检查；前端完整 Vitest/构建、migration integration、真实外部服务调用和全仓最终敏感扫描。
+- 当前状态：**已实现但验证不完整**。建议后续 Conventional Commit：`feat(gateway): add kimi routing and group reasoning over-limit policy`（仅建议，未执行提交）。

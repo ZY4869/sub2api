@@ -199,6 +199,9 @@ const createForm = reactive({
   allow_messages_dispatch: false,
   allow_live: false,
   max_reasoning_effort: '' as ReasoningEffortMapping['to'],
+  max_reasoning_effort_over_limit: 'downgrade' as 'downgrade' | 'deny',
+  force_openai_fast: false,
+  free_openai_fast: false,
   reasoning_effort_mappings: [] as ReasoningEffortMapping[],
   default_mapped_model: 'gpt-5.4',
   visible_model_patterns_text: '',
@@ -522,6 +525,9 @@ const editForm = reactive({
   allow_messages_dispatch: false,
   allow_live: false,
   max_reasoning_effort: '' as ReasoningEffortMapping['to'],
+  max_reasoning_effort_over_limit: 'downgrade' as 'downgrade' | 'deny',
+  force_openai_fast: false,
+  free_openai_fast: false,
   reasoning_effort_mappings: [] as ReasoningEffortMapping[],
   default_mapped_model: '',
   visible_model_patterns_text: '',
@@ -800,6 +806,7 @@ const handleCreatePlatformChange = () => {
   if (!supportsOpenAIRuntimePolicy(createForm.platform)) {
     createForm.allow_live = false
     createForm.max_reasoning_effort = ''
+    createForm.max_reasoning_effort_over_limit = 'downgrade'
     createForm.reasoning_effort_mappings = []
   }
   if (createForm.platform !== 'composite') {
@@ -1013,6 +1020,7 @@ const closeCreateModal = () => {
   createForm.allow_messages_dispatch = false
   createForm.allow_live = false
   createForm.max_reasoning_effort = ''
+  createForm.max_reasoning_effort_over_limit = 'downgrade'
   createForm.reasoning_effort_mappings = []
   createForm.default_mapped_model = 'gpt-5.4'
   createForm.visible_model_patterns_text = ''
@@ -1075,7 +1083,7 @@ const supportsWebSearchPricing = (platform: GroupPlatform) =>
   platform === 'openai' || platform === 'grok'
 
 const supportsOpenAIRuntimePolicy = (platform: GroupPlatform) =>
-  platform === 'openai' || platform === 'composite'
+  platform === 'openai' || platform === 'kimi' || platform === 'composite'
 
 const buildGroupPayload = (
   form: GroupPayloadForm,
@@ -1126,6 +1134,9 @@ const buildGroupPayload = (
   if (supportsOpenAIRuntimePolicy(platform)) {
     payload.allow_live = form.allow_live
     payload.max_reasoning_effort = form.max_reasoning_effort || ''
+    payload.max_reasoning_effort_over_limit = form.max_reasoning_effort_over_limit || 'downgrade'
+    payload.force_openai_fast = form.force_openai_fast === true
+    payload.free_openai_fast = form.free_openai_fast === true
     payload.reasoning_effort_mappings = normalizeReasoningMappingsForPayload(
       form.reasoning_effort_mappings
     )
@@ -1238,6 +1249,9 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.allow_messages_dispatch = group.allow_messages_dispatch || false
   editForm.allow_live = group.allow_live || false
   editForm.max_reasoning_effort = group.max_reasoning_effort || ''
+  editForm.max_reasoning_effort_over_limit = group.max_reasoning_effort_over_limit || 'downgrade'
+  editForm.force_openai_fast = group.force_openai_fast === true
+  editForm.free_openai_fast = group.free_openai_fast === true
   editForm.reasoning_effort_mappings = (group.reasoning_effort_mappings || []).map((mapping) =>
     cloneReasoningMapping(mapping)
   )
@@ -1282,6 +1296,7 @@ const closeEditModal = () => {
   editForm.image_protocol_mode = 'inherit'
   editForm.allow_live = false
   editForm.max_reasoning_effort = ''
+  editForm.max_reasoning_effort_over_limit = 'downgrade'
   editForm.reasoning_effort_mappings = []
   editForm.web_search_price_per_call = null
   editForm.visible_model_patterns_text = ''
@@ -1394,6 +1409,7 @@ watch(
     if (!supportsOpenAIRuntimePolicy(newVal)) {
       createForm.allow_live = false
       createForm.max_reasoning_effort = ''
+      createForm.max_reasoning_effort_over_limit = 'downgrade'
       createForm.reasoning_effort_mappings = []
     }
     if (newVal !== 'composite') {
@@ -1438,6 +1454,7 @@ watch(
     if (!supportsOpenAIRuntimePolicy(newVal)) {
       editForm.allow_live = false
       editForm.max_reasoning_effort = ''
+      editForm.max_reasoning_effort_over_limit = 'downgrade'
       editForm.reasoning_effort_mappings = []
     }
     if (newVal !== 'composite') {

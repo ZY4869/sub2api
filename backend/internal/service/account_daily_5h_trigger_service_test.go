@@ -4,7 +4,8 @@ package service
 
 import (
 	"context"
-	"strings"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,13 +28,22 @@ func (s *daily5HSettingServiceStub) GetAccountDaily5HTriggerSettings(context.Con
 }
 
 type accountDaily5HRepoStub struct {
+	mu               sync.Mutex
 	accounts         []Account
 	updateExtraCalls []expiryRepoUpdateExtraCall
 }
 
 func (r *accountDaily5HRepoStub) Create(context.Context, *Account) error { panic("unexpected") }
-func (r *accountDaily5HRepoStub) GetByID(context.Context, int64) (*Account, error) {
-	panic("unexpected")
+func (r *accountDaily5HRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, account := range r.accounts {
+		if account.ID == id {
+			account.Extra = cloneStringAnyMap(account.Extra)
+			return &account, nil
+		}
+	}
+	return nil, fmt.Errorf("missing account %d", id)
 }
 func (r *accountDaily5HRepoStub) GetByIDs(context.Context, []int64) ([]*Account, error) {
 	panic("unexpected")
@@ -55,18 +65,21 @@ func (r *accountDaily5HRepoStub) Delete(context.Context, int64) error    { panic
 func (r *accountDaily5HRepoStub) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (r *accountDaily5HRepoStub) ListWithFilters(_ context.Context, _ pagination.PaginationParams, _, _, _, _ string, _ int64, lifecycle, _ string) ([]Account, *pagination.PaginationResult, error) {
-	if NormalizeAccountLifecycleInput(lifecycle) == AccountLifecycleAll {
-		return append([]Account(nil), r.accounts...), nil, nil
-	}
-	filtered := make([]Account, 0, len(r.accounts))
+func (r *accountDaily5HRepoStub) ListWithFilters(_ context.Context, params pagination.PaginationParams, _, _, _, _ string, _ int64, lifecycle, _ string) ([]Account, *pagination.PaginationResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	filtered := make([]Account, 0)
 	for _, account := range r.accounts {
-		if NormalizeAccountLifecycleInput(account.LifecycleState) != NormalizeAccountLifecycleInput(lifecycle) {
+		if NormalizeAccountLifecycleInput(lifecycle) != AccountLifecycleAll && NormalizeAccountLifecycleInput(account.LifecycleState) != NormalizeAccountLifecycleInput(lifecycle) {
 			continue
 		}
+		account.Extra = cloneStringAnyMap(account.Extra)
 		filtered = append(filtered, account)
 	}
-	return filtered, nil, nil
+	total := len(filtered)
+	start := min(params.Offset(), total)
+	end := min(start+params.Limit(), total)
+	return filtered[start:end], &pagination.PaginationResult{Total: int64(total)}, nil
 }
 func (r *accountDaily5HRepoStub) GetStatusSummary(context.Context, AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
 	panic("unexpected")
@@ -140,6 +153,8 @@ func (r *accountDaily5HRepoStub) UpdateSessionWindow(context.Context, int64, *ti
 	panic("unexpected")
 }
 func (r *accountDaily5HRepoStub) UpdateExtra(_ context.Context, id int64, updates map[string]any) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.updateExtraCalls = append(r.updateExtraCalls, expiryRepoUpdateExtraCall{
 		id:      id,
 		updates: cloneStringAnyMap(updates),
@@ -179,705 +194,330 @@ func (r *accountDaily5HRepoStub) IncrementQuotaUsed(context.Context, int64, floa
 func (r *accountDaily5HRepoStub) ResetQuotaUsed(context.Context, int64) error { panic("unexpected") }
 
 type accountDaily5HExecutorStub struct {
+	mu     sync.Mutex
 	result *BackgroundAccountTestResult
 	err    error
 	calls  []ScheduledTestExecutionInput
+	run    func(context.Context, ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error)
 }
 
-func (s *accountDaily5HExecutorStub) RunTestBackgroundDetailed(_ context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
+func (s *accountDaily5HExecutorStub) RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
+	s.mu.Lock()
 	s.calls = append(s.calls, input)
+	s.mu.Unlock()
+	if s.run != nil {
+		return s.run(ctx, input)
+	}
 	return s.result, s.err
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_AfterSevenExecutesOnlyOncePerLocalDate(t *testing.T) {
+type daily5HLeaderStub struct{ calls, allowed int }
+
+func (g *daily5HLeaderStub) RunIfLeader(ctx context.Context, _ string, _ time.Duration, run func(context.Context)) bool {
+	g.calls++
+	if g.calls > g.allowed {
+		return false
+	}
+	run(ctx)
+	return true
+}
+
+func TestAccountDaily5HTriggerService_BatchConcurrencyLeaderLossAndStop(t *testing.T) {
+	accounts := make([]Account, 8)
+	for i := range accounts {
+		accounts[i] = daily5HAccount(int64(i+1), PlatformOpenAI, "gpt-5.4-mini")
+	}
+	svc, repo, executor, _ := daily5HFixture(t, accounts...)
+	gate := &daily5HLeaderStub{allowed: 1}
+	svc.SetLeaderGate(gate)
+	started := make(chan int64, 8)
+	release := make(chan struct{})
+	executor.run = func(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
+		started <- input.AccountID
+		select {
+		case <-release:
+			return &BackgroundAccountTestResult{Status: "success"}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	done := make(chan struct{})
+	go func() { svc.runOnce(context.Background()); close(done) }()
+	for i := 0; i < 4; i++ {
+		select {
+		case <-started:
+		case <-time.After(5 * time.Second):
+			t.Fatal("four requests were not dispatched concurrently")
+		}
+	}
+	select {
+	case id := <-started:
+		t.Fatalf("unexpected fifth concurrent account %d", id)
+	default:
+	}
+	close(release)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("batch did not finish")
+	}
+	require.Len(t, executor.calls, 4)
+	for i, account := range repo.accounts {
+		require.Equal(t, i < 4, daily5HSucceeded(account.Extra, "2026-05-08"))
+	}
+	require.Equal(t, 2, gate.calls)
+	svc.Stop()
+	gate.allowed = 100
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 4)
+}
+
+func daily5HAccount(id int64, platform string, modelIDs ...string) Account {
+	entries := make([]any, 0, len(modelIDs))
+	for _, model := range modelIDs {
+		entries = append(entries, map[string]any{"display_model_id": model, "target_model_id": model, "provider": platform})
+	}
+	return Account{ID: id, Name: fmt.Sprint(id), Platform: platform, Type: AccountTypeOAuth, Status: StatusActive, Schedulable: true, LifecycleState: AccountLifecycleNormal,
+		Extra: map[string]any{"model_scope_v2": map[string]any{"policy_mode": "whitelist", "entries": entries}}}
+}
+
+func daily5HFixture(t *testing.T, accounts ...Account) (*AccountDaily5HTriggerService, *accountDaily5HRepoStub, *accountDaily5HExecutorStub, *time.Time) {
+	t.Helper()
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 5, 0, 0, time.UTC)
-	account := Account{
-		ID:          11,
-		Name:        "ChatGPT OAuth",
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Schedulable: true,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-				map[string]any{"model_id": "gpt-4.1", "provider": PlatformOpenAI},
-			},
-		},
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
+	resetAccountModelProjectionCache()
+	t.Cleanup(resetAccountModelProjectionCache)
+	now := time.Date(2026, 5, 8, 7, 0, 0, 0, accountDaily5HLocation())
+	repo := &accountDaily5HRepoStub{accounts: accounts}
 	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
+	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
 	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
 	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	settings.SetAccountDaily5HTriggerCandidateProvider(svc)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-		OpenAIModel:          AccountDaily5HTriggerModelSettings{Mode: AccountDaily5HModelModeAuto},
-	})
-
-	svc.runOnce(context.Background())
-	svc.runOnce(context.Background())
-
-	require.Len(t, executor.calls, 1)
-	require.Equal(t, accountDaily5HPrompt, executor.calls[0].Prompt)
-	require.Equal(t, "gpt-5.4-mini", executor.calls[0].ModelID)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, "Daily 5H trigger succeeded.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
-	snapshot := protocolruntime.Snapshot()
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSuccess])
+	_, err := settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{Enabled: true})
+	require.NoError(t, err)
+	return svc, repo, executor, &now
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_BeforeSevenDoesNotExecute(t *testing.T) {
-	now := time.Date(2026, 5, 8, 6, 59, 0, 0, time.UTC)
-	account := Account{
-		ID:          12,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Schedulable: true,
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-	})
-
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Empty(t, repo.updateExtraCalls)
-}
-
-func TestAccountDaily5HTriggerService_RunOnce_SkipsCNHolidayWithoutAccountWrites(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 10, 2, 7, 5, 0, 0, time.UTC)
-	account := Account{
-		ID:          41,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Schedulable: true,
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:                   true,
-		SelectedAccountTypes:      []string{AccountDaily5HTypeOpenAI},
-		SkipCNHolidaysAndWeekends: true,
-		OpenAIModel:               AccountDaily5HTriggerModelSettings{Mode: AccountDaily5HModelModeAuto},
-	})
-
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Empty(t, repo.updateExtraCalls)
-	snapshot := protocolruntime.Snapshot()
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
-}
-
-func TestAccountDaily5HTriggerService_RunOnce_SkippedNonWorkdayDoesNotBlockNextWorkday(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	current := time.Date(2026, 10, 3, 7, 5, 0, 0, time.UTC) // Saturday during CN National Day holiday.
-	account := Account{
-		ID:          42,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusActive,
-		Schedulable: true,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-			},
-		},
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return current })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:                   true,
-		SelectedAccountTypes:      []string{AccountDaily5HTypeOpenAI},
-		SkipCNHolidaysAndWeekends: true,
-		OpenAIModel:               AccountDaily5HTriggerModelSettings{Mode: AccountDaily5HModelModeAuto},
-	})
-
-	svc.runOnce(context.Background())
-	require.Empty(t, executor.calls)
-	require.Empty(t, repo.updateExtraCalls)
-	require.Empty(t, AccountDaily5HLastLocalDate(repo.accounts[0].Extra))
-
-	current = time.Date(2026, 10, 8, 7, 5, 0, 0, time.UTC)
-	svc.runOnce(context.Background())
-
-	require.Len(t, executor.calls, 1)
-	require.Equal(t, "gpt-5.4-mini", executor.calls[0].ModelID)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, "2026-10-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-}
-
-func TestAccountDaily5HTriggerService_IncludePausedAccountsHonorsWindowFiltering(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 10, 0, 0, time.UTC)
-	blockedUntil := now.Add(15 * time.Minute)
-	pausedAccount := Account{
-		ID:          13,
-		Platform:    PlatformOpenAI,
-		Type:        AccountTypeOAuth,
-		Status:      StatusDisabled,
-		Schedulable: false,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-			},
-		},
-	}
-	windowBlocked := pausedAccount
-	windowBlocked.ID = 14
-	windowBlocked.TempUnschedulableUntil = &blockedUntil
-	windowBlocked.Extra = cloneStringAnyMap(pausedAccount.Extra)
-	repo := &accountDaily5HRepoStub{accounts: []Account{pausedAccount, windowBlocked}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:               true,
-		SelectedAccountTypes:  []string{AccountDaily5HTypeOpenAI},
-		IncludePausedAccounts: true,
-	})
-
-	svc.runOnce(context.Background())
-
-	require.Len(t, executor.calls, 1)
-	require.Equal(t, int64(13), executor.calls[0].AccountID)
-	require.Len(t, repo.updateExtraCalls, 2)
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, "Account is temporarily unschedulable and is skipped for the daily 5H trigger.", repo.updateExtraCalls[1].updates[accountDaily5HLastSummaryKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[1].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HSkipReasonTempUnsched, repo.updateExtraCalls[1].updates[accountDaily5HLastSkipReasonKey])
-	snapshot := protocolruntime.Snapshot()
-	require.EqualValues(t, 2, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSuccess])
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
-}
-
-func TestAccountDaily5HTriggerService_RunOnce_PausedSkipBlocksSameDayRetry(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 12, 0, 0, time.UTC)
-	account := Account{
-		ID:             25,
-		Platform:       PlatformOpenAI,
-		Type:           AccountTypeOAuth,
-		Status:         StatusDisabled,
-		Schedulable:    false,
-		LifecycleState: AccountLifecycleNormal,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-			},
-		},
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-	})
-
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, AccountDaily5HSkipReasonPausedExcluded, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, "2026-05-08", AccountDaily5HLastLocalDate(repo.accounts[0].Extra))
-
-	repo.accounts[0].Status = StatusActive
-	repo.accounts[0].Schedulable = true
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
-
-	now = time.Date(2026, 5, 9, 7, 12, 0, 0, time.UTC)
-	svc.runOnce(context.Background())
-	require.Len(t, executor.calls, 1)
-	require.Equal(t, int64(25), executor.calls[0].AccountID)
-	require.Len(t, repo.updateExtraCalls, 2)
-	require.Equal(t, "2026-05-09", repo.updateExtraCalls[1].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
-}
-
-func TestAccountDaily5HTriggerService_RunOnce_WindowSkipsBlockSameDayRetry(t *testing.T) {
-	tests := []struct {
-		name       string
-		reason     string
-		prepare    func(*Account, time.Time)
-		clearBlock func(*Account)
-	}{
-		{
-			name:   "rate limited",
-			reason: AccountDaily5HSkipReasonRateLimited,
-			prepare: func(account *Account, now time.Time) {
-				until := now.Add(5 * time.Hour)
-				account.RateLimitResetAt = &until
-			},
-			clearBlock: func(account *Account) {
-				account.RateLimitResetAt = nil
-			},
-		},
-		{
-			name:   "temp unschedulable",
-			reason: AccountDaily5HSkipReasonTempUnsched,
-			prepare: func(account *Account, now time.Time) {
-				until := now.Add(30 * time.Minute)
-				account.TempUnschedulableUntil = &until
-			},
-			clearBlock: func(account *Account) {
-				account.TempUnschedulableUntil = nil
-			},
-		},
-		{
-			name:   "overloaded",
-			reason: AccountDaily5HSkipReasonOverloaded,
-			prepare: func(account *Account, now time.Time) {
-				until := now.Add(15 * time.Minute)
-				account.OverloadUntil = &until
-			},
-			clearBlock: func(account *Account) {
-				account.OverloadUntil = nil
-			},
-		},
-		{
-			name:   "session window",
-			reason: AccountDaily5HSkipReasonSessionWindow,
-			prepare: func(account *Account, now time.Time) {
-				start := now.Add(-2 * time.Hour)
-				end := now.Add(3 * time.Hour)
-				account.SessionWindowStart = &start
-				account.SessionWindowEnd = &end
-			},
-			clearBlock: func(account *Account) {
-				account.SessionWindowStart = nil
-				account.SessionWindowEnd = nil
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			protocolruntime.ResetForTest()
-			t.Cleanup(protocolruntime.ResetForTest)
-			now := time.Date(2026, 5, 8, 7, 18, 0, 0, time.UTC)
-			account := Account{
-				ID:             260,
-				Platform:       PlatformOpenAI,
-				Type:           AccountTypeOAuth,
-				Status:         StatusActive,
-				Schedulable:    true,
-				LifecycleState: AccountLifecycleNormal,
-				Extra: map[string]any{
-					"manual_models": []any{
-						map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-					},
-				},
+func TestAccountDaily5HTriggerService_FullPaginationAndCandidates(t *testing.T) {
+	for _, count := range []int{0, 100, 101, 250} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			accounts := make([]Account, count)
+			for i := range accounts {
+				accounts[i] = daily5HAccount(int64(i+1), PlatformOpenAI, "gpt-5.4-mini")
 			}
-			tt.prepare(&account, now)
-			repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-			settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-			executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-			svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-			svc.SetNow(func() time.Time { return now })
-			svc.SetLocation(time.UTC)
-			_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-				Enabled:              true,
-				SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-			})
-
+			svc, repo, executor, _ := daily5HFixture(t, accounts...)
+			require.Equal(t, count, svc.ListDaily5HTriggerCandidates(context.Background())[0].Count)
 			svc.runOnce(context.Background())
-
-			require.Empty(t, executor.calls)
-			require.Len(t, repo.updateExtraCalls, 1)
-			require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-			require.Equal(t, tt.reason, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
-			require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-
-			tt.clearBlock(&repo.accounts[0])
+			require.Len(t, executor.calls, count)
+			for _, account := range repo.accounts {
+				require.True(t, daily5HSucceeded(account.Extra, "2026-05-08"), "account %d", account.ID)
+			}
 			svc.runOnce(context.Background())
-
-			require.Empty(t, executor.calls)
-			require.Len(t, repo.updateExtraCalls, 1)
+			require.Len(t, executor.calls, count)
 		})
 	}
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_IgnoreFreeAccountsSkipsOnlyOpenAIFree(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 12, 0, 0, time.UTC)
-	buildOpenAIAccount := func(id int64, plan string) Account {
-		return Account{
-			ID:             id,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			Status:         StatusActive,
-			Schedulable:    true,
-			LifecycleState: AccountLifecycleNormal,
-			Credentials:    map[string]any{"plan_type": plan},
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-				},
-			},
+func TestAccountDaily5HTriggerService_TimeSettingBoundaryRestartAndDate(t *testing.T) {
+	svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+	settings, _ := svc.settingService.GetAccountDaily5HTriggerSettings(context.Background())
+	require.Equal(t, "07:00", settings.TriggerTime)
+	settings.TriggerTime = "08:35"
+	_, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+	require.NoError(t, err)
+	*now = time.Date(2026, 5, 8, 0, 34, 59, 0, time.UTC)
+	svc.runOnce(context.Background())
+	require.Empty(t, executor.calls)
+	*now = now.Add(time.Second)
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	settings.TriggerTime = "07:00"
+	_, err = svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+	require.NoError(t, err)
+	restarted := NewAccountDaily5HTriggerService(repo, executor, svc.settingService, nil, time.Minute)
+	restarted.SetNow(func() time.Time { return *now })
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	*now = time.Date(2026, 5, 9, 0, 40, 0, 0, time.UTC)
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 2)
+	require.Equal(t, "2026-05-09", AccountDaily5HLastLocalDate(repo.accounts[0].Extra))
+}
+
+func TestAccountDaily5HTriggerSettings_ValidationAndLegacyDefault(t *testing.T) {
+	svc, _, _, _ := daily5HFixture(t)
+	for _, value := range []string{"7:00", "24:00", "07:60", "07:00:00", " 07:00", "bad"} {
+		_, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{TriggerTime: value})
+		require.Error(t, err, value)
+	}
+	for _, value := range []string{"00:00", "23:59", ""} {
+		settings, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{TriggerTime: value})
+		require.NoError(t, err)
+		if value == "" {
+			require.Equal(t, "07:00", settings.TriggerTime)
 		}
 	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{
-		buildOpenAIAccount(31, "free"),
-		buildOpenAIAccount(32, "plus"),
-		buildOpenAIAccount(33, "pro"),
-	}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-		IgnoreFreeAccounts:   true,
-	})
+}
 
+func TestAccountDaily5HTriggerService_RetryPersistenceAndLimit(t *testing.T) {
+	svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+	executor.result = &BackgroundAccountTestResult{Status: "failed", ErrorMessage: "temporary upstream error"}
 	svc.runOnce(context.Background())
-
+	require.False(t, daily5HSucceeded(repo.accounts[0].Extra, "2026-05-08"))
+	require.Equal(t, 1, daily5HAttempts(repo.accounts[0].Extra, "2026-05-08"))
+	*now = now.Add(4 * time.Minute)
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	restarted := NewAccountDaily5HTriggerService(repo, executor, svc.settingService, nil, time.Minute)
+	restarted.SetNow(func() time.Time { return *now })
+	*now = now.Add(time.Minute)
+	restarted.runOnce(context.Background())
 	require.Len(t, executor.calls, 2)
-	require.Equal(t, int64(32), executor.calls[0].AccountID)
-	require.Equal(t, int64(33), executor.calls[1].AccountID)
-	require.Len(t, repo.updateExtraCalls, 3)
-	require.Equal(t, int64(31), repo.updateExtraCalls[0].id)
-	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HSkipReasonFreeExcluded, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
-	require.Equal(t, "OpenAI Free account is excluded from the daily 5H trigger.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[1].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, AccountDaily5HTriggerStatusSuccess, repo.updateExtraCalls[2].updates[accountDaily5HLastStatusKey])
-	snapshot := protocolruntime.Snapshot()
-	require.EqualValues(t, 3, snapshot.RecoveryProbeResultByReason["daily_5h_trigger"])
-	require.EqualValues(t, 2, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSuccess])
-	require.EqualValues(t, 1, snapshot.RecoveryProbeResultByStatus[AccountDaily5HTriggerStatusSkipped])
+	*now = now.Add(14 * time.Minute)
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 2)
+	*now = now.Add(time.Minute)
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 3)
+	*now = now.Add(time.Hour)
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 3)
+	require.Nil(t, repo.accounts[0].Extra[accountDaily5HNextRetryKey])
+	*now = now.AddDate(0, 0, 1)
+	executor.result = &BackgroundAccountTestResult{Status: "success"}
+	restarted.runOnce(context.Background())
+	require.Len(t, executor.calls, 4)
+	require.True(t, daily5HSucceeded(repo.accounts[0].Extra, "2026-05-09"))
 }
 
-func TestAccountDaily5HTriggerService_SelectModelForAccount_FixedModelMustStayVisible(t *testing.T) {
-	account := &Account{
-		ID:       15,
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeOAuth,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-			},
-		},
+func TestAccountDaily5HTriggerService_WindowsAndPauseRecoverSameDay(t *testing.T) {
+	for _, reason := range []string{"rate", "temp", "overload", "session", "paused"} {
+		t.Run(reason, func(t *testing.T) {
+			svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+			until := now.Add(time.Hour)
+			switch reason {
+			case "rate":
+				repo.accounts[0].RateLimitResetAt = &until
+			case "temp":
+				repo.accounts[0].TempUnschedulableUntil = &until
+			case "overload":
+				repo.accounts[0].OverloadUntil = &until
+			case "session":
+				repo.accounts[0].SessionWindowEnd = &until
+			case "paused":
+				repo.accounts[0].Schedulable = false
+			}
+			svc.runOnce(context.Background())
+			require.Empty(t, executor.calls)
+			require.False(t, daily5HSucceeded(repo.accounts[0].Extra, "2026-05-08"))
+			require.Equal(t, 0, daily5HAttempts(repo.accounts[0].Extra, "2026-05-08"))
+			*now = until
+			repo.accounts[0].Schedulable = true
+			svc.runOnce(context.Background())
+			require.Len(t, executor.calls, 1)
+			require.True(t, daily5HSucceeded(repo.accounts[0].Extra, "2026-05-08"))
+		})
 	}
-	settings := &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-		OpenAIModel: AccountDaily5HTriggerModelSettings{
-			Mode:         AccountDaily5HModelModeFixed,
-			FixedModelID: "gpt-5.4-mini",
-		},
-	}
-	svc := NewAccountDaily5HTriggerService(nil, nil, nil, nil, time.Minute)
-
-	modelID, skipReason, skipSummary := svc.selectModelForAccount(context.Background(), settings, account)
-	require.Equal(t, "gpt-5.4-mini", modelID)
-	require.Empty(t, skipReason)
-	require.Empty(t, skipSummary)
-
-	settings.OpenAIModel.FixedModelID = "gpt-5.5-mini"
-	modelID, skipReason, skipSummary = svc.selectModelForAccount(context.Background(), settings, account)
-	require.Equal(t, "", modelID)
-	require.Equal(t, AccountDaily5HSkipReasonFixedModelHidden, skipReason)
-	require.Equal(t, "The configured fixed model is no longer visible to this account.", skipSummary)
 }
 
-func TestAccountDaily5HTriggerService_ListCandidates_FiltersByFamilyAndCountsAccounts(t *testing.T) {
-	accounts := []Account{
-		{
-			ID:             16,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			LifecycleState: AccountLifecycleNormal,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-					map[string]any{"model_id": "gpt-4.1", "provider": PlatformOpenAI},
-				},
-			},
-		},
-		{
-			ID:             17,
-			Platform:       PlatformAnthropic,
-			Type:           AccountTypeOAuth,
-			LifecycleState: AccountLifecycleNormal,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "claude-3.5-haiku", "provider": PlatformAnthropic},
-					map[string]any{"model_id": "claude-sonnet-4-5", "provider": PlatformAnthropic},
-				},
-			},
-		},
-		{
-			ID:             18,
-			Platform:       PlatformGemini,
-			Type:           AccountTypeOAuth,
-			LifecycleState: AccountLifecycleNormal,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gemini-2.5-flash", "provider": PlatformGemini},
-					map[string]any{"model_id": "text-embedding-004", "provider": PlatformGemini},
-				},
-			},
-		},
-		{
-			ID:             19,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			LifecycleState: AccountLifecycleArchived,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.5-mini", "provider": PlatformOpenAI},
-				},
-			},
-		},
-		{
-			ID:             20,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			LifecycleState: AccountLifecycleBlacklisted,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.6-mini", "provider": PlatformOpenAI},
-				},
-			},
-		},
+func TestAccountDaily5HTriggerService_AccountExclusions(t *testing.T) {
+	for _, scenario := range []string{"archived", "blacklisted", "free", "type", "paused", "include_paused_window"} {
+		t.Run(scenario, func(t *testing.T) {
+			svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+			settings, _ := svc.settingService.GetAccountDaily5HTriggerSettings(context.Background())
+			switch scenario {
+			case "archived":
+				repo.accounts[0].LifecycleState = AccountLifecycleArchived
+			case "blacklisted":
+				repo.accounts[0].LifecycleState = AccountLifecycleBlacklisted
+			case "free":
+				repo.accounts[0].Credentials = map[string]any{"plan_type": "free"}
+				settings.IgnoreFreeAccounts = true
+			case "type":
+				settings.SelectedAccountTypes = []string{AccountDaily5HTypeAnthropic}
+			case "paused":
+				repo.accounts[0].Schedulable = false
+			case "include_paused_window":
+				settings.IncludePausedAccounts = true
+				repo.accounts[0].Schedulable = false
+				until := now.Add(time.Hour)
+				repo.accounts[0].SessionWindowEnd = &until
+			}
+			_, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+			require.NoError(t, err)
+			svc.runOnce(context.Background())
+			require.Empty(t, executor.calls)
+			if scenario == "include_paused_window" {
+				*now = now.Add(time.Hour)
+				svc.runOnce(context.Background())
+				require.Len(t, executor.calls, 1)
+			}
+		})
 	}
-	repo := &accountDaily5HRepoStub{accounts: accounts}
-	svc := NewAccountDaily5HTriggerService(repo, nil, nil, nil, time.Minute)
-
-	items := svc.ListDaily5HTriggerCandidates(context.Background())
-
-	require.Len(t, items, 3)
-	require.Equal(t, 1, items[0].Count)
-	require.NotEmpty(t, items[0].Models)
-	require.True(t, containsDaily5HModel(items[0].Models, "gpt-5.4-mini"))
-	require.True(t, allDaily5HModelsContain(items[0].Models, "mini"))
-	require.NotEmpty(t, items[1].Models)
-	require.True(t, allDaily5HModelsContain(items[1].Models, "haiku"))
-	require.NotEmpty(t, items[2].Models)
-	require.True(t, allDaily5HModelsContain(items[2].Models, "gemini"))
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_SkipsArchivedAndBlacklistedAccounts(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 15, 0, 0, time.UTC)
-	accounts := []Account{
-		{
-			ID:             21,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			Status:         StatusActive,
-			Schedulable:    true,
-			LifecycleState: AccountLifecycleArchived,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-				},
-			},
-		},
-		{
-			ID:             22,
-			Platform:       PlatformOpenAI,
-			Type:           AccountTypeOAuth,
-			Status:         StatusActive,
-			Schedulable:    true,
-			LifecycleState: AccountLifecycleBlacklisted,
-			Extra: map[string]any{
-				"manual_models": []any{
-					map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-				},
-			},
-		},
-	}
-	repo := &accountDaily5HRepoStub{accounts: accounts}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-	})
-
+func TestAccountDaily5HTriggerService_HolidaysSkipWithoutWritesAndNextWorkdayRuns(t *testing.T) {
+	svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+	settings, _ := svc.settingService.GetAccountDaily5HTriggerSettings(context.Background())
+	settings.SkipCNHolidaysAndWeekends = true
+	_, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+	require.NoError(t, err)
+	*now = time.Date(2026, 10, 1, 8, 0, 0, 0, accountDaily5HLocation())
 	svc.runOnce(context.Background())
-
 	require.Empty(t, executor.calls)
 	require.Empty(t, repo.updateExtraCalls)
+	*now = time.Date(2026, 10, 8, 8, 0, 0, 0, accountDaily5HLocation())
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_SkipsWhenFixedModelIsNoLongerVisible(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 20, 0, 0, time.UTC)
-	account := Account{
-		ID:             23,
-		Platform:       PlatformOpenAI,
-		Type:           AccountTypeOAuth,
-		Status:         StatusActive,
-		Schedulable:    true,
-		LifecycleState: AccountLifecycleNormal,
-		Extra: map[string]any{
-			"manual_models": []any{
-				map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-			},
-		},
-	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-		OpenAIModel: AccountDaily5HTriggerModelSettings{
-			Mode:         AccountDaily5HModelModeFixed,
-			FixedModelID: "gpt-5.5-mini",
-		},
-	})
-
+func TestAccountDaily5HTriggerService_FixedAndNoTextModelsRecover(t *testing.T) {
+	svc, repo, executor, _ := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-image-2"))
 	svc.runOnce(context.Background())
-
 	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HSkipReasonFixedModelHidden, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
-	require.Equal(t, "The configured fixed model is no longer visible to this account.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
-
-	settingsValue, _ := settings.GetAccountDaily5HTriggerSettings(context.Background())
-	settingsValue.OpenAIModel.FixedModelID = "gpt-5.4-mini"
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), settingsValue)
+	require.Equal(t, AccountDaily5HSkipReasonNoFamilyModel, repo.accounts[0].Extra[accountDaily5HLastSkipReasonKey])
+	repo.accounts[0] = daily5HAccount(1, PlatformOpenAI, "gpt-5.4")
+	settings, _ := svc.settingService.GetAccountDaily5HTriggerSettings(context.Background())
+	settings.OpenAIModel = AccountDaily5HTriggerModelSettings{Mode: "fixed", FixedModelID: "gpt-5.4-mini"}
+	_, err := svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+	require.NoError(t, err)
 	svc.runOnce(context.Background())
-
 	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountDaily5HSkipReasonFixedModelHidden, repo.accounts[0].Extra[accountDaily5HLastSkipReasonKey])
+	settings.OpenAIModel.FixedModelID = "gpt-5.4"
+	_, err = svc.settingService.UpdateAccountDaily5HTriggerSettings(context.Background(), settings)
+	require.NoError(t, err)
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	require.Equal(t, "gpt-5.4", executor.calls[0].ModelID)
 }
 
-func TestAccountDaily5HTriggerService_RunOnce_SkipsWhenNoFamilyModelIsAvailable(t *testing.T) {
-	protocolruntime.ResetForTest()
-	t.Cleanup(protocolruntime.ResetForTest)
-	now := time.Date(2026, 5, 8, 7, 25, 0, 0, time.UTC)
-	account := Account{
-		ID:             24,
-		Platform:       PlatformOpenAI,
-		Type:           AccountTypeOAuth,
-		Status:         StatusActive,
-		Schedulable:    true,
-		LifecycleState: AccountLifecycleNormal,
-		Extra: map[string]any{
-			"model_scope_v2": map[string]any{
-				"policy_mode": AccountModelPolicyModeWhitelist,
-				"entries": []any{
-					map[string]any{
-						"display_model_id": "friendly-standard",
-						"target_model_id":  "gpt-5.4",
-						"provider":         PlatformOpenAI,
-						"visibility_mode":  AccountModelVisibilityModeAlias,
-					},
-				},
-			},
-		},
+func TestAccountDaily5HTriggerService_AliasFallbackAndKnownCost(t *testing.T) {
+	svc, _, _, _ := daily5HFixture(t)
+	svc.pricingService = &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-5.4-mini": {InputCostPerToken: 1, OutputCostPerToken: 2},
+		"gpt-4.1-mini": {InputCostPerToken: 1, OutputCostPerToken: 1},
+	}}
+	models := []AvailableTestModel{{ID: "unknown-mini", Mode: "chat"}, {ID: "my-mini", TargetModelID: "gpt-4.1-mini", Mode: "chat"}, {ID: "gpt-5.4-mini", Mode: "chat"}}
+	require.Equal(t, "my-mini", svc.pickDaily5HModel(AccountDaily5HTypeOpenAI, models))
+	for _, tc := range []struct{ platform, model string }{{PlatformOpenAI, "gpt-5.4"}, {PlatformAnthropic, "claude-sonnet-4-6"}, {PlatformGemini, "gemini-2.5-pro"}} {
+		account := daily5HAccount(1, tc.platform, tc.model)
+		id, reason, _ := svc.selectModelForAccount(context.Background(), DefaultAccountDaily5HTriggerSettings(), &account)
+		require.Empty(t, reason)
+		require.Equal(t, tc.model, id)
 	}
-	repo := &accountDaily5HRepoStub{accounts: []Account{account}}
-	settings := NewSettingService(&settingRepoStub{values: map[string]string{}}, &config.Config{})
-	executor := &accountDaily5HExecutorStub{result: &BackgroundAccountTestResult{Status: "success"}}
-	svc := NewAccountDaily5HTriggerService(repo, executor, settings, nil, time.Minute)
-	svc.SetNow(func() time.Time { return now })
-	svc.SetLocation(time.UTC)
-	_, _ = settings.UpdateAccountDaily5HTriggerSettings(context.Background(), &AccountDaily5HTriggerSettings{
-		Enabled:              true,
-		SelectedAccountTypes: []string{AccountDaily5HTypeOpenAI},
-	})
-
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, AccountDaily5HTriggerStatusSkipped, repo.updateExtraCalls[0].updates[accountDaily5HLastStatusKey])
-	require.Equal(t, "2026-05-08", repo.updateExtraCalls[0].updates[accountDaily5HLastLocalDateKey])
-	require.Equal(t, AccountDaily5HSkipReasonNoFamilyModel, repo.updateExtraCalls[0].updates[accountDaily5HLastSkipReasonKey])
-	require.Equal(t, "No visible model in the required family is available for this account.", repo.updateExtraCalls[0].updates[accountDaily5HLastSummaryKey])
-
-	repo.accounts[0].Extra = map[string]any{
-		"manual_models": []any{
-			map[string]any{"model_id": "gpt-5.4-mini", "provider": PlatformOpenAI},
-		},
-		accountDaily5HLastLocalDateKey: "2026-05-08",
-	}
-	svc.runOnce(context.Background())
-
-	require.Empty(t, executor.calls)
-	require.Len(t, repo.updateExtraCalls, 1)
+	require.Empty(t, accountDaily5HTextModels([]AvailableTestModel{{ID: "gemini-3.1-flash-tts-preview"}, {ID: "gpt-image-2"}, {ID: "text-embedding-3-small"}}))
 }
 
-func containsDaily5HModel(items []AccountDaily5HTriggerModelOption, expected string) bool {
-	for _, item := range items {
-		if item.ModelID == expected {
-			return true
-		}
-	}
-	return false
-}
-
-func allDaily5HModelsContain(items []AccountDaily5HTriggerModelOption, needle string) bool {
-	for _, item := range items {
-		if !strings.Contains(strings.ToLower(item.ModelID), needle) {
-			return false
-		}
-	}
-	return true
+func TestAccountDaily5HTriggerService_LegacyFailureAndTerminalReauth(t *testing.T) {
+	svc, repo, executor, now := daily5HFixture(t, daily5HAccount(1, PlatformOpenAI, "gpt-5.4-mini"))
+	repo.accounts[0].Extra[accountDaily5HLastLocalDateKey] = "2026-05-08"
+	repo.accounts[0].Extra[accountDaily5HLastStatusKey] = "failed"
+	executor.result = &BackgroundAccountTestResult{Status: "failed", NeedsReauth: true}
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	*now = now.Add(time.Hour)
+	svc.runOnce(context.Background())
+	require.Len(t, executor.calls, 1)
+	require.Equal(t, true, repo.accounts[0].Extra[accountDaily5HStoppedKey])
 }

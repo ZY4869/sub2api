@@ -30,6 +30,9 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 	}
 	effortResolution := extractOpenAIReasoningEffortResolutionFromBody(input.payload, input.originalModel)
 	effortResolution = ApplyContextOpenAIReasoningPolicy(input.ctx, effortResolution, input.originalModel)
+	if effortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 	if normalizedPayload, err := applyOpenAIEffortResolutionToBodyBytes(input.payload, effortResolution); err == nil {
 		input.payload = normalizedPayload
 		input.payloadBytes = len(normalizedPayload)
@@ -56,6 +59,7 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 	eventCount := 0
 	tokenEventCount := 0
 	terminalEventCount := 0
+	activeTurnStarted := false
 	firstEventType := ""
 	lastEventType := ""
 	needModelReplace := false
@@ -73,6 +77,9 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 		upstreamMessage, readErr := input.lease.ReadMessageWithContextTimeout(input.ctx, s.openAIWSReadTimeout())
 		if readErr != nil {
 			input.lease.MarkBroken()
+			if activeTurnStarted && terminalEventCount == 0 && !clientDisconnected {
+				return nil, wrapOpenAIWSIngressTurnError("relay_failure", errors.New("upstream websocket closed before a terminal response event"), wroteDownstream)
+			}
 			return nil, wrapOpenAIWSIngressTurnError("read_upstream", fmt.Errorf("read upstream websocket event: %w", readErr), wroteDownstream)
 		}
 		eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(upstreamMessage)
@@ -85,6 +92,9 @@ func (s *OpenAIGatewayService) relayOpenAIWSIngressTurn(input openAIWSIngressTur
 				firstEventType = eventType
 			}
 			lastEventType = eventType
+		}
+		if eventType == "response.created" || eventType == "response.in_progress" {
+			activeTurnStarted = true
 		}
 		if eventType == "error" {
 			errCodeRaw, errTypeRaw, errMsgRaw := parseOpenAIWSErrorEventFields(upstreamMessage)

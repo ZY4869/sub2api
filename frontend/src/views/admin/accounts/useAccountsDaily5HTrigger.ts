@@ -16,6 +16,7 @@ export function useAccountsDaily5HTrigger(ctx: any) {
 const createDefaultDaily5HTriggerSettings =
   (): AccountDaily5HTriggerSettings => ({
     enabled: false,
+    trigger_time: "07:00",
     selected_account_types: ["chatgpt_oauth"],
     include_paused_accounts: false,
     ignore_free_accounts: false,
@@ -33,7 +34,7 @@ const applyDaily5HTriggerSettingsView = (
   value?: AccountDaily5HTriggerSettingsView | null,
 ) => {
   daily5HTriggerSettingsView.settings =
-    value?.settings || createDefaultDaily5HTriggerSettings();
+    { ...createDefaultDaily5HTriggerSettings(), ...value?.settings };
   daily5HTriggerSettingsView.candidates = Array.isArray(value?.candidates)
     ? value.candidates
     : [];

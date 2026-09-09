@@ -323,7 +323,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	openAIGPT55WhitelistBackfillService := service.ProvideOpenAIGPT55WhitelistBackfillService(settingRepository, accountRepository)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository, accountTestService, periodicJobLeaderGate)
 	proxyExpiryService := service.ProvideProxyExpiryService(proxyRepository, accountRepository, periodicJobLeaderGate)
-	accountDaily5HTriggerService := service.ProvideAccountDaily5HTriggerService(accountRepository, accountTestService, settingService, modelRegistryService, periodicJobLeaderGate)
+	accountDaily5HTriggerService := service.ProvideAccountDaily5HTriggerService(accountRepository, accountTestService, settingService, modelRegistryService, periodicJobLeaderGate, pricingService)
 	accountBlacklistCleanupService := service.ProvideAccountBlacklistCleanupService(accountRepository, periodicJobLeaderGate)
 	accountRateLimitRecoveryProbeService := service.ProvideAccountRateLimitRecoveryProbeService(accountRepository, accountTestService, rateLimitService, periodicJobLeaderGate)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository, emailService, emailTemplateService, userRepository, settingService, periodicJobLeaderGate)

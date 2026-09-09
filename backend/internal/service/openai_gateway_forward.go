@@ -25,6 +25,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if c != nil && c.Request != nil {
 		c.Request = c.Request.WithContext(ctx)
 	}
+	if shouldNormalizeStatelessNativeResponses(c, account) {
+		if normalized, changed, normalizeErr := NormalizeStatelessNativeResponsesBody(body, RoutingPlatformForAccount(account)); normalizeErr != nil {
+			return nil, normalizeErr
+		} else if changed {
+			body = normalized
+			logger.FromContext(ctx).Debug("openai.stateless_native_responses_normalized")
+		}
+	}
 	restrictionResult := s.detectCodexClientRestriction(c, account)
 	apiKeyID := getAPIKeyIDFromContext(c)
 	logCodexCLIOnlyDetection(ctx, c, account, apiKeyID, restrictionResult, body)
@@ -105,6 +113,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		normalizedBody, effortResolution, normalizeErr := normalizeOpenAIRequestBodyEffortBytes(originalBody, reqModel, originalModel, routingModel)
 		if normalizeErr == nil {
 			effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, reqModel, routingModel)
+			if effortResolution.Source == "group_policy_deny" {
+				return nil, ErrReasoningEffortOverLimit
+			}
 			if policyBody, policyErr := applyOpenAIEffortResolutionToBodyBytes(normalizedBody, effortResolution); policyErr == nil {
 				normalizedBody = policyBody
 			}
@@ -164,6 +175,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	liteRequest := account.IsOpenAIOAuth() && isOpenAIResponsesLiteRequest(c, reqBody, body)
 	effortResolution := normalizeOpenAIRequestBodyEffort(reqBody, originalModel, reqModel, routingModel)
 	effortResolution = ApplyContextOpenAIReasoningPolicy(ctx, effortResolution, originalModel, reqModel, routingModel)
+	if effortResolution.Source == "group_policy_deny" {
+		return nil, ErrReasoningEffortOverLimit
+	}
 	applyOpenAIEffortResolutionToReqBody(reqBody, effortResolution)
 	bodyModified := false
 	patchDisabled := false
@@ -223,7 +237,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("model", routingModel)
 		reqModel = routingModel
 	}
-	if isInstructionsEmpty(reqBody) {
+	if isInstructionsEmpty(reqBody) && !shouldNormalizeStatelessNativeResponses(c, account) {
 		reqBody["instructions"] = "You are a helpful coding assistant."
 		bodyModified = true
 		markPatchSet("instructions", "You are a helpful coding assistant.")
@@ -315,6 +329,18 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	// Enforce OpenAI Fast/Flex policy (service_tier) after all model/codex normalization.
+	if group := OpenAIReasoningPolicyGroupFromContext(ctx); group != nil {
+		if group.Platform != PlatformOpenAI && group.Platform != PlatformKimi && group.Platform != PlatformComposite {
+			group = nil
+		}
+		if group != nil {
+			if forced, forceErr := s.ApplyGroupOpenAIFastPolicy(ctx, account, group, reqBody); forceErr != nil {
+				return nil, forceErr
+			} else if forced {
+				bodyModified = true
+			}
+		}
+	}
 	if policyModified, policyErr := s.applyOpenAIFastPolicyToRequestBodyMap(ctx, account, reqBody); policyErr != nil {
 		msg := "This request is blocked by policy"
 		setOpsUpstreamError(c, http.StatusForbidden, msg, "")

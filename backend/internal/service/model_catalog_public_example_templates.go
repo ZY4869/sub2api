@@ -16,6 +16,7 @@ var (
 var publicModelCatalogExamplePageOrder = []string{
 	"common",
 	"openai-native",
+	"kimi",
 	"openai",
 	"anthropic",
 	"gemini",
@@ -26,6 +27,7 @@ var publicModelCatalogExamplePageOrder = []string{
 
 var publicModelCatalogExamplePages = map[string]string{
 	"common": `### OpenAI Responses
+使用详情页公布的模型 ID 和可用协议。仅收录、尚未接入专用协议的模型不提供调用示例。
 #### REST
 ` + "```bash" + `
 curl https://api.zyxai.de/v1/responses \
@@ -53,6 +55,30 @@ const response = await fetch("https://api.zyxai.de/v1/responses", {
 });
 
 console.log(await response.json());
+` + "```" + `
+`,
+	"kimi": `### Kimi Responses / Chat
+#### REST
+` + "```bash" + `
+curl https://api.zyxai.de/v1/responses \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kimi-k3",
+    "input": "用一句话介绍这个模型。",
+    "store": false
+  }'
+` + "```" + `
+
+Kimi 原生 Responses 请求按无状态方式转发；网关会清理 ` + "`previous_response_id`" + ` 并强制 ` + "`store=false`" + `。
+` + "```bash" + `
+curl https://api.zyxai.de/v1/chat/completions \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kimi-k3",
+    "messages": [{"role":"user","content":"用一句话介绍这个模型。"}]
+  }'
 ` + "```" + `
 `,
 	"openai": `### chat/completions

@@ -12,6 +12,15 @@ var modelCatalogSeedJSON []byte
 
 var bundledModelCatalogSeedEntries []ModelCatalogEntry
 
+func bundledModelCatalogMode(modelID string) string {
+	for _, entry := range bundledModelCatalogSeedEntries {
+		if entry.Model == modelID {
+			return entry.Mode
+		}
+	}
+	return ""
+}
+
 func init() {
 	if err := json.Unmarshal(modelCatalogSeedJSON, &bundledModelCatalogSeedEntries); err != nil {
 		panic(err)
